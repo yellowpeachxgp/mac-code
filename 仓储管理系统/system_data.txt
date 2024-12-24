@@ -1,0 +1,9 @@
+Products:
+2,éÙ×Ó,±¦±¦,1,0
+1,ÌÒ×Ó,±¦±¦,1,0
+Users:
+staff,staff123,1
+admin,admin123,0
+Purchases:
+1,0,0
+Sales:
