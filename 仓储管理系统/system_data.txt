@@ -1,9 +1,8 @@
 Products:
-2,éÙ×Ó,±¦±¦,1,0
-1,ÌÒ×Ó,±¦±¦,1,0
+2,æ©˜å­,æ°´æœ,231,0
+1,æ¡ƒå­,æ°´æœ,100,0
 Users:
-staff,staff123,1
 admin,admin123,0
+staff,staff123,1
 Purchases:
-1,0,0
 Sales:

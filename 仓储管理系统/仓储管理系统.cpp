@@ -1,50 +1,25 @@
 ﻿#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "UserControl.h" // 添加此行以包含用户控制模块
+#include "User.h"        // 添加此行以包含 User 结构体定义
+#include "Product.h"     // 新增：包含 Product 结构体定义
+#include "PurchaseRecord.h" // 新增：包含 PurchaseRecord 结构体定义
+#include "SaleRecord.h"  // 新增：包含 SaleRecord 结构体定义
+#include "Category.h"    // 新增：包含 Category 结构体定义
 
 #define MAX_NAME_LEN 100
 #define MAX_PASS_LEN 20
 
-// 产品信息结构体
-typedef struct Product {
-    int id;                     // 产品ID
-    char name[MAX_NAME_LEN];     // 产品名称
-    char category[MAX_NAME_LEN]; // 产品类别
-    int stock;                  // 当前库存
-    int sales;                  // 销售数量
-    struct Product* next;       // 链表的下一个产品
-} Product;
-
-// 用户信息结构体
-typedef struct User {
-    char username[MAX_NAME_LEN];  // 用户名
-    char password[MAX_PASS_LEN];  // 密码
-    int role;                     // 0:管理员, 1:仓库工作人员
-    struct User* next;            // 链表的下一个用户
-} User;
-
-// 进货记录结构体
-typedef struct PurchaseRecord {
-    int productId;                // 产品ID
-    int quantity;                 // 进货数量
-    char date[MAX_NAME_LEN];      // 进货日期
-    struct PurchaseRecord* next;  // 链表的下一个进货记录
-} PurchaseRecord;
-
-// 销售记录结构体
-typedef struct SaleRecord {
-    int productId;                // 产品ID
-    int quantity;                 // 销售数量
-    char date[MAX_NAME_LEN];      // 销售日期
-    struct SaleRecord* next;      // 链表的下一个销售记录
-} SaleRecord;
-
-// 产品类别信息结构体
-typedef struct Category {
-    char name[MAX_NAME_LEN];  // 类别名称
-    Product* productList;     // 该类别下的产品列表
-    struct Category* next;    // 链表的下一个类别
-} Category;
+// 删除重复的 Product 定义
+// typedef struct Product {
+//     int id;
+//     char name[MAX_NAME_LEN];
+//     char category[MAX_NAME_LEN];
+//     int stock;
+//     int sales;
+//     struct Product* next;
+// } Product;
 
 // 函数声明
 int login(User* userList);
@@ -63,11 +38,12 @@ void showStaffMenu();
 void adminOperations(Product** productList, User* userList, PurchaseRecord** purchaseList, SaleRecord** saleList);
 void staffOperations(Product* productList, SaleRecord* saleList);
 void sortAndDisplayBySales(Product* productList); // 新增函数声明
+void displayAllProducts(Product* productList); // 添加此行
 
 // 登录功能
 int login(User* userList) {
     char username[MAX_NAME_LEN] = { 0 }, password[MAX_PASS_LEN] = { 0 };
-    printf("请输入用户名: ");
+    printf("请输入账户名: ");
     if (scanf("%99s", username) != 1) { // 修改此行
         printf("用户名输入失败!\n");
         return -1;
@@ -83,6 +59,7 @@ int login(User* userList) {
     while (current != NULL) {
         if (strcmp(current->username, username) == 0 && strcmp(current->password, password) == 0) {
             printf("登录成功!\n");
+            displayUserInfo(current);  // 新增：登录成功后立即显示用户信息
             return current->role;  // 返回用户的角色（0为管理员，1为仓库工作人员）
         }
         current = current->next;
@@ -354,6 +331,28 @@ void sortAndDisplayBySales(Product* productList) {
     free(productArray);
 }
 
+// 实现 displayAllProducts 函数
+void displayAllProducts(Product* productList) {
+    Product* current = productList;
+    if (current == NULL) {
+        printf("当前没有仓储物品信息。\n");
+        return;
+    }
+    printf("========== 全部仓储物品信息 ==========\n");
+    printf("| %-5s | %-20s | %-15s | %-8s | %-8s |\n", "ID", "名称", "类别", "库存", "销售");
+    printf("---------------------------------------------------------------\n");
+    while (current != NULL) {
+        printf("| %-5d | %-20s | %-15s | %-8d | %-8d |\n",
+               current->id,
+               current->name,
+               current->category,
+               current->stock,
+               current->sales);
+        current = current->next;
+    }
+    printf("---------------------------------------------------------------\n");
+}
+
 // 进货管理
 void managePurchase(PurchaseRecord** purchaseList, Product* productList, int productId, int quantity, const char* date) {
     PurchaseRecord* newPurchase = (PurchaseRecord*)malloc(sizeof(PurchaseRecord));
@@ -421,7 +420,7 @@ void manageSale(SaleRecord** saleList, Product* productList, int productId, int 
 
 // 读取数据从文件
 void loadFromFile(Product** productList, User** userList, PurchaseRecord** purchaseList, SaleRecord** saleList) {
-    FILE* file = fopen("system_data.txt", "r"); // 修改此行
+    FILE* file = fopen("/Users/huangtao/code/仓储管理系统/system_data.txt", "r"); // 修改此行
     if (file == NULL) {
         printf("无法打开文件进行读取，可能是第一次运行程序。\n");
         return;
@@ -521,7 +520,7 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
 
 // 保存数据到文件
 void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseList, SaleRecord* saleList) {
-    FILE* file = fopen("system_data.txt", "w"); // 修改此行
+    FILE* file = fopen("/Users/huangtao/code/仓储管理系统/system_data.txt", "w"); // 修改此行
     if (file == NULL) { // 修改此行
         printf("无法打开文件进行保存!\n");
         return;
@@ -575,6 +574,8 @@ void showAdminMenu() {
     printf("7. 进货管理\n");                 // 原6号
     printf("8. 销售管理\n");                 // 原7号
     printf("9. 保存数据\n");                 // 原8号
+    printf("11. 修改我的密码\n");     // 新增
+    printf("12. 管理用户账户\n");     // 新增
     printf("0. 退出\n");
 }
 
@@ -586,12 +587,186 @@ void showStaffMenu() {
     printf("0. 退出\n");
 }
 
-// 管理员操作
-void adminOperations(Product** productList, User* userList, PurchaseRecord** purchaseList, SaleRecord** saleList) {
+// 主菜单
+void showMainModuleMenu() {
+    printf("\n========== 管理员主菜单 ==========\n");
+    printf("1. 产品管理\n");
+    printf("2. 用户管理\n");
+    printf("3. 进销管理\n");
+    printf("4. 系统功能\n");
+    printf("5. 保存数据\n"); // 新增：将保存数据选项独立到主菜单
+    printf("0. 退出\n");
+    printf("=================================\n");
+}
+
+// 二级菜单示例：产品管理
+void showProductMenu() {
+    printf("\n===== 产品管理 =====\n");
+    printf("1. 添加产品\n");
+    printf("2. 删除产品\n");
+    printf("3. 修改产品\n");
+    printf("4. 查询类别下的所有产品\n");
+    printf("5. 查询产品\n");
+    printf("6. 按销售量排序输出产品\n");
+    printf("7. 显示所有仓储物品\n"); // 新增此行
+    printf("0. 返回上一级\n");
+    printf("===================\n");
+}
+
+// 新增用于用户管理的二级菜单示例
+void showUserMenu() {
+    printf("\n===== 用户管理 =====\n");
+    printf("1. 管理用户账户\n");
+    printf("0. 返回上一级\n");
+    printf("===================\n");
+}
+
+void handleUserModule(User** userList) {
     int choice;
     do {
-        showAdminMenu();
-        printf("请输入操作选项: ");
+        showUserMenu();
+        printf("请选择操作: ");
+        if (scanf("%d", &choice) != 1) {
+            printf("输入错误!\n");
+            // 清空输入缓冲区
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF);
+            continue;
+        }
+        switch (choice) {
+            case 1:
+                manageUserAccounts(userList);
+                break;
+            case 0:
+                break;
+            default:
+                printf("无效选项，请重新输入!\n");
+        }
+    } while (choice != 0);
+}
+
+// 新增用于进销管理的二级菜单示例
+void showPurchaseSaleMenu() {
+    printf("\n===== 进销管理 =====\n");
+    printf("1. 进货操作\n");
+    printf("2. 销售操作\n");
+    // 移除原有的“9. 保存数据”选项
+    printf("0. 返回上一级\n");
+    printf("===================\n");
+}
+
+void handlePurchaseSaleModule(Product** productList,
+                              PurchaseRecord** purchaseList, 
+                              SaleRecord** saleList) {
+    int choice;
+    do {
+        showPurchaseSaleMenu();
+        printf("请选择操作: ");
+        if (scanf("%d", &choice) != 1) {
+            printf("输入错误!\n");
+            // 清空输入缓冲区
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF);
+            continue;
+        }
+        switch (choice) {
+            case 1: {
+                int id, qty;
+                char date[MAX_NAME_LEN] = {0};
+                printf("请输入进货的产品ID和数量: ");
+                // 清空输入缓冲区
+                int ch;
+                while ((ch = getchar()) != '\n' && ch != EOF);
+                if (scanf("%d %d", &id, &qty) != 2) {
+                    printf("输入错误!\n");
+                    // 清空输入缓冲区
+                    while ((ch = getchar()) != '\n' && ch != EOF);
+                    break;
+                }
+                printf("请输入进货日期: ");
+                if (scanf("%99s", date) != 1) {
+                    printf("输入错误!\n");
+                    // 清空输入缓冲区
+                    while ((ch = getchar()) != '\n' && ch != EOF);
+                    break;
+                }
+                managePurchase(purchaseList, *productList, id, qty, date);
+                break;
+            }
+            case 2: {
+                int id, qty;
+                char date[MAX_NAME_LEN] = {0};
+                printf("请输入销售的产品ID和数量: ");
+                // 清空输入缓冲区
+                int ch;
+                while ((ch = getchar()) != '\n' && ch != EOF);
+                if (scanf("%d %d", &id, &qty) != 2) {
+                    printf("输入错误!\n");
+                    // 清空输入缓冲区
+                    while ((ch = getchar()) != '\n' && ch != EOF);
+                    break;
+                }
+                printf("请输入销售日期: ");
+                if (scanf("%99s", date) != 1) {
+                    printf("输入错误!\n");
+                    // 清空输入缓冲区
+                    while ((ch = getchar()) != '\n' && ch != EOF);
+                    break;
+                }
+                manageSale(saleList, *productList, id, qty, date);
+                break;
+            }
+            case 0:
+                break;
+            default:
+                printf("无效选项，请重新输入!\n");
+        }
+    } while (choice != 0);
+}
+
+// 新增用于系统功能的二级菜单示例
+void showSystemMenu() {
+    printf("\n===== 系统功能 =====\n");
+    printf("1. 保存数据\n");
+    printf("2. 修改管理员密码\n");
+    printf("0. 返回上一级\n");
+    printf("===================\n");
+}
+
+void handleSystemModule(Product* productList, User* currentUser,
+                        PurchaseRecord* purchaseList, SaleRecord* saleList) {
+    int choice;
+    do {
+        showSystemMenu();
+        printf("请选择操作: ");
+        if (scanf("%d", &choice) != 1) {
+            printf("输入错误!\n");
+            // 清空输入缓冲区
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF);
+            continue;
+        }
+        switch (choice) {
+            case 1:
+                saveToFile(productList, NULL, purchaseList, saleList);
+                break;
+            case 2:
+                modifyAdminPassword(currentUser); 
+                break;
+            case 0:
+                break;
+            default:
+                printf("无效选项，请重新输入!\n");
+        }
+    } while (choice != 0);
+}
+
+void adminOperations(Product** productList, User* userList,
+                     PurchaseRecord** purchaseList, SaleRecord** saleList) {
+    int choice;
+    do {
+        showMainModuleMenu();
+        printf("请选择模块: ");
         if (scanf("%d", &choice) != 1) {
             printf("输入错误!\n");
             // 清空输入缓冲区
@@ -600,156 +775,139 @@ void adminOperations(Product** productList, User* userList, PurchaseRecord** pur
             choice = -1; // 设置为无效选项
             continue;
         }
-
         switch (choice) {
-        case 1: {
-            int id, stock;
-            char name[MAX_NAME_LEN] = { 0 }, category[MAX_NAME_LEN] = { 0 };
-            printf("请输入产品ID: ");
-            if (scanf("%d", &id) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
+            case 1: {
+                // 进入产品管理二级菜单
+                int productChoice;
+                do {
+                    showProductMenu();
+                    printf("请选择操作: ");
+                    if (scanf("%d", &productChoice) != 1) {
+                        printf("输入错误!\n");
+                        // 清空输入缓冲区
+                        int ch;
+                        while ((ch = getchar()) != '\n' && ch != EOF);
+                        continue;
+                    }
+                    switch (productChoice) {
+                        case 1: {
+                            int id, stock;
+                            char name[MAX_NAME_LEN] = { 0 }, category[MAX_NAME_LEN] = { 0 };
+                            printf("请输入产品ID: ");
+                            if (scanf("%d", &id) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            printf("请输入产品名称: ");
+                            if (scanf("%99s", name) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                break;
+                            }
+                            printf("请输入产品类别: ");
+                            if (scanf("%99s", category) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                break;
+                            }
+                            printf("请输入库存数量: ");
+                            if (scanf("%d", &stock) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            addProduct(productList, id, name, category, stock);
+                            break;
+                        }
+                        case 2: {
+                            int id;
+                            printf("请输入要删除的产品ID: ");
+                            if (scanf("%d", &id) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            deleteProduct(productList, id);
+                            break;
+                        }
+                        case 3: {
+                            int id;
+                            printf("请输入要修改的产品ID: ");
+                            if (scanf("%d", &id) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            modifyProduct(*productList, id);
+                            break;
+                        }
+                        case 4: { // 调整后的查询类别
+                            char category[MAX_NAME_LEN] = { 0 };
+                            printf("请输入要查询的类别名称: ");
+                            if (scanf("%99s", category) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                break;
+                            }
+                            queryByCategory(*productList, category);
+                            break;
+                        }
+                        case 5: { // 原4号查询产品
+                            int id;
+                            printf("请输入要查询的产品ID: ");
+                            if (scanf("%d", &id) != 1) { // 修改此行
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            queryProduct(*productList, id);
+                            break;
+                        }
+                        case 6: { // 修改后的第6项: 按销售量排序输出产品
+                            sortAndDisplayBySales(*productList);
+                            break;
+                        }
+                        case 7: { // 新增选项: 显示所有仓储物品
+                            displayAllProducts(*productList);
+                            break;
+                        }
+                        case 0:
+                            break;
+                        default:
+                            printf("无效选项，请重新输入!\n");
+                    }
+                } while (productChoice != 0);
                 break;
             }
-            printf("请输入产品名称: ");
-            if (scanf("%99s", name) != 1) { // 修改此行
-                printf("输入错误!\n");
+            case 2:
+                // 新增调用用户管理模块
+                handleUserModule(&userList);
                 break;
-            }
-            printf("请输入产品类别: ");
-            if (scanf("%99s", category) != 1) { // 修改此行
-                printf("输入错误!\n");
+            case 3:
+                // 新增调用进销管理模块
+                handlePurchaseSaleModule(productList, purchaseList, saleList);
                 break;
-            }
-            printf("请输入库存数量: ");
-            if (scanf("%d", &stock) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
+            case 4:
+                // 新增调用系统功能模块
+                handleSystemModule(*productList, userList, *purchaseList, *saleList);
                 break;
-            }
-            addProduct(productList, id, name, category, stock);
-            break;
-        }
-        case 2: {
-            int id;
-            printf("请输入要删除的产品ID: ");
-            if (scanf("%d", &id) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
+            case 5:
+                // 新增：处理保存数据逻辑
+                saveToFile(*productList, userList, *purchaseList, *saleList);
                 break;
-            }
-            deleteProduct(productList, id);
-            break;
-        }
-        case 3: {
-            int id;
-            printf("请输入要修改的产品ID: ");
-            if (scanf("%d", &id) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
+            case 0:
+                printf("退出系统!\n");
                 break;
-            }
-            modifyProduct(*productList, id);
-            break;
-        }
-        case 4: { // 调整后的查询类别
-            char category[MAX_NAME_LEN] = { 0 };
-            printf("请输入要查询的类别名称: ");
-            if (scanf("%99s", category) != 1) { // 修改此行
-                printf("输入错误!\n");
-                break;
-            }
-            queryByCategory(*productList, category);
-            break;
-        }
-        case 5: { // 原4号查询产品
-            int id;
-            printf("请输入要查询的产品ID: ");
-            if (scanf("%d", &id) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
-                break;
-            }
-            queryProduct(*productList, id);
-            break;
-        }
-        case 6: { // 修改后的第6项: 按销售量排序输出产品
-            sortAndDisplayBySales(*productList);
-            break;
-        }
-        case 7: { // 原6号进货管理
-            int productId, quantity;
-            char date[MAX_NAME_LEN] = { 0 };
-            printf("请输入进货的产品ID: ");
-            if (scanf("%d", &productId) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
-                break;
-            }
-            printf("请输入进货数量: ");
-            if (scanf("%d", &quantity) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
-                break;
-            }
-            printf("请输入进货日期: ");
-            if (scanf("%99s", date) != 1) { // 修改此行
-                printf("输入错误!\n");
-                break;
-            }
-            managePurchase(purchaseList, *productList, productId, quantity, date);
-            break;
-        }
-        case 8: { // 原7号销售管理
-            int productId, quantity;
-            char date[MAX_NAME_LEN] = { 0 };
-            printf("请输入销售的产品ID: ");
-            if (scanf("%d", &productId) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
-                break;
-            }
-            printf("请输入销售数量: ");
-            if (scanf("%d", &quantity) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
-                while ((ch = getchar()) != '\n' && ch != EOF);
-                break;
-            }
-            printf("请输入销售日期: ");
-            if (scanf("%99s", date) != 1) { // 修改此行
-                printf("输入错误!\n");
-                break;
-            }
-            manageSale(saleList, *productList, productId, quantity, date);
-            break;
-        }
-        case 9: { // 原8号保存数据
-            saveToFile(*productList, userList, *purchaseList, *saleList);
-            break;
-        }
-        case 0:
-            printf("退出系统!\n");
-            break;
-        default:
-            printf("无效选项，请重新输入!\n");
+            default:
+                printf("无效选项，请重新输入!\n");
         }
     } while (choice != 0);
 }
@@ -853,13 +1011,12 @@ int main() {
         return 0;  // 登录失败
     }
 
-    // 根据角色进入不同的操作菜单
+    // 如果是管理员账户，则自动显示当前管理员信息及所有用户信息
     if (role == 0) {
-        // 管理员操作
+        displayAdminInfo(userList);  // 显示当前管理员（假设第一个用户即当前管理者）
+        displayAllUsers(userList);   // 额外显示所有用户信息
         adminOperations(&productList, userList, &purchaseList, &saleList);
-    }
-    else if (role == 1) {
-        // 仓库工作人员操作
+    } else if (role == 1) {
         staffOperations(productList, saleList);
     }
 
