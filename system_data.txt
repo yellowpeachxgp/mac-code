@@ -1,0 +1,8 @@
+Products:
+1,桃子,水果,98,2
+Users:
+admin,admin123,0
+staff,staff123,1
+Purchases:
+Sales:
+1,2,13
