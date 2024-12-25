@@ -4,7 +4,8 @@ CC = gcc
 CFLAGS = -Wall -g
 
 # 只保留项目中真正存在的 .cpp 文件
-SRCS = 仓储管理系统.cpp UserControl.cpp
+# 移除 UserControl.cpp
+SRCS = 仓储管理系统.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = 仓储管理系统
 

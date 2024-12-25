@@ -1,7 +1,6 @@
 ﻿#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "UserControl.h" // 添加此行以包含用户控制模块
 #include "User.h"        // 添加此行以包含 User 结构体定义
 #include "Product.h"     // 新增：包含 Product 结构体定义
 #include "PurchaseRecord.h" // 新增：包含 PurchaseRecord 结构体定义
@@ -10,16 +9,6 @@
 
 #define MAX_NAME_LEN 100
 #define MAX_PASS_LEN 20
-
-// 删除重复的 Product 定义
-// typedef struct Product {
-//     int id;
-//     char name[MAX_NAME_LEN];
-//     char category[MAX_NAME_LEN];
-//     int stock;
-//     int sales;
-//     struct Product* next;
-// } Product;
 
 // 函数声明
 int login(User* userList);
@@ -962,6 +951,36 @@ void staffOperations(Product* productList, SaleRecord* saleList) {
         }
     } while (choice != 0);
 }
+
+// 将原 UserControl.cpp 中的函数合并至此处
+// ====================== UserControl Functions Start ======================
+
+// 示例：显示当前管理员的账户信息
+void displayAdminInfo(User* currentUser) {
+    // ...existing code (from UserControl.cpp)...
+}
+
+// 示例：显示当前登录用户的信息
+void displayUserInfo(User* currentUser) {
+    // ...existing code (from UserControl.cpp)...
+}
+
+// 示例：显示所有用户
+void displayAllUsers(User* userList) {
+    // ...existing code (from UserControl.cpp)...
+}
+
+// 示例：修改管理员密码
+void modifyAdminPassword(User* currentUser) {
+    // ...existing code (from UserControl.cpp)...
+}
+
+// 示例：管理用户账户
+void manageUserAccounts(User** userList) {
+    // ...existing code (from UserControl.cpp)...
+}
+
+// ====================== UserControl Functions End ========================
 
 // 主函数
 int main() {

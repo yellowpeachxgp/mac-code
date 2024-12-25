@@ -35,6 +35,13 @@ void adminOperations(Product** productList, User* userList, PurchaseRecord** pur
 void staffOperations(Product* productList, SaleRecord* saleList);
 void displayAllProducts(Product* productList);
 
+// 新增以下函数原型
+void displayUserInfo(User* currentUser);
+void manageUserAccounts(User** userList);
+void modifyAdminPassword(User* currentUser);
+void displayAdminInfo(User* currentUser);
+void displayAllUsers(User* userList);
+
 // ...existing code...
 
 #endif // USER_H
