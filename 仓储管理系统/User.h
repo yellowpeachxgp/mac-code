@@ -18,7 +18,7 @@ typedef struct User {
 } User;
 
 // 函数声明
-int login(User* userList);
+User* login(User* userList);
 void addProduct(Product** productList, int id, const char* name, const char* category, int stock);
 void deleteProduct(Product** productList, int id);
 void modifyProduct(Product* productList, int id);

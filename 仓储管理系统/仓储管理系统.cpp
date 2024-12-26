@@ -11,7 +11,7 @@
 #define MAX_PASS_LEN 20
 
 // 函数声明
-int login(User* userList);
+User* login(User* userList); // 修改登录函数的返回类型
 void addProduct(Product** productList, int id, const char* name, const char* category, int stock);
 void deleteProduct(Product** productList, int id);
 void modifyProduct(Product* productList, int id);
@@ -24,24 +24,24 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
 void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseList, SaleRecord* saleList);
 void showAdminMenu();
 void showStaffMenu();
-void adminOperations(Product** productList, User* userList, PurchaseRecord** purchaseList, SaleRecord** saleList);
+void adminOperations(Product** productList, User* userList, PurchaseRecord** purchaseList, SaleRecord** saleList, User* currentUser); // 扩展 adminOperations 函数签名
 void staffOperations(Product* productList, SaleRecord* saleList);
 void sortAndDisplayBySales(Product* productList); // 新增函数声明
 void displayAllProducts(Product* productList); // 添加此行
 
 // 登录功能
-int login(User* userList) {
+User* login(User* userList) { // 修改登录函数的返回类型
     char username[MAX_NAME_LEN] = { 0 }, password[MAX_PASS_LEN] = { 0 };
     printf("请输入账户名: ");
     if (scanf("%99s", username) != 1) { // 修改此行
         printf("用户名输入失败!\n");
-        return -1;
+        return NULL; // 失败返回 NULL
     }
 
     printf("请输入密码: ");
     if (scanf("%19s", password) != 1) { // 修改此行
         printf("密码输入失败!\n");
-        return -1;
+        return NULL; // 失败返回 NULL
     }
 
     User* current = userList;
@@ -49,13 +49,13 @@ int login(User* userList) {
         if (strcmp(current->username, username) == 0 && strcmp(current->password, password) == 0) {
             printf("登录成功!\n");
             displayUserInfo(current);  // 新增：登录成功后立即显示用户信息
-            return current->role;  // 返回用户的角色（0为管理员，1为仓库工作人员）
+            return current; // 登录成功时，改为返回当前用户指针
         }
         current = current->next;
     }
 
     printf("用户名或密码错误!\n");
-    return -1; // 登录失败
+    return NULL; // 失败返回 NULL
 }
 
 // 增加产品
@@ -551,23 +551,6 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
     printf("数据保存成功!\n");
 }
 
-// 显示管理员菜单
-void showAdminMenu() {
-    printf("\n管理员菜单:\n");
-    printf("1. 添加产品\n");
-    printf("2. 删除产品\n");
-    printf("3. 修改产品\n");
-    printf("4. 查询类别下的所有产品\n"); // 调整后的位置
-    printf("5. 查询产品\n");                 // 原4号
-    printf("6. 按销售量排序输出产品\n");       // 修改后的第6项
-    printf("7. 进货管理\n");                 // 原6号
-    printf("8. 销售管理\n");                 // 原7号
-    printf("9. 保存数据\n");                 // 原8号
-    printf("11. 修改我的密码\n");     // 新增
-    printf("12. 管理用户账户\n");     // 新增
-    printf("0. 退出\n");
-}
-
 // 显示仓库工作人员菜单
 void showStaffMenu() {
     printf("\n仓库工作人员菜单:\n");
@@ -722,7 +705,8 @@ void showSystemMenu() {
     printf("===================\n");
 }
 
-void handleSystemModule(Product* productList, User* currentUser,
+// 修改函数签名，增加 User* userList 参数
+void handleSystemModule(Product* productList, User* userList,
                         PurchaseRecord* purchaseList, SaleRecord* saleList) {
     int choice;
     do {
@@ -737,10 +721,11 @@ void handleSystemModule(Product* productList, User* currentUser,
         }
         switch (choice) {
             case 1:
-                saveToFile(productList, NULL, purchaseList, saleList);
+                // 将原先传递 NULL 改为 userList，以正确保存用户信息
+                saveToFile(productList, userList, purchaseList, saleList);
                 break;
             case 2:
-                modifyAdminPassword(currentUser); 
+                modifyAdminPassword(userList); 
                 break;
             case 0:
                 break;
@@ -750,8 +735,9 @@ void handleSystemModule(Product* productList, User* currentUser,
     } while (choice != 0);
 }
 
+// 在 adminOperations 中，调用 handleSystemModule 时，带上 userList
 void adminOperations(Product** productList, User* userList,
-                     PurchaseRecord** purchaseList, SaleRecord** saleList) {
+                     PurchaseRecord** purchaseList, SaleRecord** saleList, User* currentUser) { // 扩展 adminOperations 函数签名
     int choice;
     do {
         showMainModuleMenu();
@@ -886,7 +872,7 @@ void adminOperations(Product** productList, User* userList,
                 break;
             case 4:
                 // 新增调用系统功能模块
-                handleSystemModule(*productList, userList, *purchaseList, *saleList);
+                handleSystemModule(*productList, userList, *purchaseList, *saleList); // 在处理系统功能时，将当前登录用户指针正确传递给 handleSystemModule
                 break;
             case 5:
                 // 新增：处理保存数据逻辑
@@ -955,29 +941,184 @@ void staffOperations(Product* productList, SaleRecord* saleList) {
 // 将原 UserControl.cpp 中的函数合并至此处
 // ====================== UserControl Functions Start ======================
 
-// 示例：显示当前管理员的账户信息
 void displayAdminInfo(User* currentUser) {
-    // ...existing code (from UserControl.cpp)...
+    // 如果是管理员，则输出其关键信息
+    if (!currentUser || currentUser->role != 0) {
+        printf("当前用户不是管理员或无效。\n");
+        return;
+    }
+    printf("管理员账户信息:\n");
+    printf("用户名: %s\n", currentUser->username);
+    printf("角色: 管理员\n");
+    // ...existing code if needed...
 }
 
-// 示例：显示当前登录用户的信息
 void displayUserInfo(User* currentUser) {
-    // ...existing code (from UserControl.cpp)...
+    // 显示当前登录用户的基本信息
+    if (!currentUser) {
+        printf("用户信息无效。\n");
+        return;
+    }
+    printf("当前登录用户信息:\n");
+    printf("用户名: %s\n", currentUser->username);
+    if (currentUser->role == 0) {
+        printf("角色: 管理员\n");
+    } else {
+        printf("角色: 仓库工作人员\n");
+    }
+    // ...existing code if needed...
 }
 
-// 示例：显示所有用户
 void displayAllUsers(User* userList) {
-    // ...existing code (from UserControl.cpp)...
+    // 遍历并打印所有用户信息
+    if (!userList) {
+        printf("当前无用户。\n");
+        return;
+    }
+    printf("系统用户列表:\n");
+    User* temp = userList;
+    while (temp) {
+        printf("用户名: %s | 角色: %s\n", 
+               temp->username, 
+               temp->role == 0 ? "管理员" : "仓库工作人员");
+        temp = temp->next;
+    }
+    // ...existing code if needed...
 }
 
 // 示例：修改管理员密码
 void modifyAdminPassword(User* currentUser) {
-    // ...existing code (from UserControl.cpp)...
+    char newPass[MAX_PASS_LEN];
+    printf("请输入新密码: ");
+    if (scanf("%19s", newPass) != 1) {
+        printf("输入错误!\n");
+        // 清空输入缓冲区
+        int ch;
+        while ((ch = getchar()) != '\n' && ch != EOF);
+        return;
+    }
+    strncpy(currentUser->password, newPass, MAX_PASS_LEN - 1);
+    currentUser->password[MAX_PASS_LEN - 1] = '\0';
+    printf("管理员密码修改成功!\n");
 }
 
 // 示例：管理用户账户
 void manageUserAccounts(User** userList) {
-    // ...existing code (from UserControl.cpp)...
+    int choice = 0;
+    do {
+        printf("\n===== 管理用户账户 =====\n");
+        printf("1. 添加用户\n");
+        printf("2. 删除用户\n");
+        printf("3. 修改用户密码\n");
+        printf("0. 返回上一级\n");
+        printf("请选择操作: ");
+
+        if (scanf("%d", &choice) != 1) {
+            printf("输入错误!\n");
+            // 清空输入缓冲区
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF);
+            continue;
+        }
+
+        switch (choice) {
+            case 1: {
+                // 交互式添加新用户
+                char username[MAX_NAME_LEN], password[MAX_PASS_LEN];
+                int role;
+                printf("请输入用户名: ");
+                if (scanf("%99s", username) != 1) {
+                    printf("输入错误!\n");
+                    break;
+                }
+                printf("请输入密码: ");
+                if (scanf("%19s", password) != 1) {
+                    printf("输入错误!\n");
+                    break;
+                }
+                printf("请输入角色 (0-管理员, 1-仓库工作人员): ");
+                if (scanf("%d", &role) != 1) {
+                    printf("输入错误!\n");
+                    break;
+                }
+                User* newUser = (User*)malloc(sizeof(User));
+                if (newUser != NULL) {
+                    strncpy(newUser->username, username, MAX_NAME_LEN - 1);
+                    newUser->username[MAX_NAME_LEN - 1] = '\0';
+                    strncpy(newUser->password, password, MAX_PASS_LEN - 1);
+                    newUser->password[MAX_PASS_LEN - 1] = '\0';
+                    newUser->role = role;
+                    newUser->next = *userList;
+                    *userList = newUser;
+                    printf("成功添加新用户!\n");
+                } else {
+                    printf("内存分配失败!\n");
+                }
+                break;
+            }
+            case 2: {
+                // 交互式删除用户
+                char username[MAX_NAME_LEN];
+                printf("请输入要删除的用户名: ");
+                if (scanf("%99s", username) != 1) {
+                    printf("输入错误!\n");
+                    break;
+                }
+                User* current = *userList;
+                User* previous = NULL;
+                while (current != NULL) {
+                    if (strcmp(current->username, username) == 0) {
+                        if (previous == NULL) {
+                            *userList = current->next;
+                        } else {
+                            previous->next = current->next;
+                        }
+                        free(current);
+                        printf("成功删除指定用户!\n");
+                        break;
+                    }
+                    previous = current;
+                    current = current->next;
+                }
+                if (current == NULL) {
+                    printf("未找到指定用户!\n");
+                }
+                break;
+            }
+            case 3: {
+                // 交互式修改用户密码
+                char username[MAX_NAME_LEN], newPassword[MAX_PASS_LEN];
+                printf("请输入要修改密码的用户名: ");
+                if (scanf("%99s", username) != 1) {
+                    printf("输入错误!\n");
+                    break;
+                }
+                printf("请输入新密码: ");
+                if (scanf("%19s", newPassword) != 1) {
+                    printf("输入错误!\n");
+                    break;
+                }
+                User* current = *userList;
+                while (current != NULL) {
+                    if (strcmp(current->username, username) == 0) {
+                        strncpy(current->password, newPassword, MAX_PASS_LEN - 1);
+                        current->password[MAX_PASS_LEN - 1] = '\0';
+                        printf("成功修改用户密码!\n");
+                        break;
+                    }
+                    current = current->next;
+                }
+                if (current == NULL) {
+                    printf("未找到指定用户!\n");
+                }
+                break;
+            }
+            case 0:
+                break;
+            default:
+                printf("无效选项，请重新输入!\n");
+        }
+    } while (choice != 0);
 }
 
 // ====================== UserControl Functions End ========================
@@ -1024,18 +1165,17 @@ int main() {
     }
 
     // 登录操作
-    int role = login(userList);
-    if (role == -1) {
+    User* currentUser = login(userList); // 使用新的登录函数
+    if (!currentUser) {
         printf("登录失败，程序退出。\n");
         return 0;  // 登录失败
     }
 
     // 如果是管理员账户，则自动显示当前管理员信息及所有用户信息
-    if (role == 0) {
-        displayAdminInfo(userList);  // 显示当前管理员（假设第一个用户即当前管理者）
+    if (currentUser->role == 0) {
         displayAllUsers(userList);   // 额外显示所有用户信息
-        adminOperations(&productList, userList, &purchaseList, &saleList);
-    } else if (role == 1) {
+        adminOperations(&productList, userList, &purchaseList, &saleList, currentUser); // 将当前用户指针传给 adminOperations
+    } else if (currentUser->role == 1) {
         staffOperations(productList, saleList);
     }
 

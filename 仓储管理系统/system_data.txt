@@ -1,8 +1,11 @@
 Products:
+1,桃子,水果,102,0
 2,橘子,水果,231,0
-1,桃子,水果,100,0
 Users:
-admin,admin123,0
+user,yellowpeach,1
 staff,staff123,1
+admin,admin111,0
 Purchases:
+1,2,1
 Sales:
+3,2,2
