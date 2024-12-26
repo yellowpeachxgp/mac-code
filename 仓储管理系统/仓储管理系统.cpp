@@ -206,6 +206,16 @@ void queryProduct(Product* productList, int id) {
     Product* current = productList;
     while (current != NULL) {
         if (current->id == id) {
+            float currentTotalCost = current->purchasePrice * current->stock;
+            float totalRevenue = current->salePrice * current->sales;
+            float usedCost = current->purchasePrice * current->sales;
+            float totalProfitRate = (totalRevenue != 0.0f)
+                ? ((totalRevenue - currentTotalCost) / totalRevenue) * 100.0f : 0.0f;
+            float grossMarginRate = (totalRevenue != 0.0f)
+                ? ((totalRevenue - usedCost) / totalRevenue) * 100.0f : 0.0f;
+            float singleSaleRate = (current->salePrice != 0.0f)
+                ? ((current->salePrice - current->purchasePrice) / current->salePrice) * 100.0f : 0.0f;
+
             printf("产品ID: %d\n", current->id);
             printf("产品名称: %s\n", current->name);
             printf("产品类别: %s\n", current->category);
@@ -214,6 +224,10 @@ void queryProduct(Product* productList, int id) {
             printf("进货总成本: %.2f\n", current->totalPurchaseCost);
             printf("销售总成本: %.2f\n", current->totalSaleCost);
             printf("利润率: %.2f%%\n", current->profitMargin);
+            printf("现存总成本(进货价×当前库存): %.2f\n", currentTotalCost);
+            printf("总利润率(含未售库存): %.2f%%\n", totalProfitRate);
+            printf("毛利润率(仅已售部分): %.2f%%\n", grossMarginRate);
+            printf("单次销售利润率(单品): %.2f%%\n", singleSaleRate);
             return;
         }
         current = current->next;
@@ -255,6 +269,16 @@ void queryByCategory(Product* productList, const char* category) {
     printf("---------------------------\n");
     while (current != NULL) {
         if (strcmp(current->category, category) == 0) {
+            float currentTotalCost = current->purchasePrice * current->stock;
+            float totalRevenue = current->salePrice * current->sales;
+            float usedCost = current->purchasePrice * current->sales;
+            float totalProfitRate = (totalRevenue != 0.0f)
+                ? ((totalRevenue - currentTotalCost) / totalRevenue) * 100.0f : 0.0f;
+            float grossMarginRate = (totalRevenue != 0.0f)
+                ? ((totalRevenue - usedCost) / totalRevenue) * 100.0f : 0.0f;
+            float singleSaleRate = (current->salePrice != 0.0f)
+                ? ((current->salePrice - current->purchasePrice) / current->salePrice) * 100.0f : 0.0f;
+
             printf("产品ID: %d\n", current->id);
             printf("产品名称: %s\n", current->name);
             printf("产品类别: %s\n", current->category);
@@ -263,6 +287,10 @@ void queryByCategory(Product* productList, const char* category) {
             printf("进货总成本: %.2f\n", current->totalPurchaseCost);
             printf("销售总成本: %.2f\n", current->totalSaleCost);
             printf("利润率: %.2f%%\n", current->profitMargin);
+            printf("现存总成本(进货价×当前库存): %.2f\n", currentTotalCost);
+            printf("总利润率(含未售库存): %.2f%%\n", totalProfitRate);
+            printf("毛利润率(仅已售部分): %.2f%%\n", grossMarginRate);
+            printf("单次销售利润率(单品): %.2f%%\n", singleSaleRate);
             printf("---------------------------\n");
             found = 1;
         }
@@ -316,20 +344,17 @@ void sortAndDisplayBySales(Product* productList) {
 
     // 输出排序后的产品
     printf("按销售量排序的产品列表:\n");
-    printf("-----------------------------------------------------------------------\n");
-    printf("| %-5s | %-20s | %-8s | %-8s | %-8s | %-10s | %-10s | %-8s |\n",
-           "ID", "名称", "库存", "销售", "进货价", "进货总成本", "销售总成本", "利润率");
-    printf("-----------------------------------------------------------------------\n");
+    printf("---------------------------------------------------------------------------------\n");
+    printf("| %-5s | %-20s | %-8s | %-8s | %-8s | %-10s | %-10s | %-8s | %-10s |\n",
+           "ID", "名称", "库存", "销售", "进货价", "进货总成本", "销售总成本", "利润率", "单次销售率");
+    printf("---------------------------------------------------------------------------------\n");
     for (int i = 0; i < count; i++) {
-        printf("| %-5d | %-20s | %-8d | %-8d | %-8.2f | %-10.2f | %-10.2f | %-7.2f%% |\n",
-               productArray[i]->id,
-               productArray[i]->name,
-               productArray[i]->stock,
-               productArray[i]->sales,
-               productArray[i]->purchasePrice,
-               productArray[i]->totalPurchaseCost,
-               productArray[i]->totalSaleCost,
-               productArray[i]->profitMargin);
+        Product* p = productArray[i];
+        float singleSaleRate = (p->salePrice != 0.0f)
+            ? ((p->salePrice - p->purchasePrice) / p->salePrice) * 100.0f : 0.0f;
+        printf("| %-5d | %-20s | %-8d | %-8d | %-8.2f | %-10.2f | %-10.2f | %-7.2f%% | %-9.2f%% |\n",
+               p->id, p->name, p->stock, p->sales, p->purchasePrice,
+               p->totalPurchaseCost, p->totalSaleCost, p->profitMargin, singleSaleRate);
     }
     printf("--------------------------------------------------\n");
 
@@ -344,11 +369,13 @@ void displayAllProducts(Product* productList) {
         return;
     }
     printf("========== 全部仓储物品信息 ==========\n");
-    printf("| %-5s | %-20s | %-10s | %-8s | %-8s | %-10s | %-10s | %-8s |\n",
-           "ID", "名称", "类别", "库存", "销售", "进货总成本", "销售总成本", "利润率");
+    printf("| %-5s | %-20s | %-10s | %-8s | %-8s | %-10s | %-10s | %-8s | %-8s |\n",
+           "ID", "名称", "类别", "库存", "销售", "进货总成本", "销售总成本", "利润率", "单次销售率");
     printf("---------------------------------------------------------------\n");
     while (current != NULL) {
-        printf("| %-5d | %-20s | %-10s | %-8d | %-8d | %-10.2f | %-10.2f | %-7.2f%% |\n",
+        float singleSaleRate = (current->salePrice != 0.0f)
+            ? ((current->salePrice - current->purchasePrice) / current->salePrice) * 100.0f : 0.0f;
+        printf("| %-5d | %-20s | %-10s | %-8d | %-8d | %-10.2f | %-10.2f | %-7.2f%% | %-8.2f%% |\n",
                current->id,
                current->name,
                current->category,
@@ -356,7 +383,8 @@ void displayAllProducts(Product* productList) {
                current->sales,
                current->totalPurchaseCost,
                current->totalSaleCost,
-               current->profitMargin);
+               current->profitMargin,
+               singleSaleRate);
         current = current->next;
     }
     printf("---------------------------------------------------------------\n");
