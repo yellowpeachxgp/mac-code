@@ -66,6 +66,17 @@ void addProduct(Product** productList, int id, const char* name, const char* cat
         return;
     }
 
+    // 在创建新产品前，先检查ID是否已存在
+    Product* existing = *productList;
+    while (existing != NULL) {
+        if (existing->id == id) {
+            printf("ID %d 已存在，无法添加产品!\n", id);
+            free(newProduct);
+            return;
+        }
+        existing = existing->next;
+    }
+
     newProduct->id = id;
     strncpy(newProduct->name, name, MAX_NAME_LEN - 1);
     newProduct->name[MAX_NAME_LEN - 1] = '\0';
@@ -142,6 +153,18 @@ void modifyProduct(Product* productList, int id) {
                         int ch;
                         while ((ch = getchar()) != '\n' && ch != EOF);
                         break;
+                    }
+                    // 检查新的ID是否已被占用
+                    Product* temp = productList;
+                    while (temp != NULL) {
+                        if (temp->id == newId && temp != current) {
+                            printf("ID %d 已存在，无法修改!\n", newId);
+                            // 清空输入缓冲区或直接返回，避免后续覆盖
+                            int ch;
+                            while ((ch = getchar()) != '\n' && ch != EOF);
+                            break;
+                        }
+                        temp = temp->next;
                     }
                     current->id = newId;
                     printf("产品ID修改成功!\n");
