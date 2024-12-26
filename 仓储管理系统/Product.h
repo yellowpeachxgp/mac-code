@@ -9,6 +9,12 @@ typedef struct Product {
     char category[MAX_NAME_LEN];
     int stock;
     int sales;
+    float purchasePrice;  // 新增：进货价
+    float salePrice;      // 新增：销售价
+    // 新增字段
+    float totalPurchaseCost; 
+    float totalSaleCost;
+    float profitMargin;
     struct Product* next;
 } Product;
 

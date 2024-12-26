@@ -12,7 +12,7 @@
 
 // 函数声明
 User* login(User* userList); // 修改登录函数的返回类型
-void addProduct(Product** productList, int id, const char* name, const char* category, int stock);
+void addProduct(Product** productList, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice); // 修改函数声明
 void deleteProduct(Product** productList, int id);
 void modifyProduct(Product* productList, int id);
 void queryProduct(Product* productList, int id);
@@ -59,7 +59,7 @@ User* login(User* userList) { // 修改登录函数的返回类型
 }
 
 // 增加产品
-void addProduct(Product** productList, int id, const char* name, const char* category, int stock) {
+void addProduct(Product** productList, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice) { // 修改函数签名
     Product* newProduct = (Product*)malloc(sizeof(Product));
     if (newProduct == NULL) {
         printf("内存分配失败!\n");
@@ -73,6 +73,11 @@ void addProduct(Product** productList, int id, const char* name, const char* cat
     newProduct->category[MAX_NAME_LEN - 1] = '\0';
     newProduct->stock = stock;
     newProduct->sales = 0;
+    newProduct->purchasePrice = purchasePrice; // 新增
+    newProduct->salePrice = salePrice; // 新增
+    newProduct->totalPurchaseCost = 0.0f; // 新增
+    newProduct->totalSaleCost = 0.0f; // 新增
+    newProduct->profitMargin = 0.0f; // 新增
     newProduct->next = *productList;
     *productList = newProduct;
 
@@ -206,6 +211,9 @@ void queryProduct(Product* productList, int id) {
             printf("产品类别: %s\n", current->category);
             printf("库存数量: %d\n", current->stock);
             printf("已售数量: %d\n", current->sales);
+            printf("进货总成本: %.2f\n", current->totalPurchaseCost);
+            printf("销售总成本: %.2f\n", current->totalSaleCost);
+            printf("利润率: %.2f%%\n", current->profitMargin);
             return;
         }
         current = current->next;
@@ -249,8 +257,12 @@ void queryByCategory(Product* productList, const char* category) {
         if (strcmp(current->category, category) == 0) {
             printf("产品ID: %d\n", current->id);
             printf("产品名称: %s\n", current->name);
+            printf("产品类别: %s\n", current->category);
             printf("库存数量: %d\n", current->stock);
             printf("已售数量: %d\n", current->sales);
+            printf("进货总成本: %.2f\n", current->totalPurchaseCost);
+            printf("销售总成本: %.2f\n", current->totalSaleCost);
+            printf("利润率: %.2f%%\n", current->profitMargin);
             printf("---------------------------\n");
             found = 1;
         }
@@ -304,16 +316,20 @@ void sortAndDisplayBySales(Product* productList) {
 
     // 输出排序后的产品
     printf("按销售量排序的产品列表:\n");
-    printf("--------------------------------------------------\n");
-    printf("| %-5s | %-20s | %-15s | %-8s | %-8s |\n", "ID", "名称", "类别", "库存", "销售");
-    printf("--------------------------------------------------\n");
+    printf("-----------------------------------------------------------------------\n");
+    printf("| %-5s | %-20s | %-8s | %-8s | %-8s | %-10s | %-10s | %-8s |\n",
+           "ID", "名称", "库存", "销售", "进货价", "进货总成本", "销售总成本", "利润率");
+    printf("-----------------------------------------------------------------------\n");
     for (int i = 0; i < count; i++) {
-        printf("| %-5d | %-20s | %-15s | %-8d | %-8d |\n",
-            productArray[i]->id,
-            productArray[i]->name,
-            productArray[i]->category,
-            productArray[i]->stock,
-            productArray[i]->sales);
+        printf("| %-5d | %-20s | %-8d | %-8d | %-8.2f | %-10.2f | %-10.2f | %-7.2f%% |\n",
+               productArray[i]->id,
+               productArray[i]->name,
+               productArray[i]->stock,
+               productArray[i]->sales,
+               productArray[i]->purchasePrice,
+               productArray[i]->totalPurchaseCost,
+               productArray[i]->totalSaleCost,
+               productArray[i]->profitMargin);
     }
     printf("--------------------------------------------------\n");
 
@@ -328,15 +344,19 @@ void displayAllProducts(Product* productList) {
         return;
     }
     printf("========== 全部仓储物品信息 ==========\n");
-    printf("| %-5s | %-20s | %-15s | %-8s | %-8s |\n", "ID", "名称", "类别", "库存", "销售");
+    printf("| %-5s | %-20s | %-10s | %-8s | %-8s | %-10s | %-10s | %-8s |\n",
+           "ID", "名称", "类别", "库存", "销售", "进货总成本", "销售总成本", "利润率");
     printf("---------------------------------------------------------------\n");
     while (current != NULL) {
-        printf("| %-5d | %-20s | %-15s | %-8d | %-8d |\n",
+        printf("| %-5d | %-20s | %-10s | %-8d | %-8d | %-10.2f | %-10.2f | %-7.2f%% |\n",
                current->id,
                current->name,
                current->category,
                current->stock,
-               current->sales);
+               current->sales,
+               current->totalPurchaseCost,
+               current->totalSaleCost,
+               current->profitMargin);
         current = current->next;
     }
     printf("---------------------------------------------------------------\n");
@@ -362,6 +382,7 @@ void managePurchase(PurchaseRecord** purchaseList, Product* productList, int pro
     while (currentProduct != NULL) {
         if (currentProduct->id == productId) {
             currentProduct->stock += quantity;
+            currentProduct->totalPurchaseCost += currentProduct->purchasePrice * quantity; // 新增：累加进货总成本
             printf("进货成功，更新库存：%d\n", currentProduct->stock);
             return;
         }
@@ -393,6 +414,24 @@ void manageSale(SaleRecord** saleList, Product* productList, int productId, int 
             if (currentProduct->stock >= quantity) {
                 currentProduct->stock -= quantity;
                 currentProduct->sales += quantity;
+                currentProduct->totalSaleCost += currentProduct->salePrice * quantity; // 新增：累加总销售成本
+                // 计算并记录销售额、利润额、利润率
+                newSale->revenue = currentProduct->salePrice * quantity;
+                newSale->profit = (currentProduct->salePrice - currentProduct->purchasePrice) * quantity;
+                if (newSale->revenue != 0) {
+                    newSale->margin = (newSale->profit / newSale->revenue) * 100.0f;
+                } else {
+                    newSale->margin = 0.0f;
+                }
+                // 重新计算利润率
+                float totalProfit = currentProduct->totalSaleCost - currentProduct->totalPurchaseCost;
+                if (currentProduct->totalSaleCost != 0.0f) {
+                    currentProduct->profitMargin = (totalProfit / currentProduct->totalSaleCost) * 100.0f;
+                } else {
+                    currentProduct->profitMargin = 0.0f;
+                }
+                printf("销售额: %.2f, 利润: %.2f, 利润率: %.2f%%\n",
+                       newSale->revenue, newSale->profit, newSale->margin);
                 printf("销售成功，更新库存：%d\n", currentProduct->stock);
                 return;
             }
@@ -441,14 +480,18 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
 
         if (currentSection == PRODUCTS) {
             int id, stock, sales;
+            float pPrice, sPrice, tPurchase, tSale, pMargin;
             char name[MAX_NAME_LEN], category[MAX_NAME_LEN];
-            if (sscanf(line, "%d,%99[^,],%99[^,],%d,%d", &id, name, category, &stock, &sales) == 5) { // 修改此行
-                addProduct(productList, id, name, category, stock);
+            if (sscanf(line, "%d,%99[^,],%99[^,],%d,%d,%f,%f,%f,%f,%f", &id, name, category, &stock, &sales, &pPrice, &sPrice, &tPurchase, &tSale, &pMargin) == 10) { // 修改此行
+                addProduct(productList, id, name, category, stock, pPrice, sPrice);
                 // 设置sales
                 Product* temp = *productList;
                 while (temp != NULL) {
                     if (temp->id == id) {
                         temp->sales = sales;
+                        temp->totalPurchaseCost = tPurchase;
+                        temp->totalSaleCost = tSale;
+                        temp->profitMargin = pMargin;
                         break;
                     }
                     temp = temp->next;
@@ -519,7 +562,7 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
     fprintf(file, "Products:\n");
     Product* currentProduct = productList;
     while (currentProduct != NULL) {
-        fprintf(file, "%d,%s,%s,%d,%d\n", currentProduct->id, currentProduct->name, currentProduct->category, currentProduct->stock, currentProduct->sales);
+        fprintf(file, "%d,%s,%s,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f\n", currentProduct->id, currentProduct->name, currentProduct->category, currentProduct->stock, currentProduct->sales, currentProduct->purchasePrice, currentProduct->salePrice, currentProduct->totalPurchaseCost, currentProduct->totalSaleCost, currentProduct->profitMargin); // 修改此行
         currentProduct = currentProduct->next;
     }
 
@@ -589,6 +632,7 @@ void showProductMenu() {
 void showUserMenu() {
     printf("\n===== 用户管理 =====\n");
     printf("1. 管理用户账户\n");
+    printf("2. 查看所有用户信息\n"); // 新增此行
     printf("0. 返回上一级\n");
     printf("===================\n");
 }
@@ -609,6 +653,11 @@ void handleUserModule(User** userList) {
             case 1:
                 manageUserAccounts(userList);
                 break;
+            case 2: {
+                // 新增：查看所有用户信息
+                displayAllUsers(*userList);
+                break;
+            }
             case 0:
                 break;
             default:
@@ -768,6 +817,7 @@ void adminOperations(Product** productList, User* userList,
                         case 1: {
                             int id, stock;
                             char name[MAX_NAME_LEN] = { 0 }, category[MAX_NAME_LEN] = { 0 };
+                            float pPrice, sPrice; // 新增
                             printf("请输入产品ID: ");
                             if (scanf("%d", &id) != 1) { // 修改此行
                                 printf("输入错误!\n");
@@ -794,7 +844,23 @@ void adminOperations(Product** productList, User* userList,
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            addProduct(productList, id, name, category, stock);
+                            printf("请输入进货价: "); // 新增
+                            if (scanf("%f", &pPrice) != 1) { // 新增
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            printf("请输入销售价: "); // 新增
+                            if (scanf("%f", &sPrice) != 1) { // 新增
+                                printf("输入错误!\n");
+                                // 清空输入缓冲区
+                                int ch;
+                                while ((ch = getchar()) != '\n' && ch != EOF);
+                                break;
+                            }
+                            addProduct(productList, id, name, category, stock, pPrice, sPrice); // 修改此行
                             break;
                         }
                         case 2: {
