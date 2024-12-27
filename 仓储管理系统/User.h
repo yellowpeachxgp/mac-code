@@ -4,6 +4,9 @@
 #define MAX_NAME_LEN 100
 #define MAX_PASS_LEN 20
 
+// 文件用途: 定义用户结构体, 包含用户名/密码/角色等信息
+// 主要知识点: 结构体定义, 字符数组管理, 指针链表
+
 // Forward declarations
 typedef struct Product Product;
 typedef struct PurchaseRecord PurchaseRecord;

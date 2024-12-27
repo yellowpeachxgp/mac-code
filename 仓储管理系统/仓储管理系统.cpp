@@ -10,6 +10,15 @@
 #define MAX_NAME_LEN 100
 #define MAX_PASS_LEN 20
 
+// 枚举类型定义
+enum Section {
+    NONE,
+    PRODUCTS,
+    USERS,
+    PURCHASES,
+    SALES
+};
+
 // 函数声明
 User* login(User* userList); // 修改登录函数的返回类型
 void addProduct(Product** productList, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice); // 修改函数声明
@@ -28,9 +37,11 @@ void adminOperations(Product** productList, User* userList, PurchaseRecord** pur
 void staffOperations(Product* productList, SaleRecord* saleList);
 void sortAndDisplayBySales(Product* productList); // 新增函数声明
 void displayAllProducts(Product* productList); // 添加此行
+void updateProductCost(Product* product, int quantity, float purchasePrice); // 新增函数声明
 
 // 登录功能
 User* login(User* userList) { // 修改登录函数的返回类型
+    // 知识点: 使用scanf读取字符数组, 进行字符串比较strcmp判断账号密码
     char username[MAX_NAME_LEN] = { 0 }, password[MAX_PASS_LEN] = { 0 };
     printf("请输入账户名: ");
     if (scanf("%99s", username) != 1) { // 修改此行
@@ -60,6 +71,7 @@ User* login(User* userList) { // 修改登录函数的返回类型
 
 // 增加产品
 void addProduct(Product** productList, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice) { // 修改函数签名
+    // 知识点: 使用while遍历链表, 动态分配内存后插入头部, 检查ID并防止重复
     Product* newProduct = (Product*)malloc(sizeof(Product));
     if (newProduct == NULL) {
         printf("内存分配失败!\n");
@@ -121,6 +133,7 @@ void deleteProduct(Product** productList, int id) {
 
 // 修改产品
 void modifyProduct(Product* productList, int id) {
+    // 知识点: switch-case控制流程, scanf输入处理, 遍历检查新ID防止重复
     Product* current = productList;
 
     while (current != NULL) {
@@ -226,6 +239,7 @@ void modifyProduct(Product* productList, int id) {
 
 // 查询产品
 void queryProduct(Product* productList, int id) {
+    // 知识点: 计算利润率/毛利润率/单次销售利润率等财务数据
     Product* current = productList;
     while (current != NULL) {
         if (current->id == id) {
@@ -386,6 +400,7 @@ void sortAndDisplayBySales(Product* productList) {
 
 // 实现 displayAllProducts 函数
 void displayAllProducts(Product* productList) {
+    // 知识点: 遍历链表, printf格式化输出产品详细信息
     Product* current = productList;
     if (current == NULL) {
         printf("当前没有仓储物品信息。\n");
@@ -415,6 +430,7 @@ void displayAllProducts(Product* productList) {
 
 // 进货管理
 void managePurchase(PurchaseRecord** purchaseList, Product* productList, int productId, int quantity, const char* date) {
+    // 知识点: 进货操作影响产品库存, 动态链表插入购买记录
     PurchaseRecord* newPurchase = (PurchaseRecord*)malloc(sizeof(PurchaseRecord));
     if (newPurchase == NULL) {
         printf("内存分配失败!\n");
@@ -445,6 +461,7 @@ void managePurchase(PurchaseRecord** purchaseList, Product* productList, int pro
 
 // 销售管理
 void manageSale(SaleRecord** saleList, Product* productList, int productId, int quantity, const char* date) {
+    // 知识点: 销售时更新库存/销量, 计算销售额/利润/利润率
     SaleRecord* newSale = (SaleRecord*)malloc(sizeof(SaleRecord));
     if (newSale == NULL) {
         printf("内存分配失败!\n");
@@ -506,7 +523,7 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
     }
 
     char line[256];
-    enum Section { NONE, PRODUCTS, USERS, PURCHASES, SALES } currentSection = NONE;
+    Section currentSection = NONE; // 新增局部变量
 
     while (fgets(line, sizeof(line), file)) {
         // 去除行末的换行符
@@ -603,6 +620,7 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
 
 // 保存数据到文件
 void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseList, SaleRecord* saleList) {
+    // 知识点: 使用fprintf格式化输出, 保存产品/用户/进货/销售记录
     FILE* file = fopen("/Users/huangtao/code/仓储管理系统/system_data.txt", "w"); // 修改此行
     if (file == NULL) { // 修改此行
         printf("无法打开文件进行保存!\n");
@@ -1006,51 +1024,44 @@ void adminOperations(Product** productList, User* userList,
 
 // 仓库工作人员操作
 void staffOperations(Product* productList, SaleRecord* saleList) {
-    int choice;
+    int choice, id;
+    int ch; // 用于清空输入缓冲
     do {
-        showStaffMenu();
-        printf("请输入操作选项: ");
+        printf("\n仓库工作人员菜单:\n");
+        printf("1. 查询产品\n");
+        printf("2. 查询产品销售情况\n");
+        printf("0. 退出\n");
+        printf("请选择操作: ");
         if (scanf("%d", &choice) != 1) {
-            printf("输入错误!\n");
-            // 清空输入缓冲区
-            int ch;
             while ((ch = getchar()) != '\n' && ch != EOF);
-            choice = -1; // 设置为无效选项
             continue;
         }
-
         switch (choice) {
-        case 1: {
-            int id;
-            printf("请输入要查询的产品ID: ");
-            if (scanf("%d", &id) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
+            case 1: {
+                printf("请输入要查询的产品ID: ");
                 while ((ch = getchar()) != '\n' && ch != EOF);
+                if (scanf("%d", &id) != 1) {
+                    while ((ch = getchar()) != '\n' && ch != EOF);
+                    break;
+                }
+                queryProduct(productList, id);
                 break;
             }
-            queryProduct(productList, id);
-            break;
-        }
-        case 2: {
-            int id;
-            printf("请输入要查询的产品ID: ");
-            if (scanf("%d", &id) != 1) { // 修改此行
-                printf("输入错误!\n");
-                // 清空输入缓冲区
-                int ch;
+            case 2: {
+                printf("请输入要查询销售情况的产品ID: ");
                 while ((ch = getchar()) != '\n' && ch != EOF);
+                if (scanf("%d", &id) != 1) {
+                    while ((ch = getchar()) != '\n' && ch != EOF);
+                    break;
+                }
+                querySales(productList, saleList, id);
                 break;
             }
-            querySales(productList, saleList, id);
-            break;
-        }
-        case 0:
-            printf("退出系统!\n");
-            break;
-        default:
-            printf("无效选项，请重新输入!\n");
+            case 0:
+                printf("退出仓库工作人员操作.\n");
+                break;
+            default:
+                printf("无效选项，请重新输入!\n");
         }
     } while (choice != 0);
 }
@@ -1239,6 +1250,11 @@ void manageUserAccounts(User** userList) {
 }
 
 // ====================== UserControl Functions End ========================
+
+void updateProductCost(Product* product, int quantity, float purchasePrice) {
+    product->stock += quantity;
+    product->totalPurchaseCost += purchasePrice * quantity;
+}
 
 // 主函数
 int main() {

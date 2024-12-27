@@ -1,3 +1,6 @@
+// 文件用途: 定义产品类别列表
+// 主要知识点: 结构体链接, 定长字符数组, typedef的使用
+
 #ifndef CATEGORY_H
 #define CATEGORY_H
 
