@@ -20,27 +20,35 @@ enum Section {
 };
 
 // 函数声明
-User* login(User* userList); // 修改登录函数的返回类型
-void addProduct(Product** productList, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice); // 修改函数声明
-void deleteProduct(Product** productList, int id);
-void modifyProduct(Product* productList, int id);
-void queryProduct(Product* productList, int id);
-void querySales(Product* productList, SaleRecord* saleList, int id);
-void queryByCategory(Product* productList, const char* category); // 新增函数声明
-void managePurchase(PurchaseRecord** purchaseList, Product* productList, int productId, int quantity, const char* date);
-void manageSale(SaleRecord** saleList, Product* productList, int productId, int quantity, const char* date);
-void loadFromFile(Product** productList, User** userList, PurchaseRecord** purchaseList, SaleRecord** saleList);
-void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseList, SaleRecord* saleList);
+User* login(User* users); // 修改登录函数的返回类型
+void ProductModule_add(Product** products, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice); // 修改函数声明
+void ProductModule_delete(Product** products, int id);
+void ProductModule_modify(Product* products, int id);
+void ProductModule_query(Product* products, int id);
+void ProductModule_querySales(Product* products, SaleRecord* sales, int id);
+void ProductModule_queryByCategory(Product* products, const char* category); // 新增函数声明
+void PurchaseModule_doPurchase(PurchaseRecord** purchases, Product* products, int productId, int quantity, const char* date);
+void SaleModule_doSale(SaleRecord** sales, Product* products, int productId, int quantity, const char* date);
+void loadFromFile(Product** products, User** users, PurchaseRecord** purchases, SaleRecord** sales);
+void saveToFile(Product* products, User* users, PurchaseRecord* purchases, SaleRecord* sales);
 void showAdminMenu();
 void showStaffMenu();
-void adminOperations(Product** productList, User* userList, PurchaseRecord** purchaseList, SaleRecord** saleList, User* currentUser); // 扩展 adminOperations 函数签名
-void staffOperations(Product* productList, SaleRecord* saleList);
-void sortAndDisplayBySales(Product* productList); // 新增函数声明
-void displayAllProducts(Product* productList); // 添加此行
+void adminOperations(Product** products, User* users, PurchaseRecord** purchases, SaleRecord** sales, User* currentUser); // 扩展 adminOperations 函数签名
+void staffOperations(Product* products, SaleRecord* sales);
+void ProductModule_sortAndDisplayBySales(Product* products); // 新增函数声明
+void ProductModule_displayAll(Product* products); // 添加此行
 void updateProductCost(Product* product, int quantity, float purchasePrice); // 新增函数声明
 
+// 新增注释：
+// ========== 总体说明 ==========
+// 1. 本文件为主程序入口及模块功能的集中实现，包含对产品、用户、进货、销售等模块的操作函数。
+// 2. 通过 include 对多个头文件进行引用，实现信息的跨文件共享。
+// 3. 灵活运用枚举类型 (enum Section) 区分不同数据块，指针用于用户链表、产品链表、进货记录链表、销售记录链表等动态结构。
+// 4. 使用了 scanf、fscanf 等 C 语言风格的输入/输出函数，通过字符串处理函数 strncmp、strcmp 等进行对比。
+// =============================
+
 // 登录功能
-User* login(User* userList) { // 修改登录函数的返回类型
+User* login(User* users) { // 修改登录函数的返回类型
     // 知识点: 使用scanf读取字符数组, 进行字符串比较strcmp判断账号密码
     char username[MAX_NAME_LEN] = { 0 }, password[MAX_PASS_LEN] = { 0 };
     printf("请输入账户名: ");
@@ -55,7 +63,7 @@ User* login(User* userList) { // 修改登录函数的返回类型
         return NULL; // 失败返回 NULL
     }
 
-    User* current = userList;
+    User* current = users;
     while (current != NULL) {
         if (strcmp(current->username, username) == 0 && strcmp(current->password, password) == 0) {
             printf("登录成功!\n");
@@ -69,8 +77,13 @@ User* login(User* userList) { // 修改登录函数的返回类型
     return NULL; // 失败返回 NULL
 }
 
+// 在 login 函数处新增注释：
+// 1. 该函数使用 User* 遍历用户链表，通过 strcmp 比较账号和密码来验证登录。
+// 2. 与空间分配配合，可在系统讨论管理不同用户的权限，如管理员、普通员工等角色。
+// 3. 若匹配失败则返回 NULL，匹配成功后返回指向对应用户的指针。
+
 // 增加产品
-void addProduct(Product** productList, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice) { // 修改函数签名
+void ProductModule_add(Product** products, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice) { // 修改函数签名
     // 知识点: 使用while遍历链表, 动态分配内存后插入头部, 检查ID并防止重复
     Product* newProduct = (Product*)malloc(sizeof(Product));
     if (newProduct == NULL) {
@@ -79,7 +92,7 @@ void addProduct(Product** productList, int id, const char* name, const char* cat
     }
 
     // 在创建新产品前，先检查ID是否已存在
-    Product* existing = *productList;
+    Product* existing = *products;
     while (existing != NULL) {
         if (existing->id == id) {
             printf("ID %d 已存在，无法添加产品!\n", id);
@@ -101,21 +114,27 @@ void addProduct(Product** productList, int id, const char* name, const char* cat
     newProduct->totalPurchaseCost = 0.0f; // 新增
     newProduct->totalSaleCost = 0.0f; // 新增
     newProduct->profitMargin = 0.0f; // 新增
-    newProduct->next = *productList;
-    *productList = newProduct;
+    newProduct->historicalStock = 0; // 新增
+    newProduct->next = *products;
+    *products = newProduct;
 
     printf("产品'%s'添加成功!\n", name);
 }
 
+// 在 ProductModule_add 函数处新增注释：
+// 1. 该函数通过 malloc 动态分配 Product 结构体，利用指针操作实现以链表形式添加新产品。
+// 2. 先检查 ID 是否已存在，再插入头部，以确保数据安全并保持插入顺序可控。
+// 3. 同时初始化了一些统计字段，如 totalPurchaseCost、totalSaleCost、historicalStock 等，用于后续各种财务运算。
+
 // 删除产品
-void deleteProduct(Product** productList, int id) {
-    Product* current = *productList;
+void ProductModule_delete(Product** products, int id) {
+    Product* current = *products;
     Product* previous = NULL;
 
     while (current != NULL) {
         if (current->id == id) {
             if (previous == NULL) {
-                *productList = current->next;
+                *products = current->next;
             }
             else {
                 previous->next = current->next;
@@ -131,10 +150,14 @@ void deleteProduct(Product** productList, int id) {
     printf("未找到产品ID为 %d 的产品!\n", id);
 }
 
+// 在 ProductModule_delete 函数处新增注释：
+// 1. 同样使用指针遍历链表并找到待删节点后，通过修改指针来解除该节点的链接，再释放其内存。
+// 2. 这体现了链表在 C++ 中对指针操作的灵活性及手动内存管理需求。
+
 // 修改产品
-void modifyProduct(Product* productList, int id) {
+void ProductModule_modify(Product* products, int id) {
     // 知识点: switch-case控制流程, scanf输入处理, 遍历检查新ID防止重复
-    Product* current = productList;
+    Product* current = products;
 
     while (current != NULL) {
         if (current->id == id) {
@@ -168,7 +191,7 @@ void modifyProduct(Product* productList, int id) {
                         break;
                     }
                     // 检查新的ID是否已被占用
-                    Product* temp = productList;
+                    Product* temp = products;
                     while (temp != NULL) {
                         if (temp->id == newId && temp != current) {
                             printf("ID %d 已存在，无法修改!\n", newId);
@@ -238,9 +261,9 @@ void modifyProduct(Product* productList, int id) {
 }
 
 // 查询产品
-void queryProduct(Product* productList, int id) {
+void ProductModule_query(Product* products, int id) {
     // 知识点: 计算利润率/毛利润率/单次销售利润率等财务数据
-    Product* current = productList;
+    Product* current = products;
     while (current != NULL) {
         if (current->id == id) {
             float currentTotalCost = current->purchasePrice * current->stock;
@@ -252,6 +275,7 @@ void queryProduct(Product* productList, int id) {
                 ? ((totalRevenue - usedCost) / totalRevenue) * 100.0f : 0.0f;
             float singleSaleRate = (current->salePrice != 0.0f)
                 ? ((current->salePrice - current->purchasePrice) / current->salePrice) * 100.0f : 0.0f;
+            float historicalCost = current->historicalStock * current->purchasePrice; // 新增
 
             printf("产品ID: %d\n", current->id);
             printf("产品名称: %s\n", current->name);
@@ -265,6 +289,8 @@ void queryProduct(Product* productList, int id) {
             printf("总利润率(含未售库存): %.2f%%\n", totalProfitRate);
             printf("毛利润率(仅已售部分): %.2f%%\n", grossMarginRate);
             printf("单次销售利润率(单品): %.2f%%\n", singleSaleRate);
+            printf("历史总库存: %d\n", current->historicalStock); // 新增
+            printf("历史总成本: %.2f\n", historicalCost); // 新增
             return;
         }
         current = current->next;
@@ -274,12 +300,12 @@ void queryProduct(Product* productList, int id) {
 }
 
 // 查询产品销售情况
-void querySales(Product* productList, SaleRecord* saleList, int id) {
-    Product* currentProduct = productList;
+void ProductModule_querySales(Product* products, SaleRecord* sales, int id) {
+    Product* currentProduct = products;
     while (currentProduct != NULL) {
         if (currentProduct->id == id) {
             int totalSales = 0;
-            SaleRecord* currentSale = saleList;
+            SaleRecord* currentSale = sales;
             while (currentSale != NULL) {
                 if (currentSale->productId == id) {
                     totalSales += currentSale->quantity;
@@ -299,8 +325,8 @@ void querySales(Product* productList, SaleRecord* saleList, int id) {
 }
 
 // 查询类别下所有产品
-void queryByCategory(Product* productList, const char* category) {
-    Product* current = productList;
+void ProductModule_queryByCategory(Product* products, const char* category) {
+    Product* current = products;
     int found = 0;
     printf("类别 '%s' 下的所有产品:\n", category);
     printf("---------------------------\n");
@@ -315,6 +341,7 @@ void queryByCategory(Product* productList, const char* category) {
                 ? ((totalRevenue - usedCost) / totalRevenue) * 100.0f : 0.0f;
             float singleSaleRate = (current->salePrice != 0.0f)
                 ? ((current->salePrice - current->purchasePrice) / current->salePrice) * 100.0f : 0.0f;
+            float historicalCost = current->historicalStock * current->purchasePrice; // 新增
 
             printf("产品ID: %d\n", current->id);
             printf("产品名称: %s\n", current->name);
@@ -328,6 +355,8 @@ void queryByCategory(Product* productList, const char* category) {
             printf("总利润率(含未售库存): %.2f%%\n", totalProfitRate);
             printf("毛利润率(仅已售部分): %.2f%%\n", grossMarginRate);
             printf("单次销售利润率(单品): %.2f%%\n", singleSaleRate);
+            printf("历史总库存: %d\n", current->historicalStock); // 新增
+            printf("历史总成本: %.2f\n", historicalCost); // 新增
             printf("---------------------------\n");
             found = 1;
         }
@@ -340,10 +369,10 @@ void queryByCategory(Product* productList, const char* category) {
 }
 
 // 按销售量排序并输出产品
-void sortAndDisplayBySales(Product* productList) {
+void ProductModule_sortAndDisplayBySales(Product* products) {
     // 计算产品数量
     int count = 0;
-    Product* current = productList;
+    Product* current = products;
     while (current != NULL) {
         count++;
         current = current->next;
@@ -362,7 +391,7 @@ void sortAndDisplayBySales(Product* productList) {
     }
 
     // 填充数组
-    current = productList;
+    current = products;
     for (int i = 0; i < count; i++) {
         productArray[i] = current;
         current = current->next;
@@ -398,10 +427,14 @@ void sortAndDisplayBySales(Product* productList) {
     free(productArray);
 }
 
+// 在 ProductModule_sortAndDisplayBySales 函数处新增注释：
+// 1. 此处使用了冒泡排序 (Bubble Sort) 将产品按照销售量降序排列，用到了动态分配的指针数组 (Product** productArray)。
+// 2. 展示了将链表中所有节点拷贝到数组进行排序的典型做法，也体现了在 C++ 中对内存分配和指针操作的综合应用。
+
 // 实现 displayAllProducts 函数
-void displayAllProducts(Product* productList) {
+void ProductModule_displayAll(Product* products) {
     // 知识点: 遍历链表, printf格式化输出产品详细信息
-    Product* current = productList;
+    Product* current = products;
     if (current == NULL) {
         printf("当前没有仓储物品信息。\n");
         return;
@@ -429,7 +462,7 @@ void displayAllProducts(Product* productList) {
 }
 
 // 进货管理
-void managePurchase(PurchaseRecord** purchaseList, Product* productList, int productId, int quantity, const char* date) {
+void PurchaseModule_doPurchase(PurchaseRecord** purchases, Product* products, int productId, int quantity, const char* date) {
     // 知识点: 进货操作影响产品库存, 动态链表插入购买记录
     PurchaseRecord* newPurchase = (PurchaseRecord*)malloc(sizeof(PurchaseRecord));
     if (newPurchase == NULL) {
@@ -441,15 +474,16 @@ void managePurchase(PurchaseRecord** purchaseList, Product* productList, int pro
     newPurchase->quantity = quantity;
     strncpy(newPurchase->date, date, MAX_NAME_LEN - 1);
     newPurchase->date[MAX_NAME_LEN - 1] = '\0';
-    newPurchase->next = *purchaseList;
-    *purchaseList = newPurchase;
+    newPurchase->next = *purchases;
+    *purchases = newPurchase;
 
     // 更新库存
-    Product* currentProduct = productList;
+    Product* currentProduct = products;
     while (currentProduct != NULL) {
         if (currentProduct->id == productId) {
             currentProduct->stock += quantity;
             currentProduct->totalPurchaseCost += currentProduct->purchasePrice * quantity; // 新增：累加进货总成本
+            currentProduct->historicalStock += quantity; // 新增
             printf("进货成功，更新库存：%d\n", currentProduct->stock);
             return;
         }
@@ -460,7 +494,7 @@ void managePurchase(PurchaseRecord** purchaseList, Product* productList, int pro
 }
 
 // 销售管理
-void manageSale(SaleRecord** saleList, Product* productList, int productId, int quantity, const char* date) {
+void SaleModule_doSale(SaleRecord** sales, Product* products, int productId, int quantity, const char* date) {
     // 知识点: 销售时更新库存/销量, 计算销售额/利润/利润率
     SaleRecord* newSale = (SaleRecord*)malloc(sizeof(SaleRecord));
     if (newSale == NULL) {
@@ -472,11 +506,11 @@ void manageSale(SaleRecord** saleList, Product* productList, int productId, int 
     newSale->quantity = quantity;
     strncpy(newSale->date, date, MAX_NAME_LEN - 1);
     newSale->date[MAX_NAME_LEN - 1] = '\0';
-    newSale->next = *saleList;
-    *saleList = newSale;
+    newSale->next = *sales;
+    *sales = newSale;
 
     // 更新库存
-    Product* currentProduct = productList;
+    Product* currentProduct = products;
     while (currentProduct != NULL) {
         if (currentProduct->id == productId) {
             if (currentProduct->stock >= quantity) {
@@ -514,8 +548,12 @@ void manageSale(SaleRecord** saleList, Product* productList, int productId, int 
     printf("未找到产品ID为%d的产品!\n", productId);
 }
 
+// 在 PurchaseModule_doPurchase / SaleModule_doSale 函数处新增注释：
+// 1. 进货/销售操作同时涉及更新产品库存、进货/销售记录，涉及指针遍历链表、修改某节点内的数据，以及新分配链表节点保存记录。
+// 2. 这种多处修改带来的状态数据更新，体现了 C++ 代码在管理业务逻辑时的复杂性与灵活运用指针的重要性。
+
 // 读取数据从文件
-void loadFromFile(Product** productList, User** userList, PurchaseRecord** purchaseList, SaleRecord** saleList) {
+void loadFromFile(Product** products, User** users, PurchaseRecord** purchases, SaleRecord** sales) {
     FILE* file = fopen("/Users/huangtao/code/仓储管理系统/system_data.txt", "r"); // 修改此行
     if (file == NULL) {
         printf("无法打开文件进行读取，可能是第一次运行程序。\n");
@@ -551,9 +589,9 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
             float pPrice, sPrice, tPurchase, tSale, pMargin;
             char name[MAX_NAME_LEN], category[MAX_NAME_LEN];
             if (sscanf(line, "%d,%99[^,],%99[^,],%d,%d,%f,%f,%f,%f,%f", &id, name, category, &stock, &sales, &pPrice, &sPrice, &tPurchase, &tSale, &pMargin) == 10) { // 修改此行
-                addProduct(productList, id, name, category, stock, pPrice, sPrice);
+                ProductModule_add(products, id, name, category, stock, pPrice, sPrice);
                 // 设置sales
-                Product* temp = *productList;
+                Product* temp = *products;
                 while (temp != NULL) {
                     if (temp->id == id) {
                         temp->sales = sales;
@@ -577,8 +615,8 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
                     strncpy(newUser->password, password, MAX_PASS_LEN - 1);
                     newUser->password[MAX_PASS_LEN - 1] = '\0';
                     newUser->role = role;
-                    newUser->next = *userList;
-                    *userList = newUser;
+                    newUser->next = *users;
+                    *users = newUser;
                 }
             }
         }
@@ -592,8 +630,8 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
                     newPurchase->quantity = quantity;
                     strncpy(newPurchase->date, date, MAX_NAME_LEN - 1);
                     newPurchase->date[MAX_NAME_LEN - 1] = '\0';
-                    newPurchase->next = *purchaseList;
-                    *purchaseList = newPurchase;
+                    newPurchase->next = *purchases;
+                    *purchases = newPurchase;
                 }
             }
         }
@@ -607,8 +645,8 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
                     newSale->quantity = quantity;
                     strncpy(newSale->date, date, MAX_NAME_LEN - 1);
                     newSale->date[MAX_NAME_LEN - 1] = '\0';
-                    newSale->next = *saleList;
-                    *saleList = newSale;
+                    newSale->next = *sales;
+                    *sales = newSale;
                 }
             }
         }
@@ -619,7 +657,7 @@ void loadFromFile(Product** productList, User** userList, PurchaseRecord** purch
 }
 
 // 保存数据到文件
-void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseList, SaleRecord* saleList) {
+void saveToFile(Product* products, User* users, PurchaseRecord* purchases, SaleRecord* sales) {
     // 知识点: 使用fprintf格式化输出, 保存产品/用户/进货/销售记录
     FILE* file = fopen("/Users/huangtao/code/仓储管理系统/system_data.txt", "w"); // 修改此行
     if (file == NULL) { // 修改此行
@@ -629,7 +667,7 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
 
     // 保存产品列表
     fprintf(file, "Products:\n");
-    Product* currentProduct = productList;
+    Product* currentProduct = products;
     while (currentProduct != NULL) {
         fprintf(file, "%d,%s,%s,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f\n", currentProduct->id, currentProduct->name, currentProduct->category, currentProduct->stock, currentProduct->sales, currentProduct->purchasePrice, currentProduct->salePrice, currentProduct->totalPurchaseCost, currentProduct->totalSaleCost, currentProduct->profitMargin); // 修改此行
         currentProduct = currentProduct->next;
@@ -637,7 +675,7 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
 
     // 保存用户列表
     fprintf(file, "Users:\n");
-    User* currentUser = userList;
+    User* currentUser = users;
     while (currentUser != NULL) {
         fprintf(file, "%s,%s,%d\n", currentUser->username, currentUser->password, currentUser->role);
         currentUser = currentUser->next;
@@ -645,7 +683,7 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
 
     // 保存进货记录
     fprintf(file, "Purchases:\n");
-    PurchaseRecord* currentPurchase = purchaseList;
+    PurchaseRecord* currentPurchase = purchases;
     while (currentPurchase != NULL) {
         fprintf(file, "%d,%d,%s\n", currentPurchase->productId, currentPurchase->quantity, currentPurchase->date);
         currentPurchase = currentPurchase->next;
@@ -653,7 +691,7 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
 
     // 保存销售记录
     fprintf(file, "Sales:\n");
-    SaleRecord* currentSale = saleList;
+    SaleRecord* currentSale = sales;
     while (currentSale != NULL) {
         fprintf(file, "%d,%d,%s\n", currentSale->productId, currentSale->quantity, currentSale->date);
         currentSale = currentSale->next;
@@ -662,6 +700,10 @@ void saveToFile(Product* productList, User* userList, PurchaseRecord* purchaseLi
     fclose(file);
     printf("数据保存成功!\n");
 }
+
+// 在 loadFromFile/saveToFile 函数处新增注释：
+// 1. 使用文件指针 FILE* 以及 fopen/fclose 函数进行文件读写操作，围绕产品、用户、进货、销售进行持久化保存。
+// 2. 通过 fprintf/fscanf（或 sscanf）来进行格式化字符串读写，使得系统可以在下次运行时还原数据。
 
 // 显示仓库工作人员菜单
 void showStaffMenu() {
@@ -684,7 +726,7 @@ void showMainModuleMenu() {
 }
 
 // 二级菜单示例：产品管理
-void showProductMenu() {
+void ProductModule_showMenu() {
     printf("\n===== 产品管理 =====\n");
     printf("1. 添加产品\n");
     printf("2. 删除产品\n");
@@ -698,7 +740,7 @@ void showProductMenu() {
 }
 
 // 新增用于用户管理的二级菜单示例
-void showUserMenu() {
+void UserModule_showMenu() {
     printf("\n===== 用户管理 =====\n");
     printf("1. 管理用户账户\n");
     printf("2. 查看所有用户信息\n"); // 新增此行
@@ -706,10 +748,10 @@ void showUserMenu() {
     printf("===================\n");
 }
 
-void handleUserModule(User** userList) {
+void UserModule_handle(User** users) {
     int choice;
     do {
-        showUserMenu();
+        UserModule_showMenu();
         printf("请选择操作: ");
         if (scanf("%d", &choice) != 1) {
             printf("输入错误!\n");
@@ -720,11 +762,11 @@ void handleUserModule(User** userList) {
         }
         switch (choice) {
             case 1:
-                manageUserAccounts(userList);
+                manageUserAccounts(users);
                 break;
             case 2: {
                 // 新增：查看所有用户信息
-                displayAllUsers(*userList);
+                displayAllUsers(*users);
                 break;
             }
             case 0:
@@ -736,7 +778,7 @@ void handleUserModule(User** userList) {
 }
 
 // 新增用于进销管理的二级菜单示例
-void showPurchaseSaleMenu() {
+void PurchaseSaleModule_showMenu() {
     printf("\n===== 进销管理 =====\n");
     printf("1. 进货操作\n");
     printf("2. 销售操作\n");
@@ -745,12 +787,12 @@ void showPurchaseSaleMenu() {
     printf("===================\n");
 }
 
-void handlePurchaseSaleModule(Product** productList,
-                              PurchaseRecord** purchaseList, 
-                              SaleRecord** saleList) {
+void PurchaseSaleModule_handle(Product** products,
+                              PurchaseRecord** purchases, 
+                              SaleRecord** sales) {
     int choice;
     do {
-        showPurchaseSaleMenu();
+        PurchaseSaleModule_showMenu();
         printf("请选择操作: ");
         if (scanf("%d", &choice) != 1) {
             printf("输入错误!\n");
@@ -780,7 +822,7 @@ void handlePurchaseSaleModule(Product** productList,
                     while ((ch = getchar()) != '\n' && ch != EOF);
                     break;
                 }
-                managePurchase(purchaseList, *productList, id, qty, date);
+                PurchaseModule_doPurchase(purchases, *products, id, qty, date);
                 break;
             }
             case 2: {
@@ -803,7 +845,7 @@ void handlePurchaseSaleModule(Product** productList,
                     while ((ch = getchar()) != '\n' && ch != EOF);
                     break;
                 }
-                manageSale(saleList, *productList, id, qty, date);
+                SaleModule_doSale(sales, *products, id, qty, date);
                 break;
             }
             case 0:
@@ -815,7 +857,7 @@ void handlePurchaseSaleModule(Product** productList,
 }
 
 // 新增用于系统功能的二级菜单示例
-void showSystemMenu() {
+void SystemModule_showMenu() {
     printf("\n===== 系统功能 =====\n");
     printf("1. 保存数据\n");
     printf("2. 修改管理员密码\n");
@@ -823,12 +865,12 @@ void showSystemMenu() {
     printf("===================\n");
 }
 
-// 修改函数签名，增加 User* userList 参数
-void handleSystemModule(Product* productList, User* userList,
-                        PurchaseRecord* purchaseList, SaleRecord* saleList) {
+// 修改函数签名，增加 User* users 参数
+void SystemModule_handle(Product* products, User* users,
+                        PurchaseRecord* purchases, SaleRecord* sales) {
     int choice;
     do {
-        showSystemMenu();
+        SystemModule_showMenu();
         printf("请选择操作: ");
         if (scanf("%d", &choice) != 1) {
             printf("输入错误!\n");
@@ -839,11 +881,11 @@ void handleSystemModule(Product* productList, User* userList,
         }
         switch (choice) {
             case 1:
-                // 将原先传递 NULL 改为 userList，以正确保存用户信息
-                saveToFile(productList, userList, purchaseList, saleList);
+                // 将原先传递 NULL 改为 users，以正确保存用户信息
+                saveToFile(products, users, purchases, sales);
                 break;
             case 2:
-                modifyAdminPassword(userList); 
+                modifyAdminPassword(users); 
                 break;
             case 0:
                 break;
@@ -853,9 +895,9 @@ void handleSystemModule(Product* productList, User* userList,
     } while (choice != 0);
 }
 
-// 在 adminOperations 中，调用 handleSystemModule 时，带上 userList
-void adminOperations(Product** productList, User* userList,
-                     PurchaseRecord** purchaseList, SaleRecord** saleList, User* currentUser) { // 扩展 adminOperations 函数签名
+// 在 adminOperations 中，调用 SystemModule_handle 时，带上 users
+void adminOperations(Product** products, User* users,
+                     PurchaseRecord** purchases, SaleRecord** sales, User* currentUser) { // 扩展 adminOperations 函数签名
     int choice;
     do {
         showMainModuleMenu();
@@ -873,7 +915,7 @@ void adminOperations(Product** productList, User* userList,
                 // 进入产品管理二级菜单
                 int productChoice;
                 do {
-                    showProductMenu();
+                    ProductModule_showMenu();
                     printf("请选择操作: ");
                     if (scanf("%d", &productChoice) != 1) {
                         printf("输入错误!\n");
@@ -929,7 +971,7 @@ void adminOperations(Product** productList, User* userList,
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            addProduct(productList, id, name, category, stock, pPrice, sPrice); // 修改此行
+                            ProductModule_add(products, id, name, category, stock, pPrice, sPrice); // 修改此行
                             break;
                         }
                         case 2: {
@@ -942,7 +984,7 @@ void adminOperations(Product** productList, User* userList,
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            deleteProduct(productList, id);
+                            ProductModule_delete(products, id);
                             break;
                         }
                         case 3: {
@@ -955,7 +997,7 @@ void adminOperations(Product** productList, User* userList,
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            modifyProduct(*productList, id);
+                            ProductModule_modify(*products, id);
                             break;
                         }
                         case 4: { // 调整后的查询类别
@@ -965,7 +1007,7 @@ void adminOperations(Product** productList, User* userList,
                                 printf("输入错误!\n");
                                 break;
                             }
-                            queryByCategory(*productList, category);
+                            ProductModule_queryByCategory(*products, category);
                             break;
                         }
                         case 5: { // 原4号查询产品
@@ -978,15 +1020,15 @@ void adminOperations(Product** productList, User* userList,
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            queryProduct(*productList, id);
+                            ProductModule_query(*products, id);
                             break;
                         }
                         case 6: { // 修改后的第6项: 按销售量排序输出产品
-                            sortAndDisplayBySales(*productList);
+                            ProductModule_sortAndDisplayBySales(*products);
                             break;
                         }
                         case 7: { // 新增选项: 显示所有仓储物品
-                            displayAllProducts(*productList);
+                            ProductModule_displayAll(*products);
                             break;
                         }
                         case 0:
@@ -999,19 +1041,19 @@ void adminOperations(Product** productList, User* userList,
             }
             case 2:
                 // 新增调用用户管理模块
-                handleUserModule(&userList);
+                UserModule_handle(&users);
                 break;
             case 3:
                 // 新增调用进销管理模块
-                handlePurchaseSaleModule(productList, purchaseList, saleList);
+                PurchaseSaleModule_handle(products, purchases, sales);
                 break;
             case 4:
                 // 新增调用系统功能模块
-                handleSystemModule(*productList, userList, *purchaseList, *saleList); // 在处理系统功能时，将当前登录用户指针正确传递给 handleSystemModule
+                SystemModule_handle(*products, users, *purchases, *sales); // 在处理系统功能时，将当前登录用户指针正确传递给 SystemModule_handle
                 break;
             case 5:
                 // 新增：处理保存数据逻辑
-                saveToFile(*productList, userList, *purchaseList, *saleList);
+                saveToFile(*products, users, *purchases, *sales);
                 break;
             case 0:
                 printf("退出系统!\n");
@@ -1023,7 +1065,7 @@ void adminOperations(Product** productList, User* userList,
 }
 
 // 仓库工作人员操作
-void staffOperations(Product* productList, SaleRecord* saleList) {
+void staffOperations(Product* products, SaleRecord* sales) {
     int choice, id;
     int ch; // 用于清空输入缓冲
     do {
@@ -1044,7 +1086,7 @@ void staffOperations(Product* productList, SaleRecord* saleList) {
                     while ((ch = getchar()) != '\n' && ch != EOF);
                     break;
                 }
-                queryProduct(productList, id);
+                ProductModule_query(products, id);
                 break;
             }
             case 2: {
@@ -1054,7 +1096,7 @@ void staffOperations(Product* productList, SaleRecord* saleList) {
                     while ((ch = getchar()) != '\n' && ch != EOF);
                     break;
                 }
-                querySales(productList, saleList, id);
+                ProductModule_querySales(products, sales, id);
                 break;
             }
             case 0:
@@ -1097,14 +1139,14 @@ void displayUserInfo(User* currentUser) {
     // ...existing code if needed...
 }
 
-void displayAllUsers(User* userList) {
+void displayAllUsers(User* users) {
     // 遍历并打印所有用户信息
-    if (!userList) {
+    if (!users) {
         printf("当前无用户。\n");
         return;
     }
     printf("系统用户列表:\n");
-    User* temp = userList;
+    User* temp = users;
     while (temp) {
         printf("用户名: %s | 角色: %s\n", 
                temp->username, 
@@ -1131,7 +1173,7 @@ void modifyAdminPassword(User* currentUser) {
 }
 
 // 示例：管理用户账户
-void manageUserAccounts(User** userList) {
+void manageUserAccounts(User** users) {
     int choice = 0;
     do {
         printf("\n===== 管理用户账户 =====\n");
@@ -1176,8 +1218,8 @@ void manageUserAccounts(User** userList) {
                     strncpy(newUser->password, password, MAX_PASS_LEN - 1);
                     newUser->password[MAX_PASS_LEN - 1] = '\0';
                     newUser->role = role;
-                    newUser->next = *userList;
-                    *userList = newUser;
+                    newUser->next = *users;
+                    *users = newUser;
                     printf("成功添加新用户!\n");
                 } else {
                     printf("内存分配失败!\n");
@@ -1192,12 +1234,12 @@ void manageUserAccounts(User** userList) {
                     printf("输入错误!\n");
                     break;
                 }
-                User* current = *userList;
+                User* current = *users;
                 User* previous = NULL;
                 while (current != NULL) {
                     if (strcmp(current->username, username) == 0) {
                         if (previous == NULL) {
-                            *userList = current->next;
+                            *users = current->next;
                         } else {
                             previous->next = current->next;
                         }
@@ -1226,7 +1268,7 @@ void manageUserAccounts(User** userList) {
                     printf("输入错误!\n");
                     break;
                 }
-                User* current = *userList;
+                User* current = *users;
                 while (current != NULL) {
                     if (strcmp(current->username, username) == 0) {
                         strncpy(current->password, newPassword, MAX_PASS_LEN - 1);
@@ -1259,16 +1301,16 @@ void updateProductCost(Product* product, int quantity, float purchasePrice) {
 // 主函数
 int main() {
     // 用户和产品链表
-    User* userList = NULL;
-    Product* productList = NULL;
-    PurchaseRecord* purchaseList = NULL;
-    SaleRecord* saleList = NULL;
+    User* users = NULL;
+    Product* products = NULL;
+    PurchaseRecord* purchases = NULL;
+    SaleRecord* sales = NULL;
 
     // 读取已有的数据
-    loadFromFile(&productList, &userList, &purchaseList, &saleList);
+    loadFromFile(&products, &users, &purchases, &sales);
 
     // 如果没有用户数据，则添加测试数据
-    if (userList == NULL) {
+    if (users == NULL) {
         // 添加测试数据（可以根据实际需求添加用户和产品数据）
         User* admin = (User*)malloc(sizeof(User));
         if (admin == NULL) {
@@ -1280,8 +1322,8 @@ int main() {
         strncpy(admin->password, "admin123", MAX_PASS_LEN - 1);
         admin->password[MAX_PASS_LEN - 1] = '\0';
         admin->role = 0;  // 管理员
-        admin->next = userList;
-        userList = admin;
+        admin->next = users;
+        users = admin;
 
         User* staff = (User*)malloc(sizeof(User));
         if (staff == NULL) {
@@ -1293,12 +1335,12 @@ int main() {
         strncpy(staff->password, "staff123", MAX_PASS_LEN - 1);
         staff->password[MAX_PASS_LEN - 1] = '\0';
         staff->role = 1;  // 仓库工作人员
-        staff->next = userList;
-        userList = staff;
+        staff->next = users;
+        users = staff;
     }
 
     // 登录操作
-    User* currentUser = login(userList); // 使用新的登录函数
+    User* currentUser = login(users); // 使用新的登录函数
     if (!currentUser) {
         printf("登录失败，程序退出。\n");
         return 0;  // 登录失败
@@ -1306,10 +1348,10 @@ int main() {
 
     // 如果是管理员账户，则自动显示当前管理员信息及所有用户信息
     if (currentUser->role == 0) {
-        displayAllUsers(userList);   // 额外显示所有用户信息
-        adminOperations(&productList, userList, &purchaseList, &saleList, currentUser); // 将当前用户指针传给 adminOperations
+        displayAllUsers(users);   // 额外显示所有用户信息
+        adminOperations(&products, users, &purchases, &sales, currentUser); // 将当前用户指针传给 adminOperations
     } else if (currentUser->role == 1) {
-        staffOperations(productList, saleList);
+        staffOperations(products, sales);
     }
 
     return 0;
