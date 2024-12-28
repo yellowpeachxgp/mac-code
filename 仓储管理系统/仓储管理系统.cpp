@@ -707,6 +707,10 @@ void saveToFile(Product* products, User* users, PurchaseRecord* purchases, SaleR
 
 // 显示仓库工作人员菜单
 void showStaffMenu() {
+    // 新增美化输出
+    printf("********************************\n");
+    printf("        仓库工作人员菜单         \n");
+    printf("********************************\n");
     printf("\n仓库工作人员菜单:\n");
     printf("1. 查询产品\n");
     printf("2. 查询产品销售情况\n");

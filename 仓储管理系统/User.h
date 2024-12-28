@@ -18,6 +18,12 @@ typedef struct Category Category;
 // 2. 用 struct User* next 实现链表链接，让多个用户首尾相连，便于在内存中动态创建或删除用户。
 // 3. 注意在函数中需要使用动态内存分配 (malloc 或 new) 来创建新的 User 结构体。
 
+// 新增一个枚举类型，定义管理员与工作人员两种角色
+enum Role {
+    ROLE_ADMIN = 0,
+    ROLE_STAFF = 1
+};
+
 typedef struct User {
     char username[MAX_NAME_LEN];  // 用户名
     char password[MAX_PASS_LEN];  // 密码
