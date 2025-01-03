@@ -1,11 +1,11 @@
 ﻿#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "User.h"        // 添加此行以包含 User 结构体定义
-#include "Product.h"     // 新增：包含 Product 结构体定义
-#include "PurchaseRecord.h" // 新增：包含 PurchaseRecord 结构体定义
-#include "SaleRecord.h"  // 新增：包含 SaleRecord 结构体定义
-#include "Category.h"    // 新增：包含 Category 结构体定义
+#include "User.h"        // 包含 User 结构体定义
+#include "Product.h"     // 包含 Product 结构体定义
+#include "PurchaseRecord.h" // 包含 PurchaseRecord 结构体定义
+#include "SaleRecord.h"  // 包含 SaleRecord 结构体定义
+#include "Category.h"    // 包含 Category 结构体定义
 
 #define MAX_NAME_LEN 100
 #define MAX_PASS_LEN 20
@@ -39,17 +39,14 @@ void ProductModule_sortAndDisplayBySales(Product* products); // 新增函数声�
 void ProductModule_displayAll(Product* products); // 添加此行
 void updateProductCost(Product* product, int quantity, float purchasePrice); // 新增函数声明
 
-// 新增注释：
-// ========== 总体说明 ==========
 // 1. 本文件为主程序入口及模块功能的集中实现，包含对产品、用户、进货、销售等模块的操作函数。
 // 2. 通过 include 对多个头文件进行引用，实现信息的跨文件共享。
 // 3. 灵活运用枚举类型 (enum Section) 区分不同数据块，指针用于用户链表、产品链表、进货记录链表、销售记录链表等动态结构。
 // 4. 使用了 scanf、fscanf 等 C 语言风格的输入/输出函数，通过字符串处理函数 strncmp、strcmp 等进行对比。
-// =============================
 
 // 登录功能
 User* login(User* users) { // 修改登录函数的返回类型
-    // 知识点: 使用scanf读取字符数组, 进行字符串比较strcmp判断账号密码
+    // 使用scanf读取字符数组, 进行字符串比较strcmp判断账号密码
     char username[MAX_NAME_LEN] = { 0 }, password[MAX_PASS_LEN] = { 0 };
     printf("请输入账户名: ");
     if (scanf("%99s", username) != 1) { // 修改此行
@@ -67,7 +64,7 @@ User* login(User* users) { // 修改登录函数的返回类型
     while (current != NULL) {
         if (strcmp(current->username, username) == 0 && strcmp(current->password, password) == 0) {
             printf("登录成功!\n");
-            displayUserInfo(current);  // 新增：登录成功后立即显示用户信息
+            displayUserInfo(current);  // 登录成功后立即显示用户信息
             return current; // 登录成功时，改为返回当前用户指针
         }
         current = current->next;
@@ -84,7 +81,7 @@ User* login(User* users) { // 修改登录函数的返回类型
 
 // 增加产品
 void ProductModule_add(Product** products, int id, const char* name, const char* category, int stock, float purchasePrice, float salePrice) { // 修改函数签名
-    // 知识点: 使用while遍历链表, 动态分配内存后插入头部, 检查ID并防止重复
+    // 使用while遍历链表, 动态分配内存后插入头部, 检查ID并防止重复
     Product* newProduct = (Product*)malloc(sizeof(Product));
     if (newProduct == NULL) {
         printf("内存分配失败!\n");
@@ -156,7 +153,7 @@ void ProductModule_delete(Product** products, int id) {
 
 // 修改产品
 void ProductModule_modify(Product* products, int id) {
-    // 知识点: switch-case控制流程, scanf输入处理, 遍历检查新ID防止重复
+    // switch-case控制流程, scanf输入处理, 遍历检查新ID防止重复
     Product* current = products;
 
     while (current != NULL) {
@@ -262,7 +259,7 @@ void ProductModule_modify(Product* products, int id) {
 
 // 查询产品
 void ProductModule_query(Product* products, int id) {
-    // 知识点: 计算利润率/毛利润率/单次销售利润率等财务数据
+    // 计算利润率/毛利润率/单次销售利润率等财务数据
     Product* current = products;
     while (current != NULL) {
         if (current->id == id) {
@@ -355,8 +352,8 @@ void ProductModule_queryByCategory(Product* products, const char* category) {
             printf("总利润率(含未售库存): %.2f%%\n", totalProfitRate);
             printf("毛利润率(仅已售部分): %.2f%%\n", grossMarginRate);
             printf("单次销售利润率(单品): %.2f%%\n", singleSaleRate);
-            printf("历史总库存: %d\n", current->historicalStock); // 新增
-            printf("历史总成本: %.2f\n", historicalCost); // 新增
+            printf("历史总库存: %d\n", current->historicalStock); 
+            printf("历史总成本: %.2f\n", historicalCost); 
             printf("---------------------------\n");
             found = 1;
         }
@@ -397,7 +394,7 @@ void ProductModule_sortAndDisplayBySales(Product* products) {
         current = current->next;
     }
 
-    // 简单的冒泡排序按销售量降序
+    // 冒泡排序
     for (int i = 0; i < count - 1; i++) {
         for (int j = 0; j < count - i - 1; j++) {
             if (productArray[j]->sales < productArray[j + 1]->sales) {
@@ -427,13 +424,9 @@ void ProductModule_sortAndDisplayBySales(Product* products) {
     free(productArray);
 }
 
-// 在 ProductModule_sortAndDisplayBySales 函数处新增注释：
-// 1. 此处使用了冒泡排序 (Bubble Sort) 将产品按照销售量降序排列，用到了动态分配的指针数组 (Product** productArray)。
-// 2. 展示了将链表中所有节点拷贝到数组进行排序的典型做法，也体现了在 C++ 中对内存分配和指针操作的综合应用。
-
 // 实现 displayAllProducts 函数
 void ProductModule_displayAll(Product* products) {
-    // 知识点: 遍历链表, printf格式化输出产品详细信息
+    // 遍历链表, printf格式化输出产品详细信息
     Product* current = products;
     if (current == NULL) {
         printf("当前没有仓储物品信息。\n");
@@ -463,7 +456,7 @@ void ProductModule_displayAll(Product* products) {
 
 // 进货管理
 void PurchaseModule_doPurchase(PurchaseRecord** purchases, Product* products, int productId, int quantity, const char* date) {
-    // 知识点: 进货操作影响产品库存, 动态链表插入购买记录
+    // 进货操作影响产品库存, 动态链表插入购买记录
     PurchaseRecord* newPurchase = (PurchaseRecord*)malloc(sizeof(PurchaseRecord));
     if (newPurchase == NULL) {
         printf("内存分配失败!\n");
@@ -482,7 +475,7 @@ void PurchaseModule_doPurchase(PurchaseRecord** purchases, Product* products, in
     while (currentProduct != NULL) {
         if (currentProduct->id == productId) {
             currentProduct->stock += quantity;
-            currentProduct->totalPurchaseCost += currentProduct->purchasePrice * quantity; // 新增：累加进货总成本
+            currentProduct->totalPurchaseCost += currentProduct->purchasePrice * quantity; // 累加进货总成本
             currentProduct->historicalStock += quantity; // 新增
             printf("进货成功，更新库存：%d\n", currentProduct->stock);
             return;
@@ -495,7 +488,7 @@ void PurchaseModule_doPurchase(PurchaseRecord** purchases, Product* products, in
 
 // 销售管理
 void SaleModule_doSale(SaleRecord** sales, Product* products, int productId, int quantity, const char* date) {
-    // 知识点: 销售时更新库存/销量, 计算销售额/利润/利润率
+    // 销售时更新库存/销量, 计算销售额/利润/利润率
     SaleRecord* newSale = (SaleRecord*)malloc(sizeof(SaleRecord));
     if (newSale == NULL) {
         printf("内存分配失败!\n");
@@ -516,7 +509,7 @@ void SaleModule_doSale(SaleRecord** sales, Product* products, int productId, int
             if (currentProduct->stock >= quantity) {
                 currentProduct->stock -= quantity;
                 currentProduct->sales += quantity;
-                currentProduct->totalSaleCost += currentProduct->salePrice * quantity; // 新增：累加总销售成本
+                currentProduct->totalSaleCost += currentProduct->salePrice * quantity; // 累加总销售成本
                 // 计算并记录销售额、利润额、利润率
                 newSale->revenue = currentProduct->salePrice * quantity;
                 newSale->profit = (currentProduct->salePrice - currentProduct->purchasePrice) * quantity;
@@ -547,10 +540,6 @@ void SaleModule_doSale(SaleRecord** sales, Product* products, int productId, int
 
     printf("未找到产品ID为%d的产品!\n", productId);
 }
-
-// 在 PurchaseModule_doPurchase / SaleModule_doSale 函数处新增注释：
-// 1. 进货/销售操作同时涉及更新产品库存、进货/销售记录，涉及指针遍历链表、修改某节点内的数据，以及新分配链表节点保存记录。
-// 2. 这种多处修改带来的状态数据更新，体现了 C++ 代码在管理业务逻辑时的复杂性与灵活运用指针的重要性。
 
 // 读取数据从文件
 void loadFromFile(Product** products, User** users, PurchaseRecord** purchases, SaleRecord** sales) {
@@ -658,7 +647,7 @@ void loadFromFile(Product** products, User** users, PurchaseRecord** purchases, 
 
 // 保存数据到文件
 void saveToFile(Product* products, User* users, PurchaseRecord* purchases, SaleRecord* sales) {
-    // 知识点: 使用fprintf格式化输出, 保存产品/用户/进货/销售记录
+    // 使用fprintf格式化输出, 保存产品/用户/进货/销售记录
     FILE* file = fopen("/Users/huangtao/code/仓储管理系统/system_data.txt", "w"); // 修改此行
     if (file == NULL) { // 修改此行
         printf("无法打开文件进行保存!\n");
@@ -769,7 +758,7 @@ void UserModule_handle(User** users) {
                 manageUserAccounts(users);
                 break;
             case 2: {
-                // 新增：查看所有用户信息
+                // 查看所有用户信息
                 displayAllUsers(*users);
                 break;
             }
@@ -967,15 +956,15 @@ void adminOperations(Product** products, User* users,
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            printf("请输入销售价: "); // 新增
-                            if (scanf("%f", &sPrice) != 1) { // 新增
+                            printf("请输入销售价: "); 
+                            if (scanf("%f", &sPrice) != 1) { 
                                 printf("输入错误!\n");
                                 // 清空输入缓冲区
                                 int ch;
                                 while ((ch = getchar()) != '\n' && ch != EOF);
                                 break;
                             }
-                            ProductModule_add(products, id, name, category, stock, pPrice, sPrice); // 修改此行
+                            ProductModule_add(products, id, name, category, stock, pPrice, sPrice); 
                             break;
                         }
                         case 2: {
@@ -1140,7 +1129,6 @@ void displayUserInfo(User* currentUser) {
     } else {
         printf("角色: 仓库工作人员\n");
     }
-    // ...existing code if needed...
 }
 
 void displayAllUsers(User* users) {
@@ -1157,7 +1145,6 @@ void displayAllUsers(User* users) {
                temp->role == 0 ? "管理员" : "仓库工作人员");
         temp = temp->next;
     }
-    // ...existing code if needed...
 }
 
 // 示例：修改管理员密码
