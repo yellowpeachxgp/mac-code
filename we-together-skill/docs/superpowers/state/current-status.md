@@ -64,10 +64,11 @@
 - runtime 已会忽略被标记为 `inactive` 的 relation / memory
 - runtime `safety_and_budget` 已暴露 open local branch 风险数量、branch id 列表与候选总数
 - narration / text_chat / email 导入现已开始写入 `snapshot_entities`
+- runtime retrieval 已支持按 `scene + input_hash` 写入和命中 `retrieval_cache`
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
-- 当前本地全量测试通过：87 passed
+- 当前本地全量测试通过：88 passed
 
 当前主设计稿：
 

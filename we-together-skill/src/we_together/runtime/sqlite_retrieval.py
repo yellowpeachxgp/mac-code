@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 import json
 import sqlite3
+import uuid
 
 
 STATE_PRIORITY = {
@@ -645,9 +646,28 @@ def _build_response_policy(
     }
 
 
-def build_runtime_retrieval_package_from_db(db_path: Path, scene_id: str) -> dict:
+def build_runtime_retrieval_package_from_db(
+    db_path: Path,
+    scene_id: str,
+    input_hash: str | None = None,
+) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+
+    if input_hash:
+        cached_row = conn.execute(
+            """
+            SELECT payload_json
+            FROM retrieval_cache
+            WHERE scene_id = ? AND cache_type = ? AND input_hash = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (scene_id, "runtime_retrieval", input_hash),
+        ).fetchone()
+        if cached_row is not None:
+            conn.close()
+            return json.loads(cached_row["payload_json"])
 
     scene = conn.execute("SELECT * FROM scenes WHERE scene_id = ?", (scene_id,)).fetchone()
     if scene is None:
@@ -740,7 +760,7 @@ def build_runtime_retrieval_package_from_db(db_path: Path, scene_id: str) -> dic
     response_policy = _build_response_policy(scene, participants_rows, activation_map)
     conn.close()
 
-    return {
+    package = {
         "scene_summary": scene_summary,
         "group_context": {
             "group_id": group["group_id"],
@@ -757,3 +777,26 @@ def build_runtime_retrieval_package_from_db(db_path: Path, scene_id: str) -> dic
         "response_policy": response_policy,
         "safety_and_budget": {**safety_and_budget, **branch_summary},
     }
+    if input_hash:
+        cache_id = f"cache_{uuid.uuid4().hex}"
+        created_at = datetime.now(UTC).isoformat()
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            """
+            INSERT INTO retrieval_cache(
+                cache_id, scene_id, cache_type, input_hash, payload_json, expires_at, created_at
+            ) VALUES(?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                cache_id,
+                scene_id,
+                "runtime_retrieval",
+                input_hash,
+                json.dumps(package, ensure_ascii=False),
+                None,
+                created_at,
+            ),
+        )
+        conn.commit()
+        conn.close()
+    return package

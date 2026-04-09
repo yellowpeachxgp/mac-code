@@ -42,6 +42,62 @@ def test_build_runtime_retrieval_package_from_db_reads_scene_and_participants(
     assert package["activation_map"][0]["activation_state"] == "explicit"
 
 
+def test_retrieval_package_can_roundtrip_through_cache(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="cached scene",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_cache",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    first_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_1",
+    )
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        UPDATE scene_participants
+        SET activation_state = 'latent', activation_score = 0.1, is_speaking = 0
+        WHERE scene_id = ? AND person_id = ?
+        """,
+        (scene_id, "person_cache"),
+    )
+    conn.commit()
+    cache_rows = conn.execute(
+        "SELECT COUNT(*) FROM retrieval_cache WHERE scene_id = ? AND input_hash = ?",
+        (scene_id, "hash_1"),
+    ).fetchone()[0]
+    conn.close()
+
+    second_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_1",
+    )
+
+    assert cache_rows == 1
+    assert first_package["activation_map"][0]["activation_state"] == "explicit"
+    assert second_package["activation_map"][0]["activation_state"] == "explicit"
+
+
 def test_build_runtime_retrieval_package_uses_person_names_and_active_relations(
     temp_project_with_migrations,
 ):
