@@ -196,6 +196,22 @@ def test_apply_patch_record_can_resolve_local_branch(temp_project_with_migration
             "status": "open",
             "reason": "identity ambiguity",
             "created_from_event_id": "evt_5",
+            "branch_candidates": [
+                {
+                    "candidate_id": "candidate_keep",
+                    "label": "保留当前人设",
+                    "payload_json": {"mode": "keep"},
+                    "confidence": 0.5,
+                    "status": "open",
+                },
+                {
+                    "candidate_id": "candidate_merge",
+                    "label": "合并身份",
+                    "payload_json": {"mode": "merge"},
+                    "confidence": 0.8,
+                    "status": "open",
+                },
+            ],
         },
         confidence=0.6,
         reason="open local branch",
@@ -212,6 +228,7 @@ def test_apply_patch_record_can_resolve_local_branch(temp_project_with_migration
             "status": "resolved",
             "resolved_at": "2026-04-09T12:00:00+08:00",
             "reason": "merged after confirmation",
+            "selected_candidate_id": "candidate_merge",
         },
         confidence=0.8,
         reason="resolve local branch",
@@ -224,9 +241,17 @@ def test_apply_patch_record_can_resolve_local_branch(temp_project_with_migration
         "SELECT status, reason, resolved_at FROM local_branches WHERE branch_id = ?",
         ("branch_2",),
     ).fetchone()
+    candidate_rows = conn.execute(
+        "SELECT candidate_id, status FROM branch_candidates WHERE branch_id = ? ORDER BY candidate_id",
+        ("branch_2",),
+    ).fetchall()
     conn.close()
 
     assert row == ("resolved", "merged after confirmation", "2026-04-09T12:00:00+08:00")
+    assert candidate_rows == [
+        ("candidate_keep", "rejected"),
+        ("candidate_merge", "selected"),
+    ]
 
 
 def test_apply_patch_record_marks_failed_for_unsupported_operation(temp_project_with_migrations):

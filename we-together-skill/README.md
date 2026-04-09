@@ -73,7 +73,7 @@
 - 运行时 `current_states` 已可读到导入阶段推理出的 person / relation 状态
 - `auto` / `file` 路由已继承上述 state inference 行为
 - runtime 已会忽略被标记为 `inactive` 的 relation / memory
-- runtime `safety_and_budget` 已暴露 open local branch 风险数量与 branch id 列表
+- runtime `safety_and_budget` 已暴露 open local branch 风险数量、branch id 列表与候选总数
 - narration / text_chat / email 导入现已开始写入 `snapshot_entities`
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误，而不是抛出 traceback
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`

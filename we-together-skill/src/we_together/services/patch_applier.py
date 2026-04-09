@@ -170,6 +170,19 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 payload["branch_id"],
             ),
         )
+        selected_candidate_id = payload.get("selected_candidate_id")
+        if selected_candidate_id is not None:
+            conn.execute(
+                """
+                UPDATE branch_candidates
+                SET status = CASE
+                    WHEN candidate_id = ? THEN 'selected'
+                    ELSE 'rejected'
+                END
+                WHERE branch_id = ?
+                """,
+                (selected_candidate_id, payload["branch_id"]),
+            )
     elif patch["operation"] == "unlink_entities":
         conn.execute(
             """

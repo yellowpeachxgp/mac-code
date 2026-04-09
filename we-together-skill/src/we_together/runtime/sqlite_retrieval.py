@@ -341,6 +341,25 @@ def _fetch_open_local_branches(
     ]
 
 
+def _count_open_local_branch_candidates(
+    conn: sqlite3.Connection,
+    branch_ids: list[str],
+) -> int:
+    if not branch_ids:
+        return 0
+    placeholders = ",".join("?" for _ in branch_ids)
+    row = conn.execute(
+        f"""
+        SELECT COUNT(*) AS candidate_count
+        FROM branch_candidates
+        WHERE branch_id IN ({placeholders})
+        AND status = 'open'
+        """,
+        tuple(branch_ids),
+    ).fetchone()
+    return row["candidate_count"] or 0
+
+
 def _build_active_relations(
     conn: sqlite3.Connection,
     seed_person_ids: list[str],
@@ -535,7 +554,11 @@ def _build_open_branch_summary(
         params.extend(scope_ids)
 
     if not clauses:
-        return {"open_local_branch_count": 0, "open_local_branch_ids": []}
+        return {
+            "open_local_branch_count": 0,
+            "open_local_branch_ids": [],
+            "open_local_branch_candidate_count": 0,
+        }
 
     rows = conn.execute(
         """
@@ -549,9 +572,21 @@ def _build_open_branch_summary(
         tuple(params),
     ).fetchall()
     branch_ids = [row["branch_id"] for row in rows]
+    candidate_count = 0
+    if branch_ids:
+        candidate_count = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM branch_candidates
+            WHERE branch_id IN (%s)
+            """
+            % ",".join("?" for _ in branch_ids),
+            tuple(branch_ids),
+        ).fetchone()[0]
     return {
         "open_local_branch_count": len(branch_ids),
         "open_local_branch_ids": branch_ids,
+        "open_local_branch_candidate_count": candidate_count,
     }
 
 
@@ -656,8 +691,13 @@ def build_runtime_retrieval_package_from_db(db_path: Path, scene_id: str) -> dic
         activated_person_ids=activated_person_ids,
         relation_ids=relation_ids,
     )
+    open_branch_ids = [item["branch_id"] for item in open_branches]
     safety_and_budget["open_local_branch_count"] = len(open_branches)
-    safety_and_budget["open_local_branch_ids"] = [item["branch_id"] for item in open_branches]
+    safety_and_budget["open_local_branch_ids"] = open_branch_ids
+    safety_and_budget["open_local_branch_candidate_count"] = _count_open_local_branch_candidates(
+        conn,
+        open_branch_ids,
+    )
     current_states = _build_current_states(
         conn,
         scene_id=scene_id,

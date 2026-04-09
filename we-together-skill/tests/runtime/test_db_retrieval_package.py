@@ -1248,6 +1248,22 @@ def test_runtime_reports_open_local_branch_risk(temp_project_with_migrations):
                 "status": "open",
                 "reason": "ambiguous scene reading",
                 "created_from_event_id": "evt_branch",
+                "branch_candidates": [
+                    {
+                        "candidate_id": "candidate_scene_a",
+                        "label": "私聊解读 A",
+                        "payload_json": {"variant": "a"},
+                        "confidence": 0.6,
+                        "status": "open",
+                    },
+                    {
+                        "candidate_id": "candidate_scene_b",
+                        "label": "私聊解读 B",
+                        "payload_json": {"variant": "b"},
+                        "confidence": 0.7,
+                        "status": "open",
+                    },
+                ],
             },
             confidence=0.6,
             reason="open branch",
@@ -1258,6 +1274,7 @@ def test_runtime_reports_open_local_branch_risk(temp_project_with_migrations):
 
     assert package["safety_and_budget"]["open_local_branch_count"] == 1
     assert package["safety_and_budget"]["open_local_branch_ids"] == ["branch_runtime_1"]
+    assert package["safety_and_budget"]["open_local_branch_candidate_count"] == 2
 
 
 def test_old_event_participants_receive_decay_limited_activation(temp_project_with_migrations):
