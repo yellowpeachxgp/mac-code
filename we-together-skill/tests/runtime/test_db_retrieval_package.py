@@ -888,6 +888,7 @@ def test_event_budget_report_includes_weights(temp_project_with_migrations):
     assert budget["event_weight"] == 0.8
     assert package["safety_and_budget"]["source_weights"]["event"] == 0.8
     assert package["safety_and_budget"]["event_decay_days"] == 30
+    assert package["safety_and_budget"]["source_counts"]["event"]["used"] == 1
 
 
 def test_old_event_participants_receive_decay_limited_activation(temp_project_with_migrations):

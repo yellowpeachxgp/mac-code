@@ -30,3 +30,19 @@ def test_auto_ingest_text_uses_narration_path_for_plain_text(temp_project_with_m
     )
 
     assert result["mode"] == "narration"
+
+
+def test_auto_ingest_text_inherits_text_chat_state_inference(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    transcript = "2026-04-06 23:10 小王: 今天好累\n2026-04-06 23:11 小李: 早点休息\n"
+    auto_ingest_text(db_path=db_path, text=transcript, source_name="chat.txt")
+
+    conn = sqlite3.connect(db_path)
+    state_count = conn.execute(
+        "SELECT COUNT(*) FROM states WHERE scope_type = 'person'"
+    ).fetchone()[0]
+    conn.close()
+
+    assert state_count >= 1

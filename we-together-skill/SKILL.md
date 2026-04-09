@@ -50,6 +50,7 @@ version: "0.1.0"
 - text_chat 导入现已通过 patch 推理构建共享 memory 与 relation link
 - email 导入也通过推理 patch 生成共享 memory，并把发件人 link 到该 memory
 - narration / text_chat / email 导入会推理部分 `update_state`，并可在 retrieval package 中读到
+- `auto` / `file` 路由会继承上述 inference 行为
 - 文件/目录路径缺失时返回清晰错误，目录导入返回 skipped 文件统计
 - 输出图谱摘要
 

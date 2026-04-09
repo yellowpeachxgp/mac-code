@@ -261,6 +261,16 @@ def _build_activation_map(
     blocked_event_candidates = [
         item for item in derived_candidates.values() if item.get("source") == "event"
     ]
+    source_counts = {}
+    for source_name in ("relation", "event", "group", "memory"):
+        selected_for_source = [item for item in selected_derived if item.get("source") == source_name]
+        derived_for_source = [
+            item for item in derived_candidates.values() if item.get("source") == source_name
+        ]
+        source_counts[source_name] = {
+            "used": len(selected_for_source),
+            "blocked": max(0, len(derived_for_source) - len(selected_for_source)),
+        }
     budget = {
         "activation_budget": {
             "max_derived_latent": max_derived_latent,
@@ -278,6 +288,7 @@ def _build_activation_map(
             "group": GROUP_LATENT_WEIGHT,
             "memory": MEMORY_LATENT_WEIGHT,
         },
+        "source_counts": source_counts,
         "event_decay_days": EVENT_DECAY_DAYS,
     }
     return activation_list, budget
