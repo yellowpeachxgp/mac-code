@@ -250,6 +250,53 @@ def test_retrieval_package_includes_state_scopes_and_relation_participants(
     assert ("relation", relation_id) in state_scopes
 
 
+def test_inferred_text_chat_state_flows_into_current_states(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    from we_together.services.ingestion_service import ingest_text_chat
+
+    ingest_text_chat(
+        db_path=db_path,
+        transcript="2026-04-06 23:10 小王: 今天好累\n2026-04-06 23:11 小李: 早点休息\n",
+        source_name="chat.txt",
+    )
+
+    conn = sqlite3.connect(db_path)
+    people = {
+        row[1]: row[0]
+        for row in conn.execute("SELECT person_id, primary_name FROM persons").fetchall()
+    }
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="state retrieval",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id=people["小王"],
+        activation_state="explicit",
+        activation_score=0.95,
+        is_speaking=True,
+    )
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+    person_states = [
+        item for item in package["current_states"]
+        if item["scope_type"] == "person" and item["scope_id"] == people["小王"]
+    ]
+
+    assert any(item["state_type"] == "energy" for item in person_states)
+
+
 def test_group_scene_adds_group_members_as_latent_activation(
     temp_project_with_migrations,
 ):
@@ -774,6 +821,7 @@ def test_event_participants_trigger_additional_latent_activation(temp_project_wi
     assert package["response_policy"]["mode"] == "single_primary"
     budget = package["safety_and_budget"]["activation_budget"]
     assert budget["used_event_latent"] == 1
+    assert package["safety_and_budget"]["propagation_depth"] == 2
 
 
 def test_event_budget_report_includes_weights(temp_project_with_migrations):

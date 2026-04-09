@@ -270,7 +270,7 @@ def _build_activation_map(
             "used_event_latent": len(selected_event_candidates),
             "blocked_event_latent": max(0, len(blocked_event_candidates) - len(selected_event_candidates)),
         },
-        "propagation_depth": 1,
+        "propagation_depth": 2 if selected_derived else 1,
         "activation_barrier": scene["activation_barrier"],
         "source_weights": {
             "relation": RELATION_LATENT_WEIGHT,

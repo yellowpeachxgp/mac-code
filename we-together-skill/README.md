@@ -66,10 +66,12 @@
 - unsupported patch operation 已会留痕为 `failed`
 - narration 导入已开始通过推理出的结构化 patch 落 `create_memory` / `link_entities`
 - text_chat 导入现已通过推理 patch 构建共享 memory 与 relation link
+- narration / text_chat / email 导入现已可通过推理 patch 落部分 `update_state`
+- 运行时 `current_states` 已可读到导入阶段推理出的 person / relation 状态
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误，而不是抛出 traceback
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
-- 当前本地全量测试通过：76 passed
+- 当前本地全量测试通过：78 passed
 
 当前核心设计文档：
 

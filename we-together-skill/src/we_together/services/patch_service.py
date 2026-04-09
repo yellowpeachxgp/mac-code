@@ -77,6 +77,28 @@ def infer_narration_patches(
                 reason="narration linked relation to inferred shared memory",
             )
         )
+        if "朋友" in text:
+            state_id = f"state_{uuid.uuid5(uuid.NAMESPACE_URL, f'relation-tone:{relation_id}:{text}').hex}"
+            patches.append(
+                build_patch(
+                    source_event_id=source_event_id,
+                    target_type="state",
+                    target_id=state_id,
+                    operation="update_state",
+                    payload={
+                        "state_id": state_id,
+                        "scope_type": "relation",
+                        "scope_id": relation_id,
+                        "state_type": "tone",
+                        "value_json": {"tone": "friendly"},
+                        "confidence": 0.7,
+                        "is_inferred": 1,
+                        "source_event_refs_json": [source_event_id],
+                    },
+                    confidence=0.7,
+                    reason="narration inferred friendly relation tone",
+                )
+            )
 
     return patches
 
@@ -129,6 +151,28 @@ def infer_text_chat_patches(
             reason="text chat linked relation to inferred memory",
         ),
     ]
+    if "累" in transcript:
+        state_id = f"state_{uuid.uuid5(uuid.NAMESPACE_URL, f'text-chat-energy:{person_ids[0]}:{transcript}').hex}"
+        patches.append(
+            build_patch(
+                source_event_id=source_event_id,
+                target_type="state",
+                target_id=state_id,
+                operation="update_state",
+                payload={
+                    "state_id": state_id,
+                    "scope_type": "person",
+                    "scope_id": person_ids[0],
+                    "state_type": "energy",
+                    "value_json": {"energy": "low", "summary": "tired"},
+                    "confidence": 0.6,
+                    "is_inferred": 1,
+                    "source_event_refs_json": [source_event_id],
+                },
+                confidence=0.6,
+                reason="text chat inferred low energy state",
+            )
+        )
     return patches
 
 
@@ -177,4 +221,26 @@ def infer_email_patches(
             reason="email linked person to inferred memory",
         )
     )
+    if "顺利" in summary:
+        state_id = f"state_{uuid.uuid5(uuid.NAMESPACE_URL, f'email-work-status:{person_id}:{summary}').hex}"
+        patches.append(
+            build_patch(
+                source_event_id=source_event_id,
+                target_type="state",
+                target_id=state_id,
+                operation="update_state",
+                payload={
+                    "state_id": state_id,
+                    "scope_type": "person",
+                    "scope_id": person_id,
+                    "state_type": "work_status",
+                    "value_json": {"status": "on_track", "sentiment": "positive"},
+                    "confidence": 0.75,
+                    "is_inferred": 1,
+                    "source_event_refs_json": [source_event_id],
+                },
+                confidence=0.75,
+                reason="email inferred positive work status",
+            )
+        )
     return patches

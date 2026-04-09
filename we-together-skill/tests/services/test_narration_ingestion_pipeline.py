@@ -77,8 +77,13 @@ def test_ingest_narration_applies_inferred_patches_and_entity_links(temp_project
         row[0] for row in conn.execute("SELECT operation FROM patches").fetchall()
     }
     entity_link_count = conn.execute("SELECT COUNT(*) FROM entity_links").fetchone()[0]
+    relation_state_count = conn.execute(
+        "SELECT COUNT(*) FROM states WHERE scope_type = 'relation'"
+    ).fetchone()[0]
     conn.close()
 
     assert "create_memory" in patch_operations
     assert "link_entities" in patch_operations
+    assert "update_state" in patch_operations
     assert entity_link_count >= 1
+    assert relation_state_count >= 1

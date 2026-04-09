@@ -60,9 +60,14 @@ def test_ingest_email_file_infers_shared_memory_and_links(temp_project_with_migr
     }
     memory_count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
     entity_link_count = conn.execute("SELECT COUNT(*) FROM entity_links").fetchone()[0]
+    person_state_count = conn.execute(
+        "SELECT COUNT(*) FROM states WHERE scope_type = 'person'"
+    ).fetchone()[0]
     conn.close()
 
     assert "create_memory" in patch_operations
     assert "link_entities" in patch_operations
+    assert "update_state" in patch_operations
     assert memory_count >= 1
     assert entity_link_count >= 1
+    assert person_state_count >= 1
