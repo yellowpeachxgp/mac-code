@@ -53,17 +53,18 @@
 - event participants 已可触发额外 `latent` 激活，并纳入 activation budget 统计
 - retrieval package 已开始输出可解释的 `activation_budget` / `propagation_depth` / `source_weights` / `event_decay_days` 信息
 - retrieval package 现已按 `relation/event/group/memory` 输出来源级 used / blocked 统计
-- patch applier 已扩到 `link_entities`、`unlink_entities`、`create_local_branch`、`resolve_local_branch`
+- patch applier 已扩到 `link_entities`、`unlink_entities`、`create_local_branch`、`resolve_local_branch`、`mark_inactive`
 - unsupported patch operation 已会落痕为 `failed`
 - narration 导入已开始通过推理出的结构化 patch 落 `create_memory` / `link_entities`
 - text_chat 导入现已通过推理 patch 构建共享 memory 与 relation link
 - narration / text_chat / email 导入现已可通过推理 patch 落部分 `update_state`
 - 运行时 `current_states` 已可读到导入阶段推理出的 person / relation 状态
 - `auto` / `file` 路由已继承上述 state inference 行为
+- runtime 已会忽略被标记为 `inactive` 的 relation / memory
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
-- 当前本地全量测试通过：80 passed
+- 当前本地全量测试通过：85 passed
 
 当前主设计稿：
 

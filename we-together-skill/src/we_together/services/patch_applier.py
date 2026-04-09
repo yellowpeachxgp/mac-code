@@ -166,6 +166,28 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 payload["to_id"],
             ),
         )
+    elif patch["operation"] == "mark_inactive":
+        table_by_target = {
+            "memory": "memories",
+            "relation": "relations",
+            "person": "persons",
+            "group": "groups",
+        }
+        table_name = table_by_target.get(patch["target_type"])
+        if table_name is None or patch["target_id"] is None:
+            conn.execute(
+                "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
+                ("failed", now, patch["patch_id"]),
+            )
+            conn.commit()
+            conn.close()
+            raise ValueError(f"Unsupported mark_inactive target: {patch['target_type']}")
+
+        id_column = f"{patch['target_type']}_id"
+        conn.execute(
+            f"UPDATE {table_name} SET status = ?, updated_at = ? WHERE {id_column} = ?",
+            ("inactive", now, patch["target_id"]),
+        )
     else:
         conn.execute(
             "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",

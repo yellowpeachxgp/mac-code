@@ -297,6 +297,326 @@ def test_inferred_text_chat_state_flows_into_current_states(temp_project_with_mi
     assert any(item["state_type"] == "energy" for item in person_states)
 
 
+def test_retrieval_package_ignores_inactive_relation_and_memory(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    ingest_narration(
+        db_path=db_path,
+        text="小王和小李以前是同事，现在还是朋友。",
+        source_name="manual-note",
+    )
+
+    conn = sqlite3.connect(db_path)
+    people = {
+        row[1]: row[0]
+        for row in conn.execute("SELECT person_id, primary_name FROM persons").fetchall()
+    }
+    relation_id = conn.execute("SELECT relation_id FROM relations LIMIT 1").fetchone()[0]
+    memory_id = conn.execute("SELECT memory_id FROM memories LIMIT 1").fetchone()[0]
+    conn.close()
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_relation_inactive",
+            target_type="relation",
+            target_id=relation_id,
+            operation="mark_inactive",
+            payload={},
+            confidence=0.5,
+            reason="retire relation",
+        ),
+    )
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_memory_inactive",
+            target_type="memory",
+            target_id=memory_id,
+            operation="mark_inactive",
+            payload={},
+            confidence=0.5,
+            reason="retire memory",
+        ),
+    )
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="inactive filter test",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id=people["小王"],
+        activation_state="explicit",
+        activation_score=0.9,
+        is_speaking=True,
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id=people["小李"],
+        activation_state="latent",
+        activation_score=0.8,
+        is_speaking=False,
+    )
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+
+    relation_ids = {item["relation_id"] for item in package["active_relations"]}
+    memory_ids = {item["memory_id"] for item in package["relevant_memories"]}
+
+    assert relation_id not in relation_ids
+    assert memory_id not in memory_ids
+
+
+def test_runtime_retrieval_ignores_directly_inactive_relations(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    person_primary = "person_runtime_rel_primary"
+    person_other = "person_runtime_rel_other"
+    conn = sqlite3.connect(db_path)
+    conn.executemany(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, summary, persona_summary, work_summary,
+            life_summary, style_summary, boundary_summary, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        [
+            (
+                person_primary,
+                "PrimaryRel",
+                "active",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0.85,
+                "{}",
+            ),
+            (
+                person_other,
+                "OtherRel",
+                "active",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0.85,
+                "{}",
+            ),
+        ],
+    )
+
+    inactive_relation_id = "relation_runtime_inactive"
+    conn.execute(
+        """
+        INSERT INTO relations(
+            relation_id, core_type, custom_label, summary, directionality,
+            strength, stability, visibility, status, time_start, time_end,
+            confidence, metadata_json, created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        (
+            inactive_relation_id,
+            "colleague",
+            "Inactive relation",
+            "Should be dropped from retrieval",
+            "bidirectional",
+            0.5,
+            0.4,
+            "known",
+            "inactive",
+            None,
+            None,
+            0.7,
+            "{}",
+        ),
+    )
+    event_id = "evt_runtime_inactive_relation"
+    conn.execute(
+        """
+        INSERT INTO events(
+            event_id, event_type, source_type, scene_id, group_id,
+            timestamp, summary, visibility_level, confidence, is_structured,
+            raw_evidence_refs_json, metadata_json, created_at
+        ) VALUES(?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, datetime('now'))
+        """,
+        (
+            event_id,
+            "narration_seed",
+            "manual",
+            None,
+            None,
+            "trigger relation retrieval",
+            "visible",
+            0.9,
+            0,
+            "[]",
+            "{}",
+        ),
+    )
+    conn.executemany(
+        """
+        INSERT INTO event_participants(event_id, person_id, participant_role)
+        VALUES(?, ?, ?)
+        """,
+        [
+            (event_id, person_primary, "speaker"),
+            (event_id, person_other, "mentioned"),
+        ],
+    )
+    conn.execute(
+        """
+        INSERT INTO event_targets(event_id, target_type, target_id, impact_hint)
+        VALUES(?, ?, ?, ?)
+        """,
+        (event_id, "relation", inactive_relation_id, "inactive test"),
+    )
+    conn.commit()
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="inactive relation filtering",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id=person_primary,
+        activation_state="explicit",
+        activation_score=0.95,
+        is_speaking=True,
+    )
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+    relation_ids = {item["relation_id"] for item in package["active_relations"]}
+
+    assert inactive_relation_id not in relation_ids
+
+
+def test_runtime_retrieval_ignores_directly_inactive_memories(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    person_id = "person_runtime_memory"
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, summary, persona_summary, work_summary,
+            life_summary, style_summary, boundary_summary, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        (
+            person_id,
+            "MemoryTester",
+            "active",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            0.8,
+            "{}",
+        ),
+    )
+
+    active_memory_id = "memory_runtime_active"
+    inactive_memory_id = "memory_runtime_inactive"
+    conn.executemany(
+        """
+        INSERT INTO memories(
+            memory_id, memory_type, summary, emotional_tone, relevance_score,
+            confidence, is_shared, status, metadata_json, created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        [
+            (
+                active_memory_id,
+                "shared_memory",
+                "Active runtime memory",
+                None,
+                0.9,
+                0.85,
+                1,
+                "active",
+                "{}",
+            ),
+            (
+                inactive_memory_id,
+                "shared_memory",
+                "Inactive runtime memory",
+                None,
+                0.8,
+                0.75,
+                1,
+                "inactive",
+                "{}",
+            ),
+        ],
+    )
+    conn.executemany(
+        """
+        INSERT INTO memory_owners(memory_id, owner_type, owner_id, role_label)
+        VALUES(?, ?, ?, ?)
+        """,
+        [
+            (active_memory_id, "person", person_id, None),
+            (inactive_memory_id, "person", person_id, None),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="inactive memory filtering",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id=person_id,
+        activation_state="explicit",
+        activation_score=0.95,
+        is_speaking=True,
+    )
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+    memory_ids = {item["memory_id"] for item in package["relevant_memories"]}
+
+    assert active_memory_id in memory_ids
+    assert inactive_memory_id not in memory_ids
+
+
 def test_group_scene_adds_group_members_as_latent_activation(
     temp_project_with_migrations,
 ):

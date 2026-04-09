@@ -281,3 +281,104 @@ def test_apply_patch_record_can_unlink_entities(temp_project_with_migrations):
 
     assert row is None
     assert patch_row[0] == "applied"
+
+
+def test_apply_patch_record_can_mark_memory_inactive(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    create_patch = build_patch(
+        source_event_id="evt_memory_create",
+        target_type="memory",
+        target_id="memory_z",
+        operation="create_memory",
+        payload={
+            "memory_id": "memory_z",
+            "memory_type": "shared_memory",
+            "summary": "旧记忆",
+            "confidence": 0.5,
+            "is_shared": 1,
+            "status": "active",
+        },
+        confidence=0.5,
+        reason="seed memory",
+    )
+    apply_patch_record(db_path=db_path, patch=create_patch)
+
+    inactive_patch = build_patch(
+        source_event_id="evt_memory_inactive",
+        target_type="memory",
+        target_id="memory_z",
+        operation="mark_inactive",
+        payload={},
+        confidence=0.4,
+        reason="retire memory",
+    )
+    apply_patch_record(db_path=db_path, patch=inactive_patch)
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT status FROM memories WHERE memory_id = ?",
+        ("memory_z",),
+    ).fetchone()
+    patch_row = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?",
+        (inactive_patch["patch_id"],),
+    ).fetchone()
+    conn.close()
+
+    assert row[0] == "inactive"
+    assert patch_row[0] == "applied"
+
+
+def test_apply_patch_record_can_mark_relation_inactive(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO relations(
+            relation_id, core_type, custom_label, summary, directionality,
+            strength, stability, visibility, status, time_start, time_end,
+            confidence, metadata_json, created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        (
+            "relation_inactive_test",
+            "friendship",
+            "朋友",
+            "旧关系",
+            "bidirectional",
+            0.5,
+            0.5,
+            "known",
+            "active",
+            None,
+            None,
+            0.6,
+            "{}",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    inactive_patch = build_patch(
+        source_event_id="evt_relation_inactive",
+        target_type="relation",
+        target_id="relation_inactive_test",
+        operation="mark_inactive",
+        payload={},
+        confidence=0.4,
+        reason="retire relation",
+    )
+    apply_patch_record(db_path=db_path, patch=inactive_patch)
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT status FROM relations WHERE relation_id = ?",
+        ("relation_inactive_test",),
+    ).fetchone()
+    conn.close()
+
+    assert row[0] == "inactive"

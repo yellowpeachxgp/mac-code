@@ -318,6 +318,7 @@ def _build_active_relations(
         JOIN event_participants ep
             ON ep.event_id = et.event_id
         WHERE ep.person_id IN (%s)
+        AND r.status = 'active'
         """
         % ",".join("?" for _ in seed_person_ids),
         tuple(seed_person_ids),
@@ -383,6 +384,7 @@ def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: lis
         JOIN memory_owners mo ON mo.memory_id = m.memory_id
         WHERE mo.owner_id IN (%s)
         AND m.is_shared = 1
+        AND m.status = 'active'
         ORDER BY m.relevance_score DESC, m.created_at DESC
         """
         % ",".join("?" for _ in activated_person_ids),
