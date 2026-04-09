@@ -52,6 +52,7 @@ version: "0.1.0"
 - narration / text_chat / email 导入会推理部分 `update_state`，并可在 retrieval package 中读到
 - `auto` / `file` 路由会继承上述 inference 行为
 - runtime 会忽略已被 `mark_inactive` 的 relation / memory
+- narration / text_chat / email 导入会为 snapshot 写入关键实体清单
 - 文件/目录路径缺失时返回清晰错误，目录导入返回 skipped 文件统计
 - 输出图谱摘要
 

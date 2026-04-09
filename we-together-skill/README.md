@@ -72,10 +72,11 @@
 - 运行时 `current_states` 已可读到导入阶段推理出的 person / relation 状态
 - `auto` / `file` 路由已继承上述 state inference 行为
 - runtime 已会忽略被标记为 `inactive` 的 relation / memory
+- narration / text_chat / email 导入现已开始写入 `snapshot_entities`
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误，而不是抛出 traceback
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
-- 当前本地全量测试通过：85 passed
+- 当前本地全量测试通过：86 passed
 
 当前核心设计文档：
 

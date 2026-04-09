@@ -24,6 +24,7 @@ def test_ingest_narration_creates_import_job_evidence_event_patch_and_snapshot(
         "events": conn.execute("SELECT COUNT(*) FROM events").fetchone()[0],
         "patches": conn.execute("SELECT COUNT(*) FROM patches").fetchone()[0],
         "snapshots": conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0],
+        "snapshot_entities": conn.execute("SELECT COUNT(*) FROM snapshot_entities").fetchone()[0],
         "memories": conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0],
     }
     conn.close()
@@ -35,6 +36,7 @@ def test_ingest_narration_creates_import_job_evidence_event_patch_and_snapshot(
     assert counts["events"] == 1
     assert counts["patches"] >= 2
     assert counts["snapshots"] == 1
+    assert counts["snapshot_entities"] >= 4
     assert counts["memories"] == 1
 
 

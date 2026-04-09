@@ -9,7 +9,7 @@ from we_together.importers.email_importer import import_email_file
 from we_together.services.identity_link_service import upsert_identity_link
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch, infer_email_patches
-from we_together.services.snapshot_service import build_snapshot
+from we_together.services.snapshot_service import build_snapshot, build_snapshot_entities
 
 
 def ingest_email_file(db_path: Path, email_path: Path) -> dict:
@@ -40,6 +40,7 @@ def ingest_email_file(db_path: Path, email_path: Path) -> dict:
         summary="after email import",
         graph_hash=graph_hash,
     )
+    snapshot_entity_rows = []
 
     conn = connect(db_path)
     conn.execute(
@@ -205,6 +206,14 @@ def ingest_email_file(db_path: Path, email_path: Path) -> dict:
     )
     memory_id = memory_patch["payload_json"]["memory_id"] if memory_patch else None
     if memory_id:
+        snapshot_entity_rows = build_snapshot_entities(
+            snapshot_id=snapshot_id,
+            entities=[
+                ("event", event_id),
+                ("person", person_id),
+                ("memory", memory_id),
+            ],
+        )
         conn = connect(db_path)
         conn.execute(
             """
@@ -213,6 +222,19 @@ def ingest_email_file(db_path: Path, email_path: Path) -> dict:
             """,
             (memory_id, "person", person_id, "shared"),
         )
+        for row in snapshot_entity_rows:
+            conn.execute(
+                """
+                INSERT INTO snapshot_entities(snapshot_id, entity_type, entity_id, entity_hash)
+                VALUES(?, ?, ?, ?)
+                """,
+                (
+                    row["snapshot_id"],
+                    row["entity_type"],
+                    row["entity_id"],
+                    row["entity_hash"],
+                ),
+            )
         conn.commit()
         conn.close()
 

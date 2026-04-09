@@ -15,7 +15,7 @@ from we_together.services.patch_service import (
     infer_narration_patches,
     infer_text_chat_patches,
 )
-from we_together.services.snapshot_service import build_snapshot
+from we_together.services.snapshot_service import build_snapshot, build_snapshot_entities
 
 
 def _extract_people(text: str) -> list[str]:
@@ -70,6 +70,7 @@ def ingest_narration(db_path: Path, text: str, source_name: str) -> dict:
         summary="after narration import",
         graph_hash=graph_hash,
     )
+    snapshot_entity_rows = []
 
     conn = connect(db_path)
     conn.execute(
@@ -241,6 +242,15 @@ def ingest_narration(db_path: Path, text: str, source_name: str) -> dict:
             None,
         )
         memory_id = memory_patch["payload_json"]["memory_id"] if memory_patch else None
+        snapshot_entities = [("event", event_id)]
+        snapshot_entities.extend(("person", person_id) for person_id in person_ids)
+        snapshot_entities.extend(("relation", relation_id) for relation_id in relation_ids)
+        if memory_id is not None:
+            snapshot_entities.append(("memory", memory_id))
+        snapshot_entity_rows = build_snapshot_entities(
+            snapshot_id=snapshot_id,
+            entities=snapshot_entities,
+        )
         conn = connect(db_path)
         if memory_id is not None:
             for person_id in person_ids[:2]:
@@ -292,6 +302,19 @@ def ingest_narration(db_path: Path, text: str, source_name: str) -> dict:
             snapshot["created_at"],
         ),
     )
+    for row in snapshot_entity_rows:
+        conn.execute(
+            """
+            INSERT INTO snapshot_entities(snapshot_id, entity_type, entity_id, entity_hash)
+            VALUES(?, ?, ?, ?)
+            """,
+            (
+                row["snapshot_id"],
+                row["entity_type"],
+                row["entity_id"],
+                row["entity_hash"],
+            ),
+        )
     conn.commit()
     conn.close()
 
@@ -313,6 +336,7 @@ def ingest_text_chat(db_path: Path, transcript: str, source_name: str) -> dict:
     evidence_id = evidence["evidence_id"]
 
     conn = connect(db_path)
+    snapshot_entity_rows = []
     conn.execute(
         """
         INSERT INTO import_jobs(
@@ -472,6 +496,8 @@ def ingest_text_chat(db_path: Path, transcript: str, source_name: str) -> dict:
         )
         event_count += 1
 
+    snapshot_id = f"snap_{uuid.uuid4().hex}"
+
     if len(people) >= 2:
         relation_id = f"relation_{uuid.uuid5(uuid.NAMESPACE_URL, f'text_chat:{people[0]}:{people[1]}').hex}"
         person_names = [identity["display_name"] for identity in import_result["identity_candidates"][:2]]
@@ -527,6 +553,15 @@ def ingest_text_chat(db_path: Path, transcript: str, source_name: str) -> dict:
             None,
         )
         memory_id = memory_patch["payload_json"]["memory_id"] if memory_patch else None
+        snapshot_entities = [("event", event_id) for event_id in event_ids]
+        snapshot_entities.extend(("person", person_id) for person_id in people)
+        snapshot_entities.append(("relation", relation_id))
+        if memory_id:
+            snapshot_entities.append(("memory", memory_id))
+        snapshot_entity_rows = build_snapshot_entities(
+            snapshot_id=snapshot_id,
+            entities=snapshot_entities,
+        )
         conn = connect(db_path)
         if memory_id:
             for person_id in people[:2]:
@@ -538,7 +573,6 @@ def ingest_text_chat(db_path: Path, transcript: str, source_name: str) -> dict:
                     (memory_id, "person", person_id, "shared"),
                 )
 
-    snapshot_id = f"snap_{uuid.uuid4().hex}"
     graph_hash = hashlib.sha256(f"{import_job_id}:{evidence_id}:{event_count}".encode()).hexdigest()
     snapshot = build_snapshot(
         snapshot_id=snapshot_id,
@@ -563,6 +597,19 @@ def ingest_text_chat(db_path: Path, transcript: str, source_name: str) -> dict:
             snapshot["created_at"],
         ),
     )
+    for row in snapshot_entity_rows:
+        conn.execute(
+            """
+            INSERT INTO snapshot_entities(snapshot_id, entity_type, entity_id, entity_hash)
+            VALUES(?, ?, ?, ?)
+            """,
+            (
+                row["snapshot_id"],
+                row["entity_type"],
+                row["entity_id"],
+                row["entity_hash"],
+            ),
+        )
     conn.commit()
     conn.close()
 

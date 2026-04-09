@@ -27,6 +27,7 @@ def test_ingest_email_file_creates_person_event_and_snapshot(temp_project_with_m
     identity_count = conn.execute("SELECT COUNT(*) FROM identity_links").fetchone()[0]
     event_count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
     snapshot_count = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
+    snapshot_entity_count = conn.execute("SELECT COUNT(*) FROM snapshot_entities").fetchone()[0]
     conn.close()
 
     assert result["import_job_id"].startswith("import_")
@@ -34,6 +35,7 @@ def test_ingest_email_file_creates_person_event_and_snapshot(temp_project_with_m
     assert identity_count >= 1
     assert event_count >= 1
     assert snapshot_count >= 1
+    assert snapshot_entity_count >= 3
 
 
 def test_ingest_email_file_infers_shared_memory_and_links(temp_project_with_migrations, tmp_path):

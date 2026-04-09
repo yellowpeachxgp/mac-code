@@ -23,6 +23,7 @@ def test_ingest_text_chat_creates_people_and_multiple_events(temp_project_with_m
     identity_count = conn.execute("SELECT COUNT(*) FROM identity_links").fetchone()[0]
     event_count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
     memory_count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+    snapshot_entity_count = conn.execute("SELECT COUNT(*) FROM snapshot_entities").fetchone()[0]
     relation_row = conn.execute(
         "SELECT core_type, custom_label, summary FROM relations ORDER BY created_at DESC LIMIT 1"
     ).fetchone()
@@ -33,6 +34,7 @@ def test_ingest_text_chat_creates_people_and_multiple_events(temp_project_with_m
     assert identity_count >= 2
     assert event_count >= 2
     assert memory_count >= 1
+    assert snapshot_entity_count >= 4
     assert relation_row[0] == "interaction"
     assert relation_row[1] == "聊天关系"
     assert "小王" in relation_row[2] or "小李" in relation_row[2]
