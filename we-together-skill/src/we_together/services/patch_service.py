@@ -1,0 +1,180 @@
+from datetime import UTC, datetime
+import uuid
+
+
+def build_patch(
+    source_event_id: str,
+    target_type: str,
+    target_id: str | None,
+    operation: str,
+    payload: dict,
+    confidence: float,
+    reason: str,
+) -> dict:
+    return {
+        "patch_id": f"patch_{uuid.uuid4().hex}",
+        "source_event_id": source_event_id,
+        "target_type": target_type,
+        "target_id": target_id,
+        "operation": operation,
+        "payload_json": payload,
+        "confidence": confidence,
+        "reason": reason,
+        "status": "pending",
+        "created_at": datetime.now(UTC).isoformat(),
+        "applied_at": None,
+    }
+
+
+def infer_narration_patches(
+    source_event_id: str,
+    text: str,
+    person_ids: list[str],
+    relation_ids: list[str],
+) -> list[dict]:
+    if len(person_ids) < 2:
+        return []
+
+    memory_id = f"memory_{uuid.uuid5(uuid.NAMESPACE_URL, f'memory:{person_ids[0]}:{person_ids[1]}:{text}').hex}"
+    patches = [
+        build_patch(
+            source_event_id=source_event_id,
+            target_type="memory",
+            target_id=memory_id,
+            operation="create_memory",
+            payload={
+                "memory_id": memory_id,
+                "memory_type": "shared_memory",
+                "summary": text,
+                "relevance_score": 1.0,
+                "confidence": 0.7,
+                "is_shared": 1,
+                "status": "active",
+                "metadata_json": {"source_event_id": source_event_id},
+            },
+            confidence=0.7,
+            reason="narration inferred shared memory",
+        )
+    ]
+
+    for relation_id in relation_ids:
+        patches.append(
+            build_patch(
+                source_event_id=source_event_id,
+                target_type="entity_link",
+                target_id=None,
+                operation="link_entities",
+                payload={
+                    "from_type": "relation",
+                    "from_id": relation_id,
+                    "relation_type": "supported_by_memory",
+                    "to_type": "memory",
+                    "to_id": memory_id,
+                    "weight": 0.7,
+                    "metadata_json": {"source_event_id": source_event_id},
+                },
+                confidence=0.7,
+                reason="narration linked relation to inferred shared memory",
+            )
+        )
+
+    return patches
+
+
+def infer_text_chat_patches(
+    source_event_id: str,
+    transcript: str,
+    person_ids: list[str],
+    relation_id: str,
+) -> list[dict]:
+    if len(person_ids) < 2:
+        return []
+
+    summary = "来源于文本聊天导入"
+    memory_id = f"memory_{uuid.uuid5(uuid.NAMESPACE_URL, f'text_chat:{person_ids[0]}:{person_ids[1]}:{summary}').hex}"
+    patches = [
+        build_patch(
+            source_event_id=source_event_id,
+            target_type="memory",
+            target_id=memory_id,
+            operation="create_memory",
+            payload={
+                "memory_id": memory_id,
+                "memory_type": "shared_memory",
+                "summary": summary,
+                "relevance_score": 0.8,
+                "confidence": 0.6,
+                "is_shared": 1,
+                "status": "active",
+                "metadata_json": {"source_event_id": source_event_id},
+            },
+            confidence=0.6,
+            reason="text chat inferred shared memory",
+        ),
+        build_patch(
+            source_event_id=source_event_id,
+            target_type="entity_link",
+            target_id=None,
+            operation="link_entities",
+            payload={
+                "from_type": "relation",
+                "from_id": relation_id,
+                "relation_type": "supported_by_memory",
+                "to_type": "memory",
+                "to_id": memory_id,
+                "weight": 0.5,
+                "metadata_json": {"source_event_id": source_event_id},
+            },
+            confidence=0.5,
+            reason="text chat linked relation to inferred memory",
+        ),
+    ]
+    return patches
+
+
+def infer_email_patches(
+    source_event_id: str,
+    person_id: str,
+    summary: str,
+) -> list[dict]:
+    memory_id = f"memory_{uuid.uuid5(uuid.NAMESPACE_URL, f'email:{person_id}:{summary}').hex}"
+    patches = [
+        build_patch(
+            source_event_id=source_event_id,
+            target_type="memory",
+            target_id=memory_id,
+            operation="create_memory",
+            payload={
+                "memory_id": memory_id,
+                "memory_type": "shared_memory",
+                "summary": summary,
+                "relevance_score": 0.9,
+                "confidence": 0.75,
+                "is_shared": 1,
+                "status": "active",
+                "metadata_json": {"source_event_id": source_event_id},
+            },
+            confidence=0.75,
+            reason="email inferred shared memory",
+        )
+    ]
+    patches.append(
+        build_patch(
+            source_event_id=source_event_id,
+            target_type="entity_link",
+            target_id=None,
+            operation="link_entities",
+            payload={
+                "from_type": "person",
+                "from_id": person_id,
+                "relation_type": "supports",
+                "to_type": "memory",
+                "to_id": memory_id,
+                "weight": 0.7,
+                "metadata_json": {"source_event_id": source_event_id},
+            },
+            confidence=0.7,
+            reason="email linked person to inferred memory",
+        )
+    )
+    return patches
