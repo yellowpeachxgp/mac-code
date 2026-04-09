@@ -1211,6 +1211,55 @@ def test_event_budget_report_includes_weights(temp_project_with_migrations):
     assert package["safety_and_budget"]["source_counts"]["event"]["used"] == 1
 
 
+def test_runtime_reports_open_local_branch_risk(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="branch risk",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_alice",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_branch",
+            target_type="local_branch",
+            target_id="branch_runtime_1",
+            operation="create_local_branch",
+            payload={
+                "branch_id": "branch_runtime_1",
+                "scope_type": "scene",
+                "scope_id": scene_id,
+                "status": "open",
+                "reason": "ambiguous scene reading",
+                "created_from_event_id": "evt_branch",
+            },
+            confidence=0.6,
+            reason="open branch",
+        ),
+    )
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+
+    assert package["safety_and_budget"]["open_local_branch_count"] == 1
+    assert package["safety_and_budget"]["open_local_branch_ids"] == ["branch_runtime_1"]
+
+
 def test_old_event_participants_receive_decay_limited_activation(temp_project_with_migrations):
     bootstrap_project(temp_project_with_migrations)
     db_path = temp_project_with_migrations / "db" / "main.sqlite3"

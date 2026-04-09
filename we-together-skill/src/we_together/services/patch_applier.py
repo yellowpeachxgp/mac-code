@@ -134,6 +134,28 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 payload.get("resolved_at"),
             ),
         )
+        branch_candidates = payload.get("branch_candidates") or []
+        if branch_candidates:
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO branch_candidates(
+                    candidate_id, branch_id, label, payload_json,
+                    confidence, status, created_at
+                ) VALUES(?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        candidate["candidate_id"],
+                        payload["branch_id"],
+                        candidate.get("label"),
+                        json.dumps(candidate["payload_json"], ensure_ascii=False),
+                        candidate.get("confidence"),
+                        candidate.get("status", "open"),
+                        candidate.get("created_at", now),
+                    )
+                    for candidate in branch_candidates
+                ],
+            )
     elif patch["operation"] == "resolve_local_branch":
         conn.execute(
             """

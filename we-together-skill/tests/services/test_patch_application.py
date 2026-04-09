@@ -134,6 +134,22 @@ def test_apply_patch_record_can_create_local_branch(temp_project_with_migrations
             "status": "open",
             "reason": "conflicting relation evidence",
             "created_from_event_id": "evt_4",
+            "branch_candidates": [
+                {
+                    "candidate_id": "candidate_a",
+                    "label": "同事关系",
+                    "payload_json": {"core_type": "work"},
+                    "confidence": 0.7,
+                    "status": "open",
+                },
+                {
+                    "candidate_id": "candidate_b",
+                    "label": "朋友关系",
+                    "payload_json": {"core_type": "friendship"},
+                    "confidence": 0.8,
+                    "status": "open",
+                },
+            ],
         },
         confidence=0.7,
         reason="test local branch patch",
@@ -146,9 +162,22 @@ def test_apply_patch_record_can_create_local_branch(temp_project_with_migrations
         "SELECT scope_type, scope_id, status, reason, created_from_event_id FROM local_branches WHERE branch_id = ?",
         ("branch_1",),
     ).fetchone()
+    candidate_count = conn.execute(
+        "SELECT COUNT(*) FROM branch_candidates WHERE branch_id = ?",
+        ("branch_1",),
+    ).fetchone()[0]
+    branch_candidates = conn.execute(
+        "SELECT candidate_id, label, payload_json, confidence, status FROM branch_candidates WHERE branch_id = ? ORDER BY candidate_id",
+        ("branch_1",),
+    ).fetchall()
     conn.close()
 
     assert row == ("relation", "relation_1", "open", "conflicting relation evidence", "evt_4")
+    assert candidate_count == 2
+    assert len(branch_candidates) == 2
+    assert branch_candidates[0][0] == "candidate_a"
+    assert branch_candidates[1][0] == "candidate_b"
+    assert json.loads(branch_candidates[0][2])["core_type"] == "work"
 
 
 def test_apply_patch_record_can_resolve_local_branch(temp_project_with_migrations):

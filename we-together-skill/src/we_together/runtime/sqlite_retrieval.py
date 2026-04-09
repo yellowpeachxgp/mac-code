@@ -294,6 +294,53 @@ def _build_activation_map(
     return activation_list, budget
 
 
+def _fetch_open_local_branches(
+    conn: sqlite3.Connection,
+    *,
+    scene_id: str,
+    group_id: str | None,
+    activated_person_ids: list[str],
+    relation_ids: list[str],
+) -> list[dict]:
+    scope_values = {
+        "scene": [scene_id],
+        "group": [group_id] if group_id else [],
+        "person": activated_person_ids,
+        "relation": relation_ids,
+    }
+    clauses = []
+    params: list[str] = []
+    for scope_type, scope_ids in scope_values.items():
+        if not scope_ids:
+            continue
+        placeholders = ",".join("?" for _ in scope_ids)
+        clauses.append(f"(scope_type = ? AND scope_id IN ({placeholders}))")
+        params.append(scope_type)
+        params.extend(scope_ids)
+    if not clauses:
+        return []
+
+    rows = conn.execute(
+        f"""
+        SELECT branch_id, scope_type, scope_id, reason
+        FROM local_branches
+        WHERE status = 'open'
+        AND ({' OR '.join(clauses)})
+        ORDER BY branch_id
+        """,
+        tuple(params),
+    ).fetchall()
+    return [
+        {
+            "branch_id": row["branch_id"],
+            "scope_type": row["scope_type"],
+            "scope_id": row["scope_id"],
+            "reason": row["reason"],
+        }
+        for row in rows
+    ]
+
+
 def _build_active_relations(
     conn: sqlite3.Connection,
     seed_person_ids: list[str],
@@ -464,6 +511,50 @@ def _build_current_states(
     ]
 
 
+def _build_open_branch_summary(
+    conn: sqlite3.Connection,
+    *,
+    scene_id: str,
+    activated_person_ids: list[str],
+    relation_ids: list[str],
+) -> dict:
+    scope_values: dict[str, list[str]] = {
+        "scene": [scene_id],
+        "person": activated_person_ids,
+        "relation": relation_ids,
+    }
+    clauses = []
+    params: list[str] = []
+    for scope_type, scope_ids in scope_values.items():
+        if not scope_ids:
+            continue
+        clauses.append(
+            "(scope_type = ? AND scope_id IN (%s))" % ",".join("?" for _ in scope_ids)
+        )
+        params.append(scope_type)
+        params.extend(scope_ids)
+
+    if not clauses:
+        return {"open_local_branch_count": 0, "open_local_branch_ids": []}
+
+    rows = conn.execute(
+        """
+        SELECT branch_id
+        FROM local_branches
+        WHERE status = 'open'
+        AND (%s)
+        ORDER BY created_at DESC, branch_id
+        """
+        % " OR ".join(clauses),
+        tuple(params),
+    ).fetchall()
+    branch_ids = [row["branch_id"] for row in rows]
+    return {
+        "open_local_branch_count": len(branch_ids),
+        "open_local_branch_ids": branch_ids,
+    }
+
+
 def _build_response_policy(
     scene: sqlite3.Row,
     participants_rows: list[sqlite3.Row],
@@ -557,10 +648,26 @@ def build_runtime_retrieval_package_from_db(db_path: Path, scene_id: str) -> dic
     activation_map, safety_and_budget = _build_activation_map(conn, scene, participants_rows)
     activated_person_ids = [item["person_id"] for item in activation_map]
     relevant_memories = _build_relevant_memories(conn, activated_person_ids)
+    relation_ids = [item["relation_id"] for item in active_relations]
+    open_branches = _fetch_open_local_branches(
+        conn,
+        scene_id=scene_id,
+        group_id=scene["group_id"],
+        activated_person_ids=activated_person_ids,
+        relation_ids=relation_ids,
+    )
+    safety_and_budget["open_local_branch_count"] = len(open_branches)
+    safety_and_budget["open_local_branch_ids"] = [item["branch_id"] for item in open_branches]
     current_states = _build_current_states(
         conn,
         scene_id=scene_id,
         group_id=scene["group_id"],
+        activated_person_ids=activated_person_ids,
+        relation_ids=relation_ids,
+    )
+    branch_summary = _build_open_branch_summary(
+        conn,
+        scene_id=scene_id,
         activated_person_ids=activated_person_ids,
         relation_ids=[item["relation_id"] for item in active_relations],
     )
@@ -608,5 +715,5 @@ def build_runtime_retrieval_package_from_db(db_path: Path, scene_id: str) -> dic
         "current_states": current_states,
         "activation_map": activation_map,
         "response_policy": response_policy,
-        "safety_and_budget": safety_and_budget,
+        "safety_and_budget": {**safety_and_budget, **branch_summary},
     }
