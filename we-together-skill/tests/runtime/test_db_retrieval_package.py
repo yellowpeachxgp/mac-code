@@ -1666,3 +1666,97 @@ def test_text_chat_imported_relations_are_visible_in_runtime_retrieval(
 
     relation_ids = {item["relation_id"] for item in package["active_relations"]}
     assert relation_ids
+
+
+def test_retrieval_cache_default_ttl_writes_expires_at(temp_project_with_migrations):
+    """不传 cache_ttl_seconds 时，使用默认 TTL，缓存行写入 expires_at 非 NULL。"""
+    from we_together.runtime.sqlite_retrieval import DEFAULT_CACHE_TTL_SECONDS
+
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="default ttl scene",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_default_ttl",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_default_ttl",
+    )
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT expires_at FROM retrieval_cache WHERE scene_id = ? AND input_hash = ?",
+        (scene_id, "hash_default_ttl"),
+    ).fetchone()
+    conn.close()
+
+    assert row is not None
+    assert row[0] is not None, "expires_at should not be NULL when default TTL is used"
+
+
+def test_retrieval_cache_custom_ttl_respected(temp_project_with_migrations):
+    """传 cache_ttl_seconds=3600 时，expires_at 约为 1 小时后。"""
+    from datetime import datetime, UTC, timedelta
+
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="custom ttl scene",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_custom_ttl",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    before = datetime.now(UTC)
+    build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_custom_ttl",
+        cache_ttl_seconds=3600,
+    )
+    after = datetime.now(UTC)
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT expires_at FROM retrieval_cache WHERE scene_id = ? AND input_hash = ?",
+        (scene_id, "hash_custom_ttl"),
+    ).fetchone()
+    conn.close()
+
+    assert row is not None
+    expires_at = datetime.fromisoformat(row[0])
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    expected_low = before + timedelta(seconds=3600)
+    expected_high = after + timedelta(seconds=3600)
+    assert expected_low <= expires_at <= expected_high

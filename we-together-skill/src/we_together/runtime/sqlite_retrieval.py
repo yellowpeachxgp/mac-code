@@ -5,6 +5,8 @@ import sqlite3
 import uuid
 
 
+DEFAULT_CACHE_TTL_SECONDS = 3600
+
 STATE_PRIORITY = {
     "inactive": 0,
     "latent": 1,
@@ -831,9 +833,10 @@ def build_runtime_retrieval_package_from_db(
         cache_id = f"cache_{uuid.uuid4().hex}"
         created_at_dt = datetime.now(UTC)
         created_at = created_at_dt.isoformat()
+        effective_ttl = cache_ttl_seconds if cache_ttl_seconds is not None else DEFAULT_CACHE_TTL_SECONDS
         expires_at = None
-        if cache_ttl_seconds is not None:
-            expires_at = (created_at_dt + timedelta(seconds=cache_ttl_seconds)).isoformat()
+        if effective_ttl > 0:
+            expires_at = (created_at_dt + timedelta(seconds=effective_ttl)).isoformat()
         conn = sqlite3.connect(db_path)
         conn.execute(
             """
