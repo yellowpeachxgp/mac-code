@@ -204,6 +204,56 @@ def test_patch_application_invalidates_retrieval_cache(temp_project_with_migrati
     assert len(second_package["current_states"]) == 1
 
 
+def test_group_mutation_invalidates_retrieval_cache(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    group_id = create_group(
+        db_path=db_path,
+        group_type="team",
+        name="缓存小组",
+        summary="cache group",
+    )
+    add_group_member(db_path=db_path, group_id=group_id, person_id="person_a", role_label="owner")
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="work_discussion",
+        scene_summary="group cache invalidation",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "group_channel",
+            "visibility_scope": "group_visible",
+        },
+        group_id=group_id,
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_a",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    first_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_group_mutation",
+    )
+
+    add_group_member(db_path=db_path, group_id=group_id, person_id="person_b", role_label="member")
+
+    second_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_group_mutation",
+    )
+
+    assert first_package["safety_and_budget"]["source_counts"]["group"]["used"] == 0
+    assert second_package["safety_and_budget"]["source_counts"]["group"]["used"] >= 1
+
+
 def test_build_runtime_retrieval_package_uses_person_names_and_active_relations(
     temp_project_with_migrations,
 ):

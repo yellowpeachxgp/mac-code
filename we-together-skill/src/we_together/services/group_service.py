@@ -4,6 +4,7 @@ import json
 import uuid
 
 from we_together.db.connection import connect
+from we_together.runtime.sqlite_retrieval import invalidate_runtime_retrieval_cache
 
 
 def create_group(
@@ -37,6 +38,7 @@ def create_group(
     )
     conn.commit()
     conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path)
     return group_id
 
 
@@ -65,3 +67,4 @@ def add_group_member(
     )
     conn.commit()
     conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path)
