@@ -26,6 +26,25 @@ MEMORY_LATENT_WEIGHT = 0.25
 EVENT_DECAY_DAYS = 30
 
 
+def invalidate_runtime_retrieval_cache(
+    db_path: Path,
+    scene_id: str | None = None,
+) -> None:
+    conn = sqlite3.connect(db_path)
+    if scene_id is None:
+        conn.execute(
+            "DELETE FROM retrieval_cache WHERE cache_type = ?",
+            ("runtime_retrieval",),
+        )
+    else:
+        conn.execute(
+            "DELETE FROM retrieval_cache WHERE cache_type = ? AND scene_id = ?",
+            ("runtime_retrieval", scene_id),
+        )
+    conn.commit()
+    conn.close()
+
+
 def _parse_timestamp(value: str | None) -> datetime | None:
     if not value:
         return None

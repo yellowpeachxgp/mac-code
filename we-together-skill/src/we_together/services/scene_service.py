@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 from we_together.db.connection import connect
+from we_together.runtime.sqlite_retrieval import invalidate_runtime_retrieval_cache
 
 
 def create_scene(
@@ -47,6 +48,7 @@ def create_scene(
     )
     conn.commit()
     conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path, scene_id=scene_id)
     return scene_id
 
 
@@ -80,3 +82,4 @@ def add_scene_participant(
     )
     conn.commit()
     conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path, scene_id=scene_id)

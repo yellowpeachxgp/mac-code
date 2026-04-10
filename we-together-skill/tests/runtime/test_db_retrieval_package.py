@@ -98,6 +98,112 @@ def test_retrieval_package_can_roundtrip_through_cache(temp_project_with_migrati
     assert second_package["activation_map"][0]["activation_state"] == "explicit"
 
 
+def test_scene_mutation_invalidates_retrieval_cache(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="cache invalidation scene",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_cache_a",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    first_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_scene_mutation",
+    )
+
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_cache_b",
+        activation_state="latent",
+        activation_score=0.5,
+        is_speaking=False,
+    )
+
+    second_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_scene_mutation",
+    )
+
+    assert len(first_package["participants"]) == 1
+    assert len(second_package["participants"]) == 2
+
+
+def test_patch_application_invalidates_retrieval_cache(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="cache invalidation patch",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_cache_patch",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    first_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_patch_mutation",
+    )
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_patch_cache",
+            target_type="state",
+            target_id="state_cache_patch",
+            operation="update_state",
+            payload={
+                "state_id": "state_cache_patch",
+                "scope_type": "scene",
+                "scope_id": scene_id,
+                "state_type": "mood",
+                "value_json": {"mood": "tense"},
+            },
+            confidence=0.8,
+            reason="cache invalidation state patch",
+        ),
+    )
+
+    second_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="hash_patch_mutation",
+    )
+
+    assert first_package["current_states"] == []
+    assert len(second_package["current_states"]) == 1
+
+
 def test_build_runtime_retrieval_package_uses_person_names_and_active_relations(
     temp_project_with_migrations,
 ):

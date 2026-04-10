@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from we_together.db.connection import connect
+from we_together.runtime.sqlite_retrieval import invalidate_runtime_retrieval_cache
 
 
 def _ensure_patch_record(conn, patch: dict) -> None:
@@ -238,3 +239,4 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
     )
     conn.commit()
     conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path)
