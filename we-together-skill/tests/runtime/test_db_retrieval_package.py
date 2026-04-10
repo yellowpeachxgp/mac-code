@@ -301,12 +301,24 @@ def test_build_runtime_retrieval_package_uses_person_names_and_active_relations(
     )
 
     package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+    conn = sqlite3.connect(db_path)
+    persisted_relation_ids = {
+        row[0]
+        for row in conn.execute(
+            "SELECT relation_id FROM scene_active_relations WHERE scene_id = ?",
+            (scene_id,),
+        ).fetchall()
+    }
+    conn.close()
 
     display_names = {item["display_name"] for item in package["participants"]}
     assert "小王" in display_names
     assert "小李" in display_names
     assert len(package["active_relations"]) >= 1
     assert len(package["relevant_memories"]) >= 1
+    assert {
+        item["relation_id"] for item in package["active_relations"]
+    } == persisted_relation_ids
 
 
 def test_retrieval_package_includes_group_context_when_scene_has_group(temp_project_with_migrations):

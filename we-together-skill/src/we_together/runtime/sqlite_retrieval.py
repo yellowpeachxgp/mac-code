@@ -459,6 +459,32 @@ def _build_active_relations(
     ]
 
 
+def _refresh_scene_active_relations(
+    conn: sqlite3.Connection,
+    *,
+    scene_id: str,
+    active_relations: list[dict],
+) -> None:
+    conn.execute(
+        "DELETE FROM scene_active_relations WHERE scene_id = ?",
+        (scene_id,),
+    )
+    for relation in active_relations:
+        conn.execute(
+            """
+            INSERT INTO scene_active_relations(scene_id, relation_id, activation_score, reason_json, created_at)
+            VALUES(?, ?, ?, ?, ?)
+            """,
+            (
+                scene_id,
+                relation["relation_id"],
+                relation.get("strength"),
+                json.dumps({"source": "runtime_retrieval"}, ensure_ascii=False),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+
+
 def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: list[str]) -> list[dict]:
     if not activated_person_ids:
         return []
@@ -719,6 +745,8 @@ def build_runtime_retrieval_package_from_db(
     )
 
     active_relations = _build_active_relations(conn, scene_person_ids, person_names)
+    _refresh_scene_active_relations(conn, scene_id=scene_id, active_relations=active_relations)
+    conn.commit()
     activation_map, safety_and_budget = _build_activation_map(conn, scene, participants_rows)
     activated_person_ids = [item["person_id"] for item in activation_map]
     relevant_memories = _build_relevant_memories(conn, activated_person_ids)

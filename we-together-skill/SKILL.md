@@ -56,6 +56,7 @@ version: "0.1.0"
 - narration / text_chat / email 导入会为 snapshot 写入关键实体清单
 - runtime retrieval 支持按 `scene + input_hash` 使用 `retrieval_cache`，并在相关图谱变更后失效
 - build_retrieval_package CLI 支持 `--input-hash`
+- retrieval build 会同步刷新 `scene_active_relations`
 - 文件/目录路径缺失时返回清晰错误，目录导入返回 skipped 文件统计
 - 输出图谱摘要
 

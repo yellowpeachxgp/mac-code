@@ -67,6 +67,7 @@
 - runtime retrieval 已支持按 `scene + input_hash` 写入和命中 `retrieval_cache`，并在 scene / patch 变更后失效
 - build_retrieval_package CLI 已支持 `--input-hash`
 - group 相关变更也会触发 retrieval cache 失效
+- retrieval build 现已同步刷新 `scene_active_relations`
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
