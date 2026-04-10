@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import json
 import sqlite3
@@ -695,20 +695,23 @@ def build_runtime_retrieval_package_from_db(
     db_path: Path,
     scene_id: str,
     input_hash: str | None = None,
+    cache_ttl_seconds: int | None = None,
 ) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
     if input_hash:
+        now_iso = datetime.now(UTC).isoformat()
         cached_row = conn.execute(
             """
             SELECT payload_json
             FROM retrieval_cache
             WHERE scene_id = ? AND cache_type = ? AND input_hash = ?
+              AND (expires_at IS NULL OR expires_at >= ?)
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            (scene_id, "runtime_retrieval", input_hash),
+            (scene_id, "runtime_retrieval", input_hash, now_iso),
         ).fetchone()
         if cached_row is not None:
             conn.close()
@@ -826,7 +829,11 @@ def build_runtime_retrieval_package_from_db(
     }
     if input_hash:
         cache_id = f"cache_{uuid.uuid4().hex}"
-        created_at = datetime.now(UTC).isoformat()
+        created_at_dt = datetime.now(UTC)
+        created_at = created_at_dt.isoformat()
+        expires_at = None
+        if cache_ttl_seconds is not None:
+            expires_at = (created_at_dt + timedelta(seconds=cache_ttl_seconds)).isoformat()
         conn = sqlite3.connect(db_path)
         conn.execute(
             """
@@ -840,7 +847,7 @@ def build_runtime_retrieval_package_from_db(
                 "runtime_retrieval",
                 input_hash,
                 json.dumps(package, ensure_ascii=False),
-                None,
+                expires_at,
                 created_at,
             ),
         )

@@ -82,7 +82,8 @@
 - retrieval package CLI 在 scene 不存在时已能干净失败并输出明确错误，而不是抛出 traceback
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
-- 当前本地全量测试通过：92 passed
+- graph summary 已可展示 snapshot/cache/runtime 派生计数
+- 当前本地全量测试通过：94 passed
 
 当前核心设计文档：
 

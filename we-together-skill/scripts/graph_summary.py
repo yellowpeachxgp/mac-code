@@ -18,6 +18,13 @@ def build_graph_summary(db_path: Path) -> dict:
     relation_count = conn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]
     scene_count = conn.execute("SELECT COUNT(*) FROM scenes").fetchone()[0]
     event_count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+    snapshot_entity_count = conn.execute("SELECT COUNT(*) FROM snapshot_entities").fetchone()[0]
+    retrieval_cache_count = conn.execute("SELECT COUNT(*) FROM retrieval_cache").fetchone()[0]
+    scene_active_relation_count = conn.execute("SELECT COUNT(*) FROM scene_active_relations").fetchone()[0]
+    open_local_branch_count = conn.execute(
+        "SELECT COUNT(*) FROM local_branches WHERE status = 'open'"
+    ).fetchone()[0]
+    branch_candidate_count = conn.execute("SELECT COUNT(*) FROM branch_candidates").fetchone()[0]
     people = [row[0] for row in conn.execute("SELECT primary_name FROM persons ORDER BY primary_name").fetchall()]
     conn.close()
     return {
@@ -26,6 +33,11 @@ def build_graph_summary(db_path: Path) -> dict:
         "relation_count": relation_count,
         "scene_count": scene_count,
         "event_count": event_count,
+        "snapshot_entity_count": snapshot_entity_count,
+        "retrieval_cache_count": retrieval_cache_count,
+        "scene_active_relation_count": scene_active_relation_count,
+        "open_local_branch_count": open_local_branch_count,
+        "branch_candidate_count": branch_candidate_count,
         "people": people,
     }
 

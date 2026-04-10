@@ -98,6 +98,55 @@ def test_retrieval_package_can_roundtrip_through_cache(temp_project_with_migrati
     assert second_package["activation_map"][0]["activation_state"] == "explicit"
 
 
+def test_retrieval_cache_ttl_allows_refresh(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="ttl cache scene",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_ttl_one",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    first_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="ttl_refresh",
+        cache_ttl_seconds=0,
+    )
+
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_ttl_two",
+        activation_state="latent",
+        activation_score=0.5,
+        is_speaking=False,
+    )
+
+    second_package = build_runtime_retrieval_package_from_db(
+        db_path=db_path,
+        scene_id=scene_id,
+        input_hash="ttl_refresh",
+        cache_ttl_seconds=0,
+    )
+
+    assert len(first_package["participants"]) == 1
+    assert len(second_package["participants"]) == 2
+
 def test_scene_mutation_invalidates_retrieval_cache(temp_project_with_migrations):
     bootstrap_project(temp_project_with_migrations)
     db_path = temp_project_with_migrations / "db" / "main.sqlite3"
