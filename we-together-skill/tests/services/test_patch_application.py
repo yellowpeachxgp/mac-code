@@ -677,3 +677,120 @@ def test_apply_patch_record_can_update_relation_entity(temp_project_with_migrati
 
     assert row[0] == 0.9
     assert row[1] == "深厚的多年友谊"
+
+
+def test_merge_entities_moves_identity_links(temp_project_with_migrations):
+    """merge_entities 应将 identity_links 从 source person 迁移到 target person。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.executemany(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, 'active', 0.8, '{}', datetime('now'), datetime('now'))
+        """,
+        [("person_keep", "Alice"), ("person_remove", "Alice2")],
+    )
+    conn.executemany(
+        """
+        INSERT INTO identity_links(
+            identity_id, person_id, platform, external_id, display_name, confidence,
+            is_user_confirmed, is_active, metadata_json, created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, 0.8, 0, 1, '{}', datetime('now'), datetime('now'))
+        """,
+        [
+            ("id_keep", "person_keep", "email", "alice@a.com", "Alice"),
+            ("id_remove", "person_remove", "wechat", "alice_wx", "Alice2"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    patch = build_patch(
+        source_event_id="evt_merge",
+        target_type="person",
+        target_id="person_keep",
+        operation="merge_entities",
+        payload={
+            "source_person_id": "person_remove",
+            "target_person_id": "person_keep",
+        },
+        confidence=0.9,
+        reason="merge duplicate",
+    )
+    apply_patch_record(db_path=db_path, patch=patch)
+
+    conn = sqlite3.connect(db_path)
+    links = conn.execute(
+        "SELECT person_id FROM identity_links ORDER BY platform",
+    ).fetchall()
+    source_status = conn.execute(
+        "SELECT status, metadata_json FROM persons WHERE person_id = 'person_remove'",
+    ).fetchone()
+    patch_row = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?", (patch["patch_id"],),
+    ).fetchone()
+    conn.close()
+
+    assert all(row[0] == "person_keep" for row in links)
+    assert source_status[0] == "merged"
+    assert json.loads(source_status[1]).get("merged_into") == "person_keep"
+    assert patch_row[0] == "applied"
+
+
+def test_merge_entities_migrates_memory_owners(temp_project_with_migrations):
+    """merge_entities 应将 memory_owners 中 old person_id 迁移到 new person_id。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.executemany(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, 'active', 0.8, '{}', datetime('now'), datetime('now'))
+        """,
+        [("person_target", "Bob"), ("person_source", "Bob2")],
+    )
+    conn.execute(
+        """
+        INSERT INTO memories(
+            memory_id, memory_type, summary, relevance_score, confidence,
+            is_shared, status, metadata_json, created_at, updated_at
+        ) VALUES('mem_mo', 'shared_memory', '共享记忆', 0.8, 0.7, 1, 'active', '{}', datetime('now'), datetime('now'))
+        """,
+    )
+    conn.execute(
+        """
+        INSERT INTO memory_owners(memory_id, owner_type, owner_id, role_label)
+        VALUES('mem_mo', 'person', 'person_source', NULL)
+        """,
+    )
+    conn.commit()
+    conn.close()
+
+    patch = build_patch(
+        source_event_id="evt_merge_mo",
+        target_type="person",
+        target_id="person_target",
+        operation="merge_entities",
+        payload={
+            "source_person_id": "person_source",
+            "target_person_id": "person_target",
+        },
+        confidence=0.9,
+        reason="merge memory owners",
+    )
+    apply_patch_record(db_path=db_path, patch=patch)
+
+    conn = sqlite3.connect(db_path)
+    owner_row = conn.execute(
+        "SELECT owner_id FROM memory_owners WHERE memory_id = 'mem_mo'",
+    ).fetchone()
+    conn.close()
+
+    assert owner_row[0] == "person_target"

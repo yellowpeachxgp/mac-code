@@ -281,6 +281,62 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
             f"UPDATE {table_name} SET status = ?, updated_at = ? WHERE {id_column} = ?",
             ("inactive", now, patch["target_id"]),
         )
+    elif patch["operation"] == "merge_entities":
+        source_pid = payload["source_person_id"]
+        target_pid = payload["target_person_id"]
+
+        # 迁移 identity_links
+        conn.execute(
+            "UPDATE identity_links SET person_id = ? WHERE person_id = ?",
+            (target_pid, source_pid),
+        )
+        # 迁移 event_participants
+        conn.execute(
+            "UPDATE OR IGNORE event_participants SET person_id = ? WHERE person_id = ?",
+            (target_pid, source_pid),
+        )
+        conn.execute(
+            "DELETE FROM event_participants WHERE person_id = ?",
+            (source_pid,),
+        )
+        # 迁移 memory_owners
+        conn.execute(
+            "UPDATE OR IGNORE memory_owners SET owner_id = ? WHERE owner_type = 'person' AND owner_id = ?",
+            (target_pid, source_pid),
+        )
+        conn.execute(
+            "DELETE FROM memory_owners WHERE owner_type = 'person' AND owner_id = ?",
+            (source_pid,),
+        )
+        # 迁移 scene_participants
+        conn.execute(
+            "UPDATE OR IGNORE scene_participants SET person_id = ? WHERE person_id = ?",
+            (target_pid, source_pid),
+        )
+        conn.execute(
+            "DELETE FROM scene_participants WHERE person_id = ?",
+            (source_pid,),
+        )
+        # 迁移 group_members
+        conn.execute(
+            "UPDATE OR IGNORE group_members SET person_id = ? WHERE person_id = ?",
+            (target_pid, source_pid),
+        )
+        conn.execute(
+            "DELETE FROM group_members WHERE person_id = ?",
+            (source_pid,),
+        )
+        # 标记 source person 为 merged
+        existing_meta = conn.execute(
+            "SELECT metadata_json FROM persons WHERE person_id = ?",
+            (source_pid,),
+        ).fetchone()
+        meta = json.loads(existing_meta[0]) if existing_meta and existing_meta[0] else {}
+        meta["merged_into"] = target_pid
+        conn.execute(
+            "UPDATE persons SET status = 'merged', metadata_json = ?, updated_at = ? WHERE person_id = ?",
+            (json.dumps(meta, ensure_ascii=False), now, source_pid),
+        )
     else:
         conn.execute(
             "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
