@@ -25,6 +25,13 @@ def build_graph_summary(db_path: Path) -> dict:
         "SELECT COUNT(*) FROM local_branches WHERE status = 'open'"
     ).fetchone()[0]
     branch_candidate_count = conn.execute("SELECT COUNT(*) FROM branch_candidates").fetchone()[0]
+    memory_count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+    state_count = conn.execute("SELECT COUNT(*) FROM states").fetchone()[0]
+    patch_count = conn.execute("SELECT COUNT(*) FROM patches").fetchone()[0]
+    candidate_status_rows = conn.execute(
+        "SELECT status, COUNT(*) AS cnt FROM branch_candidates GROUP BY status"
+    ).fetchall()
+    candidate_status_distribution = {row[0]: row[1] for row in candidate_status_rows}
     people = [row[0] for row in conn.execute("SELECT primary_name FROM persons ORDER BY primary_name").fetchall()]
     conn.close()
     return {
@@ -38,6 +45,10 @@ def build_graph_summary(db_path: Path) -> dict:
         "scene_active_relation_count": scene_active_relation_count,
         "open_local_branch_count": open_local_branch_count,
         "branch_candidate_count": branch_candidate_count,
+        "memory_count": memory_count,
+        "state_count": state_count,
+        "patch_count": patch_count,
+        "candidate_status_distribution": candidate_status_distribution,
         "people": people,
     }
 

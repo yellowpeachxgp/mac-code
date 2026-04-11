@@ -1,6 +1,16 @@
 from pathlib import Path
 import subprocess
 import json
+import sqlite3
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+from graph_summary import build_graph_summary
+from we_together.db.bootstrap import bootstrap_project
+from we_together.services.patch_applier import apply_patch_record
+from we_together.services.patch_service import build_patch
 
 
 def test_graph_summary_cli_shows_people_and_relations(temp_project_with_migrations):
@@ -137,3 +147,118 @@ def test_graph_summary_cli_reports_branch_snapshot_and_runtime_counts(temp_proje
     assert payload["retrieval_cache_count"] >= 1
     assert payload["scene_active_relation_count"] >= 0
     assert payload["open_local_branch_count"] == 0
+
+
+def test_graph_summary_includes_candidate_status_distribution(temp_project_with_migrations):
+    """验证返回包含 candidate_status_distribution 字段。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_branch_gs",
+            target_type="local_branch",
+            target_id="branch_gs_1",
+            operation="create_local_branch",
+            payload={
+                "branch_id": "branch_gs_1",
+                "scope_type": "scene",
+                "scope_id": "scene_gs_1",
+                "status": "open",
+                "reason": "graph summary test",
+                "created_from_event_id": "evt_branch_gs",
+                "branch_candidates": [
+                    {
+                        "candidate_id": "cand_gs_a",
+                        "label": "A",
+                        "payload_json": {},
+                        "confidence": 0.5,
+                        "status": "open",
+                    },
+                    {
+                        "candidate_id": "cand_gs_b",
+                        "label": "B",
+                        "payload_json": {},
+                        "confidence": 0.6,
+                        "status": "open",
+                    },
+                ],
+            },
+            confidence=0.5,
+            reason="graph summary branch",
+        ),
+    )
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_resolve_gs",
+            target_type="local_branch",
+            target_id="branch_gs_1",
+            operation="resolve_local_branch",
+            payload={
+                "branch_id": "branch_gs_1",
+                "status": "resolved",
+                "reason": "resolved for test",
+                "selected_candidate_id": "cand_gs_a",
+            },
+            confidence=0.8,
+            reason="resolve branch",
+        ),
+    )
+
+    summary = build_graph_summary(db_path)
+    dist = summary["candidate_status_distribution"]
+    assert dist["selected"] == 1
+    assert dist["rejected"] == 1
+    assert dist.get("open", 0) == 0
+
+
+def test_graph_summary_includes_extended_counts(temp_project_with_migrations):
+    """验证返回包含 memory_count, state_count, patch_count 字段。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_gs_state",
+            target_type="state",
+            target_id="state_gs_1",
+            operation="update_state",
+            payload={
+                "state_id": "state_gs_1",
+                "scope_type": "scene",
+                "scope_id": "scene_gs_2",
+                "state_type": "mood",
+                "value_json": {"mood": "calm"},
+            },
+            confidence=0.7,
+            reason="state for graph summary",
+        ),
+    )
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_gs_memory",
+            target_type="memory",
+            target_id="memory_gs_1",
+            operation="create_memory",
+            payload={
+                "memory_id": "memory_gs_1",
+                "memory_type": "shared_memory",
+                "summary": "graph summary memory",
+                "confidence": 0.8,
+                "is_shared": 1,
+                "status": "active",
+            },
+            confidence=0.8,
+            reason="memory for graph summary",
+        ),
+    )
+
+    summary = build_graph_summary(db_path)
+    assert summary["memory_count"] >= 1
+    assert summary["state_count"] >= 1
+    assert summary["patch_count"] >= 2
