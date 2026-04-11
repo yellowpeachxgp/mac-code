@@ -1,5 +1,9 @@
 from datetime import UTC, datetime
 import hashlib
+import sqlite3
+from pathlib import Path
+
+from we_together.db.connection import connect
 
 
 def build_snapshot(
@@ -39,3 +43,67 @@ def build_snapshot_entities(
             }
         )
     return rows
+
+
+def list_snapshots(db_path: Path, limit: int = 50) -> list[dict]:
+    conn = connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT snapshot_id, based_on_snapshot_id, trigger_event_id,
+               summary, graph_hash, created_at
+        FROM snapshots
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "snapshot_id": row["snapshot_id"],
+            "based_on_snapshot_id": row["based_on_snapshot_id"],
+            "trigger_event_id": row["trigger_event_id"],
+            "summary": row["summary"],
+            "graph_hash": row["graph_hash"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def rollback_to_snapshot(db_path: Path, snapshot_id: str) -> dict:
+    conn = connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    snap_row = conn.execute(
+        "SELECT created_at FROM snapshots WHERE snapshot_id = ?",
+        (snapshot_id,),
+    ).fetchone()
+    if snap_row is None:
+        conn.close()
+        raise ValueError(f"Snapshot not found: {snapshot_id}")
+
+    snapshot_time = snap_row["created_at"]
+
+    # 标记 snapshot 之后的 patches 为 rolled_back
+    rolled_patches = conn.execute(
+        "UPDATE patches SET status = 'rolled_back' WHERE applied_at > ? AND status = 'applied'",
+        (snapshot_time,),
+    ).rowcount
+
+    # 删除 snapshot 之后写入的 states
+    conn.execute("DELETE FROM states WHERE updated_at > ?", (snapshot_time,))
+
+    # 删除后续 snapshots
+    conn.execute("DELETE FROM snapshots WHERE created_at > ?", (snapshot_time,))
+
+    # 清除 retrieval cache
+    conn.execute("DELETE FROM retrieval_cache")
+
+    conn.commit()
+    conn.close()
+    return {
+        "rolled_back_to": snapshot_id,
+        "rolled_back_patch_count": rolled_patches,
+    }
