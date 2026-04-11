@@ -92,7 +92,18 @@
 - snapshot 已支持 list_snapshots() 历史遍历和 rollback_to_snapshot() 回滚（标记后续 patch + 清理 states）
 - patch applier 已支持 update_entity，可对 person/relation/group/memory 做字段级增量更新
 - 新增 record_dialogue.py 和 snapshot.py CLI
-- 当前本地全量测试通过：109 passed
+- patch applier 已支持 merge_entities，可迁移全部外键引用并标记源 person 为 merged
+- identity_fusion_service 已新增 find_and_merge_duplicates() 自动发现并合并重复人物
+- 新增 merge_duplicates.py CLI
+- 对话端到端闭环：process_dialogue_turn() 一键串联 retrieval → record → infer → apply
+- 新增 dialogue_turn.py CLI
+- scene_service 已支持 close_scene() 和 archive_scene()
+- retrieval 已拒绝对非 active 场景的检索请求
+- retrieval package 已支持预算裁剪（max_memories / max_relations / max_states）
+- retrieval package 已新增 recent_changes 近期变更上下文
+- snapshot 已支持 replay_patches_after_snapshot() 回滚后重放
+- snapshot CLI 已新增 replay 子命令
+- 当前本地全量测试通过：122 passed
 
 当前核心设计文档：
 
@@ -375,8 +386,11 @@ python3 -m venv .venv
 .venv/bin/python scripts/import_file_auto.py --root . --file ./sample.txt
 .venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
 .venv/bin/python scripts/record_dialogue.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaker person_demo
+.venv/bin/python scripts/dialogue_turn.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaking-person-ids person_demo
+.venv/bin/python scripts/merge_duplicates.py --root .
 .venv/bin/python scripts/snapshot.py --root . list
 .venv/bin/python scripts/snapshot.py --root . rollback --snapshot-id <snapshot_id>
+.venv/bin/python scripts/snapshot.py --root . replay --snapshot-id <snapshot_id>
 .venv/bin/python scripts/graph_summary.py --root .
 ```
 

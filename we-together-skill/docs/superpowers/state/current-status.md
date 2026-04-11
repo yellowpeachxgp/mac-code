@@ -1,6 +1,6 @@
 # 当前状态
 
-日期：2026-04-11
+日期：2026-04-12
 
 当前已完成：
 
@@ -86,7 +86,20 @@
 - rollback 会标记后续 patch 为 rolled_back、删除后续 states 和 snapshots、清空 retrieval cache
 - patch applier 已支持 update_entity，可对 person/relation/group/memory 做字段级增量更新
 - 新增 record_dialogue.py CLI（记录对话事件）和 snapshot.py CLI（list / rollback）
-- 当前本地全量测试通过：109 passed
+- patch applier 已支持 merge_entities，可迁移 identity_links / event_participants / memory_owners / scene_participants / group_members 并标记源 person 为 merged
+- identity_fusion_service 已新增 find_and_merge_duplicates()，可自动发现同名重复人物并合并
+- 新增 merge_duplicates.py CLI（自动合并重复人物）
+- 对话端到端闭环：process_dialogue_turn() 一键串联 retrieval → record_event → infer_patches → apply
+- 新增 dialogue_turn.py CLI（一键对话处理）
+- scene_service 已支持 close_scene() 和 archive_scene()，场景可关闭和归档
+- retrieval 已拒绝对非 active 场景的检索请求（抛出 ValueError）
+- retrieval package 已支持预算裁剪：max_memories / max_relations / max_states 参数
+- build_retrieval_package CLI 已新增 --max-memories / --max-relations / --max-states
+- retrieval package 已新增 recent_changes 字段，展示最近已应用的 patch 摘要
+- retrieval package 已新增 max_recent_changes 参数控制返回条数
+- snapshot 已支持 replay_patches_after_snapshot() 回滚后重放
+- snapshot CLI 已新增 replay 子命令
+- 当前本地全量测试通过：122 passed
 
 当前主设计稿：
 
@@ -106,6 +119,7 @@
 
 下一步建议：
 
-- 继续扩展运行时世界引擎，把 group / memory / relation 的传播做成更系统的 bounded activation
-- 扩 patch applier 与 event->patch 链，补齐更多结构化变更类型和失败状态留痕
-- 在保持严格工程化的前提下，逐步接真实平台 importer 与宿主适配层
+- 接真实平台 importer 与宿主适配层
+- 扩展复杂关系推理能力
+- 接入多源冲突归并策略
+- 验证完整工程闭环在 Skill 宿主中的运行

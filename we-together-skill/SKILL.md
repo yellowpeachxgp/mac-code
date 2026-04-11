@@ -67,6 +67,13 @@ version: "0.1.0"
 - patch applier 支持 update_entity 对任意实体做字段级更新
 - 文件/目录路径缺失时返回清晰错误，目录导入返回 skipped 文件统计
 - 输出图谱摘要
+- patch applier 支持 merge_entities，可将重复 person 的全部外键引用迁移到保留 person
+- identity_fusion_service 支持 find_and_merge_duplicates() 自动合并同名重复人物
+- process_dialogue_turn() 一键端到端：retrieval → record → infer → apply
+- scene_service 支持 close_scene() 和 archive_scene()，retrieval 拒绝非 active 场景
+- retrieval package 支持预算裁剪 max_memories / max_relations / max_states
+- retrieval package 包含 recent_changes 近期变更上下文
+- snapshot 支持 replay_patches_after_snapshot() 回滚后重放
 
 当前 CLI：
 
@@ -82,8 +89,11 @@ version: "0.1.0"
 .venv/bin/python scripts/import_directory.py --root . --directory ./sample_data
 .venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
 .venv/bin/python scripts/record_dialogue.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaker person_demo
+.venv/bin/python scripts/dialogue_turn.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaking-person-ids person_demo
+.venv/bin/python scripts/merge_duplicates.py --root .
 .venv/bin/python scripts/snapshot.py --root . list
 .venv/bin/python scripts/snapshot.py --root . rollback --snapshot-id <snapshot_id>
+.venv/bin/python scripts/snapshot.py --root . replay --snapshot-id <snapshot_id>
 .venv/bin/python scripts/graph_summary.py --root .
 ```
 
