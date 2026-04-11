@@ -582,3 +582,98 @@ def test_resolve_local_branch_without_effect_payload_still_works(temp_project_wi
 
     assert branch_row[0] == "resolved"
     assert candidate_row[0] == "selected"
+
+
+def test_apply_patch_record_can_update_person_entity(temp_project_with_migrations):
+    """update_entity 应能更新 person 的指定字段。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, summary, persona_summary, work_summary,
+            life_summary, style_summary, boundary_summary, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        ("person_update_test", "UpdateTest", "active", None, None, None, None, None, None, 0.5, "{}"),
+    )
+    conn.commit()
+    conn.close()
+
+    patch = build_patch(
+        source_event_id="evt_update_entity",
+        target_type="person",
+        target_id="person_update_test",
+        operation="update_entity",
+        payload={
+            "persona_summary": "外向热情",
+            "style_summary": "说话直接",
+            "confidence": 0.9,
+        },
+        confidence=0.8,
+        reason="update person profile",
+    )
+    apply_patch_record(db_path=db_path, patch=patch)
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT persona_summary, style_summary, confidence FROM persons WHERE person_id = ?",
+        ("person_update_test",),
+    ).fetchone()
+    patch_row = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?",
+        (patch["patch_id"],),
+    ).fetchone()
+    conn.close()
+
+    assert row[0] == "外向热情"
+    assert row[1] == "说话直接"
+    assert row[2] == 0.9
+    assert patch_row[0] == "applied"
+
+
+def test_apply_patch_record_can_update_relation_entity(temp_project_with_migrations):
+    """update_entity 应能更新 relation 的指定字段。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO relations(
+            relation_id, core_type, custom_label, summary, directionality,
+            strength, stability, visibility, status, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        ("relation_update_test", "friendship", "朋友", "老朋友", "bidirectional", 0.5, 0.5, "known", "active", 0.6, "{}"),
+    )
+    conn.commit()
+    conn.close()
+
+    patch = build_patch(
+        source_event_id="evt_update_relation",
+        target_type="relation",
+        target_id="relation_update_test",
+        operation="update_entity",
+        payload={
+            "strength": 0.9,
+            "summary": "深厚的多年友谊",
+        },
+        confidence=0.85,
+        reason="update relation strength",
+    )
+    apply_patch_record(db_path=db_path, patch=patch)
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT strength, summary FROM relations WHERE relation_id = ?",
+        ("relation_update_test",),
+    ).fetchone()
+    conn.close()
+
+    assert row[0] == 0.9
+    assert row[1] == "深厚的多年友谊"
