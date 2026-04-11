@@ -244,3 +244,71 @@ def infer_email_patches(
             )
         )
     return patches
+
+
+def infer_dialogue_patches(
+    source_event_id: str,
+    scene_id: str,
+    user_input: str,
+    response_text: str,
+    speaking_person_ids: list[str] | None = None,
+) -> list[dict]:
+    patches = []
+    combined = f"{user_input} {response_text}"
+
+    # 场景气氛 state
+    tone = "neutral"
+    if any(w in combined for w in ("顺利", "好", "开心", "太好了", "高兴")):
+        tone = "positive"
+    elif any(w in combined for w in ("累", "烦", "难", "糟糕", "不好")):
+        tone = "negative"
+
+    state_id = f"state_{uuid.uuid5(uuid.NAMESPACE_URL, f'dialogue-mood:{scene_id}:{source_event_id}').hex}"
+    patches.append(
+        build_patch(
+            source_event_id=source_event_id,
+            target_type="state",
+            target_id=state_id,
+            operation="update_state",
+            payload={
+                "state_id": state_id,
+                "scope_type": "scene",
+                "scope_id": scene_id,
+                "state_type": "mood",
+                "value_json": {"tone": tone, "source": "dialogue"},
+                "confidence": 0.6,
+                "is_inferred": 1,
+                "source_event_refs_json": [source_event_id],
+            },
+            confidence=0.6,
+            reason="dialogue inferred scene mood",
+        )
+    )
+
+    # 有多人发言时创建共享记忆
+    speakers = speaking_person_ids or []
+    if len(speakers) >= 2:
+        summary = f"对话: {user_input[:60]}"
+        memory_id = f"memory_{uuid.uuid5(uuid.NAMESPACE_URL, f'dialogue:{speakers[0]}:{speakers[1]}:{source_event_id}').hex}"
+        patches.append(
+            build_patch(
+                source_event_id=source_event_id,
+                target_type="memory",
+                target_id=memory_id,
+                operation="create_memory",
+                payload={
+                    "memory_id": memory_id,
+                    "memory_type": "shared_memory",
+                    "summary": summary,
+                    "relevance_score": 0.8,
+                    "confidence": 0.6,
+                    "is_shared": 1,
+                    "status": "active",
+                    "metadata_json": {"source_event_id": source_event_id},
+                },
+                confidence=0.6,
+                reason="dialogue inferred shared memory",
+            )
+        )
+
+    return patches
