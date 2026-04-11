@@ -2,7 +2,7 @@ import json
 import sqlite3
 
 from we_together.db.bootstrap import bootstrap_project
-from we_together.services.dialogue_service import record_dialogue_event
+from we_together.services.dialogue_service import record_dialogue_event, process_dialogue_turn
 from we_together.services.patch_service import infer_dialogue_patches
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.scene_service import create_scene, add_scene_participant
@@ -208,3 +208,89 @@ def test_infer_dialogue_patches_creates_memory_for_speakers(temp_project_with_mi
 
     for p in patches:
         apply_patch_record(db_path=db_path, patch=p)
+
+
+def test_process_dialogue_turn_returns_package_and_updates_graph(temp_project_with_migrations):
+    """process_dialogue_turn 一键调用应返回检索包、event_id 和图谱更新。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="e2e dialogue turn",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+
+    result = process_dialogue_turn(
+        db_path=db_path,
+        scene_id=scene_id,
+        user_input="今天天气真好",
+        response_text="确实不错！",
+    )
+
+    assert "retrieval_package" in result
+    assert "event_id" in result
+    assert result["applied_patch_count"] >= 1
+    assert result["retrieval_package"]["scene_summary"]["scene_id"] == scene_id
+
+    conn = sqlite3.connect(db_path)
+    state_row = conn.execute(
+        "SELECT 1 FROM states WHERE scope_type = 'scene' AND scope_id = ?",
+        (scene_id,),
+    ).fetchone()
+    conn.close()
+    assert state_row is not None
+
+
+def test_process_dialogue_turn_with_speakers_creates_memory(temp_project_with_migrations):
+    """有 speaking_person_ids 时 process_dialogue_turn 应创建共享记忆。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.executemany(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, 'active', 0.8, '{}', datetime('now'), datetime('now'))
+        """,
+        [("person_turn_a", "小红"), ("person_turn_b", "小蓝")],
+    )
+    conn.commit()
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="e2e with speakers",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id="person_turn_a", activation_state="explicit", activation_score=1.0, is_speaking=True)
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id="person_turn_b", activation_state="latent", activation_score=0.8, is_speaking=False)
+
+    result = process_dialogue_turn(
+        db_path=db_path,
+        scene_id=scene_id,
+        user_input="一起去看电影吧",
+        response_text="好啊，什么时候？",
+        speaking_person_ids=["person_turn_a", "person_turn_b"],
+    )
+
+    assert result["applied_patch_count"] >= 2  # state + memory
+
+    conn = sqlite3.connect(db_path)
+    memory_row = conn.execute(
+        "SELECT 1 FROM memories WHERE status = 'active' AND is_shared = 1",
+    ).fetchone()
+    conn.close()
+    assert memory_row is not None

@@ -7,7 +7,12 @@ import uuid
 from we_together.db.connection import connect
 from we_together.services.ingestion_helpers import persist_snapshot_with_entities
 from we_together.services.snapshot_service import build_snapshot, build_snapshot_entities
-from we_together.runtime.sqlite_retrieval import invalidate_runtime_retrieval_cache
+from we_together.runtime.sqlite_retrieval import (
+    build_runtime_retrieval_package_from_db,
+    invalidate_runtime_retrieval_cache,
+)
+from we_together.services.patch_service import infer_dialogue_patches
+from we_together.services.patch_applier import apply_patch_record
 
 
 def record_dialogue_event(
@@ -93,4 +98,45 @@ def record_dialogue_event(
         "event_type": "dialogue_event",
         "scene_id": scene_id,
         "snapshot_id": snapshot_id,
+    }
+
+
+def process_dialogue_turn(
+    db_path: Path,
+    scene_id: str,
+    user_input: str,
+    response_text: str,
+    speaking_person_ids: list[str] | None = None,
+) -> dict:
+    # 1. 获取检索包
+    package = build_runtime_retrieval_package_from_db(db_path, scene_id)
+
+    # 2. 记录对话事件
+    event_result = record_dialogue_event(
+        db_path=db_path,
+        scene_id=scene_id,
+        user_input=user_input,
+        response_text=response_text,
+        speaking_person_ids=speaking_person_ids,
+    )
+
+    # 3. 推理 patch
+    patches = infer_dialogue_patches(
+        source_event_id=event_result["event_id"],
+        scene_id=scene_id,
+        user_input=user_input,
+        response_text=response_text,
+        speaking_person_ids=speaking_person_ids,
+    )
+
+    # 4. 逐个应用
+    for patch in patches:
+        apply_patch_record(db_path=db_path, patch=patch)
+
+    # 5. 返回结果
+    return {
+        "retrieval_package": package,
+        "event_id": event_result["event_id"],
+        "snapshot_id": event_result["snapshot_id"],
+        "applied_patch_count": len(patches),
     }
