@@ -3,6 +3,7 @@ from we_together.services.snapshot_service import (
     build_snapshot_entities,
     list_snapshots,
     rollback_to_snapshot,
+    replay_patches_after_snapshot,
 )
 from we_together.db.bootstrap import bootstrap_project
 from we_together.services.patch_applier import apply_patch_record
@@ -136,3 +137,77 @@ def test_rollback_to_snapshot_removes_later_states(temp_project_with_migrations)
     conn.close()
 
     assert rb_state is None
+
+
+def test_replay_patches_after_snapshot_restores_state(temp_project_with_migrations):
+    """回滚后重放 → 验证 state 恢复。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    # 创建一个 state
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_replay_1",
+            target_type="state",
+            target_id="state_replay_1",
+            operation="update_state",
+            payload={
+                "state_id": "state_replay_1",
+                "scope_type": "scene",
+                "scope_id": "scene_replay",
+                "state_type": "mood",
+                "value_json": {"mood": "calm"},
+            },
+            confidence=0.7,
+            reason="before snapshot",
+        ),
+    )
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="replay test",
+        environment={"location_scope": "remote", "channel_scope": "private_dm", "visibility_scope": "mutual_visible"},
+    )
+
+    # 生成 snapshot
+    r1 = record_dialogue_event(db_path=db_path, scene_id=scene_id, user_input="checkpoint", response_text="ok", speaking_person_ids=[])
+
+    # 之后创建新 state
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_replay_2",
+            target_type="state",
+            target_id="state_replay_2",
+            operation="update_state",
+            payload={
+                "state_id": "state_replay_2",
+                "scope_type": "scene",
+                "scope_id": "scene_replay",
+                "state_type": "energy",
+                "value_json": {"energy": "low"},
+            },
+            confidence=0.7,
+            reason="after snapshot",
+        ),
+    )
+
+    # 回滚
+    rollback_to_snapshot(db_path, r1["snapshot_id"])
+
+    # 验证 state 被删除
+    conn = sqlite3.connect(db_path)
+    assert conn.execute("SELECT 1 FROM states WHERE state_id = 'state_replay_2'").fetchone() is None
+    conn.close()
+
+    # 重放
+    result = replay_patches_after_snapshot(db_path, r1["snapshot_id"])
+    assert result["replayed_count"] >= 1
+
+    # 验证 state 恢复
+    conn = sqlite3.connect(db_path)
+    restored_state = conn.execute("SELECT 1 FROM states WHERE state_id = 'state_replay_2'").fetchone()
+    conn.close()
+    assert restored_state is not None

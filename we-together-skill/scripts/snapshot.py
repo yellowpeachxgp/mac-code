@@ -9,7 +9,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from we_together.services.snapshot_service import list_snapshots, rollback_to_snapshot
+from we_together.services.snapshot_service import list_snapshots, rollback_to_snapshot, replay_patches_after_snapshot
 
 
 if __name__ == "__main__":
@@ -22,6 +22,9 @@ if __name__ == "__main__":
     rb = sub.add_parser("rollback", help="Rollback to a snapshot")
     rb.add_argument("--snapshot-id", required=True)
 
+    rp = sub.add_parser("replay", help="Replay rolled-back patches after a snapshot")
+    rp.add_argument("--snapshot-id", required=True)
+
     args = parser.parse_args()
     db_path = Path(args.root) / "db" / "main.sqlite3"
 
@@ -30,6 +33,9 @@ if __name__ == "__main__":
         print(json.dumps(snapshots, ensure_ascii=False, indent=2))
     elif args.command == "rollback":
         result = rollback_to_snapshot(db_path, args.snapshot_id)
+        print(json.dumps(result, ensure_ascii=False))
+    elif args.command == "replay":
+        result = replay_patches_after_snapshot(db_path, args.snapshot_id)
         print(json.dumps(result, ensure_ascii=False))
     else:
         parser.print_help()
