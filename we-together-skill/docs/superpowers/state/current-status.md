@@ -1,6 +1,6 @@
 # 当前状态
 
-日期：2026-04-09
+日期：2026-04-11
 
 当前已完成：
 
@@ -72,7 +72,13 @@
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
 - graph summary 已可展示 snapshot/cache/runtime 派生计数
-- 当前本地全量测试通过：94 passed
+- retrieval cache 已支持默认 TTL（DEFAULT_CACHE_TTL_SECONDS = 3600），不传 TTL 时自动使用默认值
+- build_retrieval_package CLI 已支持 `--cache-ttl` 参数
+- graph summary 已扩展 memory_count、state_count、patch_count 与 candidate_status_distribution 字段
+- resolve_local_branch 已可读取 selected candidate 的 payload_json 中的 effect_patches，并逐个应用到主图谱
+- ingestion 共用 SQL 已抽取为 ingestion_helpers.py（persist_import_job / persist_raw_evidence / persist_patch_record / persist_snapshot_with_entities）
+- ingestion_service.py 和 email_ingestion_service.py 已调用共用 helper，消除重复代码
+- 当前本地全量测试通过：100 passed
 
 当前主设计稿：
 

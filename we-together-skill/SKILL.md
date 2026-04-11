@@ -58,6 +58,9 @@ version: "0.1.0"
 - build_retrieval_package CLI 支持 `--input-hash`
 - retrieval build 会同步刷新 `scene_active_relations`
 - graph_summary 会展示 snapshot/cache/runtime 派生计数
+- graph_summary 还展示 memory/state/patch 计数与 candidate 状态分布（open/selected/rejected）
+- retrieval cache 默认 TTL 1 小时，CLI 支持 `--cache-ttl` 自定义
+- resolve_local_branch 会将 selected candidate 的 effect_patches 应用到主图谱
 - 文件/目录路径缺失时返回清晰错误，目录导入返回 skipped 文件统计
 - 输出图谱摘要
 
@@ -73,7 +76,7 @@ version: "0.1.0"
 .venv/bin/python scripts/import_email_file.py --root . --file ./sample.eml
 .venv/bin/python scripts/import_file_auto.py --root . --file ./sample.txt
 .venv/bin/python scripts/import_directory.py --root . --directory ./sample_data
-.venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id>
+.venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
 .venv/bin/python scripts/graph_summary.py --root .
 ```
 

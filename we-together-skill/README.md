@@ -83,7 +83,11 @@
 - 文件/目录导入服务已具备清晰失败路径，并会返回 `skipped_count` / `skipped_files`
 - 文件/目录导入 CLI 在目标路径缺失时已能干净失败并输出明确错误
 - graph summary 已可展示 snapshot/cache/runtime 派生计数
-- 当前本地全量测试通过：94 passed
+- retrieval cache 已支持默认 TTL（1 小时），CLI 支持 `--cache-ttl` 参数
+- graph summary 已扩展 memory/state/patch 计数与 candidate 状态分布
+- resolve_local_branch 已可将 selected candidate 的 effect_patches 应用到主图谱
+- ingestion 共用 SQL 已抽取为 ingestion_helpers，减少 narration/text_chat/email 三条链路的代码重复
+- 当前本地全量测试通过：100 passed
 
 当前核心设计文档：
 
@@ -364,7 +368,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/import_auto.py --root . --source-name auto.txt --text $'2026-04-06 23:10 小王: 今天好累\n2026-04-06 23:11 小李: 早点休息\n'
 .venv/bin/python scripts/import_email_file.py --root . --file ./sample.eml
 .venv/bin/python scripts/import_file_auto.py --root . --file ./sample.txt
-.venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id>
+.venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
 .venv/bin/python scripts/graph_summary.py --root .
 ```
 
