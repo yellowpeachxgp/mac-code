@@ -184,6 +184,33 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 """,
                 (selected_candidate_id, payload["branch_id"]),
             )
+            candidate_row = conn.execute(
+                "SELECT payload_json FROM branch_candidates WHERE candidate_id = ?",
+                (selected_candidate_id,),
+            ).fetchone()
+            if candidate_row is not None:
+                candidate_payload = json.loads(candidate_row[0])
+                effect_patches = candidate_payload.get("effect_patches")
+                if effect_patches:
+                    conn.execute(
+                        "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
+                        ("applied", now, patch["patch_id"]),
+                    )
+                    conn.commit()
+                    conn.close()
+                    from we_together.services.patch_service import build_patch as _build_patch
+                    for effect in effect_patches:
+                        effect_patch = _build_patch(
+                            source_event_id=patch["source_event_id"],
+                            target_type=effect["target_type"],
+                            target_id=effect["target_id"],
+                            operation=effect["operation"],
+                            payload=effect["payload"],
+                            confidence=effect.get("confidence", patch["confidence"]),
+                            reason=effect.get("reason", "effect from resolved candidate"),
+                        )
+                        apply_patch_record(db_path=db_path, patch=effect_patch)
+                    return
     elif patch["operation"] == "unlink_entities":
         conn.execute(
             """

@@ -436,3 +436,149 @@ def test_apply_patch_record_can_mark_relation_inactive(temp_project_with_migrati
     conn.close()
 
     assert row[0] == "inactive"
+
+
+def test_resolve_local_branch_applies_selected_candidate_effect(temp_project_with_migrations):
+    """resolve 后被选中的 candidate 的 effect_patches 应用到图谱。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    create_patch = build_patch(
+        source_event_id="evt_branch_effect",
+        target_type="local_branch",
+        target_id="branch_effect_1",
+        operation="create_local_branch",
+        payload={
+            "branch_id": "branch_effect_1",
+            "scope_type": "person",
+            "scope_id": "person_effect",
+            "status": "open",
+            "reason": "test effect application",
+            "created_from_event_id": "evt_branch_effect",
+            "branch_candidates": [
+                {
+                    "candidate_id": "cand_effect_a",
+                    "label": "应用状态 A",
+                    "payload_json": {
+                        "effect_patches": [
+                            {
+                                "target_type": "state",
+                                "target_id": "state_effect_1",
+                                "operation": "update_state",
+                                "payload": {
+                                    "state_id": "state_effect_1",
+                                    "scope_type": "person",
+                                    "scope_id": "person_effect",
+                                    "state_type": "mood",
+                                    "value_json": {"mood": "happy"},
+                                },
+                                "confidence": 0.9,
+                                "reason": "effect from candidate",
+                            }
+                        ]
+                    },
+                    "confidence": 0.8,
+                    "status": "open",
+                },
+                {
+                    "candidate_id": "cand_effect_b",
+                    "label": "不应用",
+                    "payload_json": {"variant": "b"},
+                    "confidence": 0.5,
+                    "status": "open",
+                },
+            ],
+        },
+        confidence=0.7,
+        reason="branch with effect",
+    )
+    apply_patch_record(db_path=db_path, patch=create_patch)
+
+    resolve_patch = build_patch(
+        source_event_id="evt_resolve_effect",
+        target_type="local_branch",
+        target_id="branch_effect_1",
+        operation="resolve_local_branch",
+        payload={
+            "branch_id": "branch_effect_1",
+            "status": "resolved",
+            "reason": "selected candidate with effect",
+            "selected_candidate_id": "cand_effect_a",
+        },
+        confidence=0.9,
+        reason="resolve with effect",
+    )
+    apply_patch_record(db_path=db_path, patch=resolve_patch)
+
+    conn = sqlite3.connect(db_path)
+    state_row = conn.execute(
+        "SELECT value_json FROM states WHERE state_id = ?",
+        ("state_effect_1",),
+    ).fetchone()
+    conn.close()
+
+    assert state_row is not None
+    assert json.loads(state_row[0])["mood"] == "happy"
+
+
+def test_resolve_local_branch_without_effect_payload_still_works(temp_project_with_migrations):
+    """没有 effect_patches 的 candidate 解决后不报错。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    create_patch = build_patch(
+        source_event_id="evt_branch_no_effect",
+        target_type="local_branch",
+        target_id="branch_no_effect_1",
+        operation="create_local_branch",
+        payload={
+            "branch_id": "branch_no_effect_1",
+            "scope_type": "person",
+            "scope_id": "person_no_effect",
+            "status": "open",
+            "reason": "no effect test",
+            "created_from_event_id": "evt_branch_no_effect",
+            "branch_candidates": [
+                {
+                    "candidate_id": "cand_no_effect_a",
+                    "label": "无 effect",
+                    "payload_json": {"variant": "a"},
+                    "confidence": 0.6,
+                    "status": "open",
+                },
+            ],
+        },
+        confidence=0.5,
+        reason="branch without effect",
+    )
+    apply_patch_record(db_path=db_path, patch=create_patch)
+
+    resolve_patch = build_patch(
+        source_event_id="evt_resolve_no_effect",
+        target_type="local_branch",
+        target_id="branch_no_effect_1",
+        operation="resolve_local_branch",
+        payload={
+            "branch_id": "branch_no_effect_1",
+            "status": "resolved",
+            "reason": "resolved without effect",
+            "selected_candidate_id": "cand_no_effect_a",
+        },
+        confidence=0.7,
+        reason="resolve without effect",
+    )
+    apply_patch_record(db_path=db_path, patch=resolve_patch)
+
+    conn = sqlite3.connect(db_path)
+    branch_row = conn.execute(
+        "SELECT status FROM local_branches WHERE branch_id = ?",
+        ("branch_no_effect_1",),
+    ).fetchone()
+    candidate_row = conn.execute(
+        "SELECT status FROM branch_candidates WHERE candidate_id = ?",
+        ("cand_no_effect_a",),
+    ).fetchone()
+    conn.close()
+
+    assert branch_row[0] == "resolved"
+    assert candidate_row[0] == "selected"
