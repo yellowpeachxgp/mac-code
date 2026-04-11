@@ -1668,6 +1668,64 @@ def test_text_chat_imported_relations_are_visible_in_runtime_retrieval(
     assert relation_ids
 
 
+def test_retrieval_package_participants_include_persona_and_style(temp_project_with_migrations):
+    """检索包 participants 应包含 persona_summary 和 style_summary。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, summary, persona_summary, work_summary,
+            life_summary, style_summary, boundary_summary, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """,
+        (
+            "person_persona_test",
+            "PersonaTest",
+            "active",
+            "测试摘要",
+            "内向安静",
+            "后端开发",
+            None,
+            "说话简洁",
+            "不喜欢被打断",
+            0.8,
+            "{}",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="persona test",
+        environment={
+            "location_scope": "remote",
+            "channel_scope": "private_dm",
+            "visibility_scope": "mutual_visible",
+        },
+    )
+    add_scene_participant(
+        db_path=db_path,
+        scene_id=scene_id,
+        person_id="person_persona_test",
+        activation_state="explicit",
+        activation_score=1.0,
+        is_speaking=True,
+    )
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+    participant = package["participants"][0]
+
+    assert participant["persona_summary"] == "内向安静"
+    assert participant["style_summary"] == "说话简洁"
+    assert participant["boundary_summary"] == "不喜欢被打断"
+
+
 def test_retrieval_cache_default_ttl_writes_expires_at(temp_project_with_migrations):
     """不传 cache_ttl_seconds 时，使用默认 TTL，缓存行写入 expires_at 非 NULL。"""
     from we_together.runtime.sqlite_retrieval import DEFAULT_CACHE_TTL_SECONDS

@@ -84,6 +84,25 @@ def _fetch_person_names(conn: sqlite3.Connection, person_ids: list[str]) -> dict
     return {row["person_id"]: row["primary_name"] for row in rows}
 
 
+def _fetch_person_profiles(conn: sqlite3.Connection, person_ids: list[str]) -> dict[str, dict]:
+    if not person_ids:
+        return {}
+
+    rows = conn.execute(
+        "SELECT person_id, persona_summary, style_summary, boundary_summary FROM persons WHERE person_id IN (%s)"
+        % ",".join("?" for _ in person_ids),
+        tuple(person_ids),
+    ).fetchall()
+    return {
+        row["person_id"]: {
+            "persona_summary": row["persona_summary"],
+            "style_summary": row["style_summary"],
+            "boundary_summary": row["boundary_summary"],
+        }
+        for row in rows
+    }
+
+
 def _merge_activation_candidate(
     activation_map: dict[str, dict],
     *,
@@ -800,12 +819,16 @@ def build_runtime_retrieval_package_from_db(
         "privacy_scope": scene["privacy_scope"],
         "activation_barrier": scene["activation_barrier"],
     }
+    person_profiles = _fetch_person_profiles(conn, scene_person_ids)
     participants = [
         {
             "person_id": row["person_id"],
             "display_name": person_names.get(row["person_id"], row["person_id"]),
             "scene_role": "participant",
             "speak_eligibility": "allowed" if row["is_speaking"] else "discouraged",
+            "persona_summary": person_profiles.get(row["person_id"], {}).get("persona_summary"),
+            "style_summary": person_profiles.get(row["person_id"], {}).get("style_summary"),
+            "boundary_summary": person_profiles.get(row["person_id"], {}).get("boundary_summary"),
         }
         for row in participants_rows
     ]
