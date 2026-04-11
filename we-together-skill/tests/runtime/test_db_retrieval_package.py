@@ -1957,3 +1957,102 @@ def test_retrieval_package_respects_relation_limit(temp_project_with_migrations)
 
     package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id, max_relations=2)
     assert len(package["active_relations"]) == 2
+
+
+def test_retrieval_package_includes_recent_changes(temp_project_with_migrations):
+    """应用几个 patch 后，构建检索包应包含 recent_changes 字段。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="recent changes test",
+        environment={"location_scope": "remote", "channel_scope": "private_dm", "visibility_scope": "mutual_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id="person_rc", activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_rc_1",
+            target_type="state",
+            target_id="state_rc_1",
+            operation="update_state",
+            payload={
+                "state_id": "state_rc_1",
+                "scope_type": "scene",
+                "scope_id": scene_id,
+                "state_type": "mood",
+                "value_json": {"mood": "happy"},
+            },
+            confidence=0.8,
+            reason="recent change 1",
+        ),
+    )
+    apply_patch_record(
+        db_path=db_path,
+        patch=build_patch(
+            source_event_id="evt_rc_2",
+            target_type="state",
+            target_id="state_rc_2",
+            operation="update_state",
+            payload={
+                "state_id": "state_rc_2",
+                "scope_type": "scene",
+                "scope_id": scene_id,
+                "state_type": "energy",
+                "value_json": {"energy": "high"},
+            },
+            confidence=0.7,
+            reason="recent change 2",
+        ),
+    )
+
+    package = build_runtime_retrieval_package_from_db(
+        db_path=db_path, scene_id=scene_id, max_recent_changes=5,
+    )
+
+    assert "recent_changes" in package
+    assert len(package["recent_changes"]) == 2
+    assert package["recent_changes"][0]["operation"] == "update_state"
+
+
+def test_retrieval_recent_changes_respects_limit(temp_project_with_migrations):
+    """max_recent_changes 应控制返回条数。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="rc limit test",
+        environment={"location_scope": "remote", "channel_scope": "private_dm", "visibility_scope": "mutual_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id="person_rcl", activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    for i in range(5):
+        apply_patch_record(
+            db_path=db_path,
+            patch=build_patch(
+                source_event_id=f"evt_rcl_{i}",
+                target_type="state",
+                target_id=f"state_rcl_{i}",
+                operation="update_state",
+                payload={
+                    "state_id": f"state_rcl_{i}",
+                    "scope_type": "scene",
+                    "scope_id": scene_id,
+                    "state_type": "mood",
+                    "value_json": {"mood": f"mood_{i}"},
+                },
+                confidence=0.7,
+                reason=f"change {i}",
+            ),
+        )
+
+    package = build_runtime_retrieval_package_from_db(
+        db_path=db_path, scene_id=scene_id, max_recent_changes=2,
+    )
+
+    assert len(package["recent_changes"]) == 2

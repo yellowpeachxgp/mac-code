@@ -607,6 +607,29 @@ def _build_current_states(
     ]
 
 
+def _build_recent_changes(conn: sqlite3.Connection, limit: int) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT patch_id, operation, target_type, reason, applied_at
+        FROM patches
+        WHERE status = 'applied'
+        ORDER BY applied_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    return [
+        {
+            "patch_id": row["patch_id"],
+            "operation": row["operation"],
+            "target_type": row["target_type"],
+            "reason": row["reason"],
+            "applied_at": row["applied_at"],
+        }
+        for row in rows
+    ]
+
+
 def _build_open_branch_summary(
     conn: sqlite3.Connection,
     *,
@@ -730,6 +753,7 @@ def build_runtime_retrieval_package_from_db(
     max_memories: int | None = 20,
     max_relations: int | None = 10,
     max_states: int | None = 30,
+    max_recent_changes: int | None = 5,
 ) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -851,6 +875,9 @@ def build_runtime_retrieval_package_from_db(
         for row in participants_rows
     ]
     response_policy = _build_response_policy(scene, participants_rows, activation_map)
+    recent_changes = []
+    if max_recent_changes is not None and max_recent_changes > 0:
+        recent_changes = _build_recent_changes(conn, limit=max_recent_changes)
     conn.close()
 
     package = {
@@ -869,6 +896,7 @@ def build_runtime_retrieval_package_from_db(
         "activation_map": activation_map,
         "response_policy": response_policy,
         "safety_and_budget": {**safety_and_budget, **branch_summary},
+        "recent_changes": recent_changes,
     }
     if input_hash:
         cache_id = f"cache_{uuid.uuid4().hex}"
