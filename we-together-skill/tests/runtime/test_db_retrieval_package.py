@@ -3,9 +3,10 @@ from we_together.runtime.sqlite_retrieval import build_runtime_retrieval_package
 from we_together.services.group_service import create_group, add_group_member
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
-from we_together.services.scene_service import create_scene, add_scene_participant
+from we_together.services.scene_service import create_scene, add_scene_participant, close_scene
 from we_together.services.ingestion_service import ingest_narration, ingest_text_chat
 import sqlite3
+import pytest
 
 
 def test_build_runtime_retrieval_package_from_db_reads_scene_and_participants(
@@ -1818,3 +1819,21 @@ def test_retrieval_cache_custom_ttl_respected(temp_project_with_migrations):
     expected_low = before + timedelta(seconds=3600)
     expected_high = after + timedelta(seconds=3600)
     assert expected_low <= expires_at <= expected_high
+
+
+def test_build_retrieval_package_rejects_closed_scene(temp_project_with_migrations):
+    """对已关闭场景调用 retrieval 应抛 ValueError。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="closed scene",
+        environment={"location_scope": "remote", "channel_scope": "private_dm", "visibility_scope": "mutual_visible"},
+    )
+
+    close_scene(db_path, scene_id)
+
+    with pytest.raises(ValueError, match="not active"):
+        build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)

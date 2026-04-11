@@ -743,6 +743,10 @@ def build_runtime_retrieval_package_from_db(
         conn.close()
         raise ValueError(f"Scene not found: {scene_id}")
 
+    if scene["status"] != "active":
+        conn.close()
+        raise ValueError(f"Scene {scene_id} is not active (status={scene['status']})")
+
     group = None
     if scene["group_id"]:
         group = conn.execute(

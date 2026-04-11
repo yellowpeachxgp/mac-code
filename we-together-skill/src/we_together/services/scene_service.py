@@ -83,3 +83,27 @@ def add_scene_participant(
     conn.commit()
     conn.close()
     invalidate_runtime_retrieval_cache(db_path=db_path, scene_id=scene_id)
+
+
+def close_scene(db_path: Path, scene_id: str) -> None:
+    now = datetime.now(UTC).isoformat()
+    conn = connect(db_path)
+    conn.execute(
+        "UPDATE scenes SET status = 'closed', updated_at = ? WHERE scene_id = ?",
+        (now, scene_id),
+    )
+    conn.commit()
+    conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path, scene_id=scene_id)
+
+
+def archive_scene(db_path: Path, scene_id: str) -> None:
+    now = datetime.now(UTC).isoformat()
+    conn = connect(db_path)
+    conn.execute(
+        "UPDATE scenes SET status = 'archived', updated_at = ? WHERE scene_id = ?",
+        (now, scene_id),
+    )
+    conn.commit()
+    conn.close()
+    invalidate_runtime_retrieval_cache(db_path=db_path, scene_id=scene_id)
