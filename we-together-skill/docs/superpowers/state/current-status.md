@@ -78,7 +78,15 @@
 - resolve_local_branch 已可读取 selected candidate 的 payload_json 中的 effect_patches，并逐个应用到主图谱
 - ingestion 共用 SQL 已抽取为 ingestion_helpers.py（persist_import_job / persist_raw_evidence / persist_patch_record / persist_snapshot_with_entities）
 - ingestion_service.py 和 email_ingestion_service.py 已调用共用 helper，消除重复代码
-- 当前本地全量测试通过：100 passed
+- retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
+- 对话演化循环已闭合：dialogue_service.record_dialogue_event() 将对话写为 dialogue_event + snapshot
+- infer_dialogue_patches() 从对话内容推理 scene mood state 和多人共享 memory
+- 对话 → Event → Patch → Graph State 的完整演化链已可运行
+- snapshot 已支持 list_snapshots() 历史遍历和 rollback_to_snapshot() 回滚
+- rollback 会标记后续 patch 为 rolled_back、删除后续 states 和 snapshots、清空 retrieval cache
+- patch applier 已支持 update_entity，可对 person/relation/group/memory 做字段级增量更新
+- 新增 record_dialogue.py CLI（记录对话事件）和 snapshot.py CLI（list / rollback）
+- 当前本地全量测试通过：109 passed
 
 当前主设计稿：
 

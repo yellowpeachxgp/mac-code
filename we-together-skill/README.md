@@ -87,7 +87,12 @@
 - graph summary 已扩展 memory/state/patch 计数与 candidate 状态分布
 - resolve_local_branch 已可将 selected candidate 的 effect_patches 应用到主图谱
 - ingestion 共用 SQL 已抽取为 ingestion_helpers，减少 narration/text_chat/email 三条链路的代码重复
-- 当前本地全量测试通过：100 passed
+- retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
+- 已闭合对话演化循环：dialogue_service.record_dialogue_event() 记录对话事件 + infer_dialogue_patches() 推理 state/memory patch
+- snapshot 已支持 list_snapshots() 历史遍历和 rollback_to_snapshot() 回滚（标记后续 patch + 清理 states）
+- patch applier 已支持 update_entity，可对 person/relation/group/memory 做字段级增量更新
+- 新增 record_dialogue.py 和 snapshot.py CLI
+- 当前本地全量测试通过：109 passed
 
 当前核心设计文档：
 
@@ -369,6 +374,9 @@ python3 -m venv .venv
 .venv/bin/python scripts/import_email_file.py --root . --file ./sample.eml
 .venv/bin/python scripts/import_file_auto.py --root . --file ./sample.txt
 .venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
+.venv/bin/python scripts/record_dialogue.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaker person_demo
+.venv/bin/python scripts/snapshot.py --root . list
+.venv/bin/python scripts/snapshot.py --root . rollback --snapshot-id <snapshot_id>
 .venv/bin/python scripts/graph_summary.py --root .
 ```
 

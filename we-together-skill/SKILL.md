@@ -61,6 +61,10 @@ version: "0.1.0"
 - graph_summary 还展示 memory/state/patch 计数与 candidate 状态分布（open/selected/rejected）
 - retrieval cache 默认 TTL 1 小时，CLI 支持 `--cache-ttl` 自定义
 - resolve_local_branch 会将 selected candidate 的 effect_patches 应用到主图谱
+- retrieval package 的 participants 带有 persona_summary / style_summary / boundary_summary
+- 对话演化循环已闭合：record_dialogue_event() 记录对话 + infer_dialogue_patches() 推理 patch + apply 到图谱
+- snapshot 支持 list_snapshots() 遍历历史和 rollback_to_snapshot() 回滚
+- patch applier 支持 update_entity 对任意实体做字段级更新
 - 文件/目录路径缺失时返回清晰错误，目录导入返回 skipped 文件统计
 - 输出图谱摘要
 
@@ -77,6 +81,9 @@ version: "0.1.0"
 .venv/bin/python scripts/import_file_auto.py --root . --file ./sample.txt
 .venv/bin/python scripts/import_directory.py --root . --directory ./sample_data
 .venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
+.venv/bin/python scripts/record_dialogue.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaker person_demo
+.venv/bin/python scripts/snapshot.py --root . list
+.venv/bin/python scripts/snapshot.py --root . rollback --snapshot-id <snapshot_id>
 .venv/bin/python scripts/graph_summary.py --root .
 ```
 
