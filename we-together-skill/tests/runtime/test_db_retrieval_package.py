@@ -1837,3 +1837,123 @@ def test_build_retrieval_package_rejects_closed_scene(temp_project_with_migratio
 
     with pytest.raises(ValueError, match="not active"):
         build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+
+
+def test_retrieval_package_respects_memory_limit(temp_project_with_migrations):
+    """创建 10 条 memory，传 max_memories=3，验证返回最多 3 条。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    person_id = "person_mem_limit"
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, ?, 'active', 0.8, '{}', datetime('now'), datetime('now'))
+        """,
+        (person_id, "MemLimiter"),
+    )
+    for i in range(10):
+        conn.execute(
+            """
+            INSERT INTO memories(
+                memory_id, memory_type, summary, relevance_score, confidence,
+                is_shared, status, metadata_json, created_at, updated_at
+            ) VALUES(?, 'shared_memory', ?, ?, 0.7, 1, 'active', '{}', datetime('now'), datetime('now'))
+            """,
+            (f"mem_limit_{i}", f"memory {i}", 0.5 + i * 0.01),
+        )
+        conn.execute(
+            "INSERT INTO memory_owners(memory_id, owner_type, owner_id, role_label) VALUES(?, 'person', ?, NULL)",
+            (f"mem_limit_{i}", person_id),
+        )
+    conn.commit()
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="memory limit test",
+        environment={"location_scope": "remote", "channel_scope": "private_dm", "visibility_scope": "mutual_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id=person_id, activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id, max_memories=3)
+    assert len(package["relevant_memories"]) == 3
+
+
+def test_retrieval_package_respects_relation_limit(temp_project_with_migrations):
+    """验证 max_relations 限制。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    person_a = "person_rel_limit_a"
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO persons(
+            person_id, primary_name, status, confidence, metadata_json,
+            created_at, updated_at
+        ) VALUES(?, 'RelLimiterA', 'active', 0.8, '{}', datetime('now'), datetime('now'))
+        """,
+        (person_a,),
+    )
+    event_id = "evt_rel_limit"
+    conn.execute(
+        """
+        INSERT INTO events(
+            event_id, event_type, source_type, timestamp, summary, visibility_level,
+            confidence, is_structured, raw_evidence_refs_json, metadata_json, created_at
+        ) VALUES(?, 'narration_seed', 'manual', datetime('now'), 'relations', 'visible', 0.8, 0, '[]', '{}', datetime('now'))
+        """,
+        (event_id,),
+    )
+    conn.execute(
+        "INSERT INTO event_participants(event_id, person_id, participant_role) VALUES(?, ?, 'speaker')",
+        (event_id, person_a),
+    )
+    for i in range(5):
+        rid = f"rel_limit_{i}"
+        other = f"person_rel_other_{i}"
+        conn.execute(
+            """
+            INSERT INTO persons(
+                person_id, primary_name, status, confidence, metadata_json,
+                created_at, updated_at
+            ) VALUES(?, ?, 'active', 0.8, '{}', datetime('now'), datetime('now'))
+            """,
+            (other, f"Other{i}"),
+        )
+        conn.execute(
+            """
+            INSERT INTO relations(
+                relation_id, core_type, custom_label, summary, directionality,
+                strength, stability, visibility, status, confidence, metadata_json,
+                created_at, updated_at
+            ) VALUES(?, 'friendship', ?, 'rel', 'bidirectional', 0.5, 0.5, 'known', 'active', 0.7, '{}', datetime('now'), datetime('now'))
+            """,
+            (rid, f"relation {i}"),
+        )
+        conn.execute(
+            "INSERT INTO event_targets(event_id, target_type, target_id, impact_hint) VALUES(?, 'relation', ?, 'test')",
+            (event_id, rid),
+        )
+        conn.execute(
+            "INSERT INTO event_participants(event_id, person_id, participant_role) VALUES(?, ?, 'mentioned')",
+            (event_id, other),
+        )
+    conn.commit()
+    conn.close()
+
+    scene_id = create_scene(
+        db_path=db_path,
+        scene_type="private_chat",
+        scene_summary="relation limit test",
+        environment={"location_scope": "remote", "channel_scope": "private_dm", "visibility_scope": "mutual_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id=person_a, activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    package = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id, max_relations=2)
+    assert len(package["active_relations"]) == 2

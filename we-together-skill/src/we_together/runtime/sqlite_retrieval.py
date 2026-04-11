@@ -405,12 +405,12 @@ def _build_active_relations(
     conn: sqlite3.Connection,
     seed_person_ids: list[str],
     person_names: dict[str, str],
+    limit: int | None = None,
 ) -> list[dict]:
     if not seed_person_ids:
         return []
 
-    relation_rows = conn.execute(
-        """
+    sql = """
         SELECT DISTINCT
             r.relation_id,
             r.core_type,
@@ -426,10 +426,14 @@ def _build_active_relations(
             ON ep.event_id = et.event_id
         WHERE ep.person_id IN (%s)
         AND r.status = 'active'
-        """
-        % ",".join("?" for _ in seed_person_ids),
-        tuple(seed_person_ids),
-    ).fetchall()
+        """ % ",".join("?" for _ in seed_person_ids)
+
+    params: list = list(seed_person_ids)
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    relation_rows = conn.execute(sql, tuple(params)).fetchall()
     relation_ids = [row["relation_id"] for row in relation_rows]
     if not relation_ids:
         return []
@@ -506,12 +510,11 @@ def _refresh_scene_active_relations(
         )
 
 
-def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: list[str]) -> list[dict]:
+def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: list[str], limit: int | None = None) -> list[dict]:
     if not activated_person_ids:
         return []
 
-    memory_rows = conn.execute(
-        """
+    sql = """
         SELECT DISTINCT m.memory_id, m.summary, m.memory_type, m.relevance_score, m.confidence
         FROM memories m
         JOIN memory_owners mo ON mo.memory_id = m.memory_id
@@ -519,10 +522,14 @@ def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: lis
         AND m.is_shared = 1
         AND m.status = 'active'
         ORDER BY m.relevance_score DESC, m.created_at DESC
-        """
-        % ",".join("?" for _ in activated_person_ids),
-        tuple(activated_person_ids),
-    ).fetchall()
+        """ % ",".join("?" for _ in activated_person_ids)
+
+    params: list = list(activated_person_ids)
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    memory_rows = conn.execute(sql, tuple(params)).fetchall()
     return [
         {
             "memory_id": row["memory_id"],
@@ -542,6 +549,7 @@ def _build_current_states(
     group_id: str | None,
     activated_person_ids: list[str],
     relation_ids: list[str],
+    limit: int | None = None,
 ) -> list[dict]:
     scope_values: dict[str, list[str]] = {
         "scene": [scene_id],
@@ -565,8 +573,7 @@ def _build_current_states(
     if not clauses:
         return []
 
-    state_rows = conn.execute(
-        """
+    sql = """
         SELECT
             state_id,
             scope_type,
@@ -579,10 +586,13 @@ def _build_current_states(
         FROM states
         WHERE %s
         ORDER BY confidence DESC, updated_at DESC
-        """
-        % " OR ".join(clauses),
-        tuple(params),
-    ).fetchall()
+        """ % " OR ".join(clauses)
+
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    state_rows = conn.execute(sql, tuple(params)).fetchall()
     return [
         {
             "state_id": row["state_id"],
@@ -717,6 +727,9 @@ def build_runtime_retrieval_package_from_db(
     scene_id: str,
     input_hash: str | None = None,
     cache_ttl_seconds: int | None = None,
+    max_memories: int | None = 20,
+    max_relations: int | None = 10,
+    max_states: int | None = 30,
 ) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -772,12 +785,12 @@ def build_runtime_retrieval_package_from_db(
         list(dict.fromkeys(scene_person_ids + group_member_ids)),
     )
 
-    active_relations = _build_active_relations(conn, scene_person_ids, person_names)
+    active_relations = _build_active_relations(conn, scene_person_ids, person_names, limit=max_relations)
     _refresh_scene_active_relations(conn, scene_id=scene_id, active_relations=active_relations)
     conn.commit()
     activation_map, safety_and_budget = _build_activation_map(conn, scene, participants_rows)
     activated_person_ids = [item["person_id"] for item in activation_map]
-    relevant_memories = _build_relevant_memories(conn, activated_person_ids)
+    relevant_memories = _build_relevant_memories(conn, activated_person_ids, limit=max_memories)
     relation_ids = [item["relation_id"] for item in active_relations]
     open_branches = _fetch_open_local_branches(
         conn,
@@ -799,6 +812,7 @@ def build_runtime_retrieval_package_from_db(
         group_id=scene["group_id"],
         activated_person_ids=activated_person_ids,
         relation_ids=relation_ids,
+        limit=max_states,
     )
     branch_summary = _build_open_branch_summary(
         conn,
