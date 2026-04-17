@@ -199,6 +199,15 @@
 - ADR 0006 定稿 Phase 10 四个决策
 - 当前本地全量测试通过：260 passed
 
+## Phase 11 — 联邦与协同（Federation，已完成）
+
+- migration 0008 external_person_refs + federation_service（register/list/eager）（FE-1）
+- event_bus_service: jsonl 队列 + cursor，publish/drain/peek 无外部依赖（FE-2）
+- scripts/branch_console.py: stdlib http.server，GET /branches + POST /resolve + bearer token（FE-3）
+- tenant_router: db_path 按 tenant_id 路由，default 保持向后兼容（FE-4）
+- ADR 0007 定稿 Phase 11 四个决策
+- 当前本地全量测试通过：268 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
