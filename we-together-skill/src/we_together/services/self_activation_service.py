@@ -23,6 +23,7 @@ from we_together.services.patch_service import build_patch
 
 
 DEFAULT_DAILY_BUDGET = 3
+DEFAULT_PAIR_DAILY_BUDGET = 2
 
 
 def _now() -> datetime:
@@ -223,5 +224,172 @@ def self_activate(
         "created_count": len(created_ids),
         "event_ids": created_ids,
         "remaining_budget": remaining_budget - len(created_ids),
+        "reason": "ok",
+    }
+
+
+def _count_today_pair_events(conn: sqlite3.Connection) -> int:
+    start = (_now() - timedelta(hours=24)).isoformat()
+    row = conn.execute(
+        "SELECT COUNT(*) FROM events WHERE event_type = 'latent_interaction_event' "
+        "AND created_at >= ?",
+        (start,),
+    ).fetchone()
+    return row[0] or 0
+
+
+def self_activate_pair_interactions(
+    db_path: Path,
+    *,
+    scene_id: str,
+    llm_client: LLMClient | None = None,
+    daily_budget: int = DEFAULT_PAIR_DAILY_BUDGET,
+    per_run_limit: int = 1,
+    min_activation_score: float = 0.3,
+) -> dict:
+    """在当前 scene 活跃 persons 中挑 pair，生成 latent_interaction_event。
+
+    返回: {"created_count", "event_ids", "remaining_budget", "reason"}
+    """
+    conn = connect(db_path)
+    conn.row_factory = sqlite3.Row
+    scene = conn.execute(
+        "SELECT scene_id, scene_summary FROM scenes WHERE scene_id = ? AND status = 'active'",
+        (scene_id,),
+    ).fetchone()
+    if scene is None:
+        conn.close()
+        raise ValueError(f"Scene not found or not active: {scene_id}")
+
+    used = _count_today_pair_events(conn)
+    remaining = max(0, daily_budget - used)
+    if remaining == 0:
+        conn.close()
+        return {"created_count": 0, "reason": "daily_budget_exhausted"}
+
+    rows = conn.execute(
+        """
+        SELECT sp.person_id, p.primary_name, sp.activation_score
+        FROM scene_participants sp
+        JOIN persons p ON p.person_id = sp.person_id
+        WHERE sp.scene_id = ?
+          AND sp.activation_state IN ('explicit', 'latent')
+          AND (sp.activation_score IS NULL OR sp.activation_score >= ?)
+        ORDER BY sp.activation_score DESC
+        """,
+        (scene_id, min_activation_score),
+    ).fetchall()
+
+    if len(rows) < 2:
+        conn.close()
+        return {"created_count": 0, "reason": "not_enough_active_persons"}
+
+    # pair top-2..top-N
+    pairs: list[tuple[sqlite3.Row, sqlite3.Row]] = []
+    for i in range(len(rows)):
+        for j in range(i + 1, len(rows)):
+            pairs.append((rows[i], rows[j]))
+            if len(pairs) >= min(per_run_limit, remaining):
+                break
+        if len(pairs) >= min(per_run_limit, remaining):
+            break
+
+    scene_summary = scene["scene_summary"] or "unknown scene"
+    now_iso = _now().isoformat()
+    created: list[str] = []
+    derived_memories: list[tuple[str, str, str, str, str]] = []
+
+    for a, b in pairs:
+        summary = f"{a['primary_name']} 与 {b['primary_name']} 在 {scene_summary} 中自发互动"
+        if llm_client is not None:
+            try:
+                payload = llm_client.chat_json(
+                    [
+                        LLMMessage(role="system", content="你是人物自发交互生成器。"),
+                        LLMMessage(
+                            role="user",
+                            content=(
+                                f"{a['primary_name']} 和 {b['primary_name']} 在 '{scene_summary}' "
+                                "中会自发地聊些什么？输出 JSON: {\"summary\": \"一句话\"}"
+                            ),
+                        ),
+                    ],
+                    schema_hint={"summary": "str"},
+                )
+                if payload.get("summary"):
+                    summary = str(payload["summary"]).strip()
+            except Exception:
+                pass
+
+        event_id = f"evt_pair_{uuid.uuid4().hex[:12]}"
+        conn.execute(
+            """INSERT INTO events(event_id, event_type, source_type, scene_id, timestamp,
+               summary, visibility_level, confidence, is_structured,
+               raw_evidence_refs_json, metadata_json, created_at)
+               VALUES(?, 'latent_interaction_event', 'self_activation', ?, ?, ?,
+                      'visible', 0.55, 1, '[]', ?, ?)""",
+            (event_id, scene_id, now_iso, summary,
+             json.dumps({"kind": "latent_interaction", "actors": [a["person_id"], b["person_id"]]},
+                        ensure_ascii=False),
+             now_iso),
+        )
+        for p in (a, b):
+            conn.execute(
+                "INSERT INTO event_participants(event_id, person_id, participant_role) "
+                "VALUES(?, ?, 'actor')",
+                (event_id, p["person_id"]),
+            )
+        conn.execute(
+            "INSERT INTO event_targets(event_id, target_type, target_id, impact_hint) "
+            "VALUES(?, 'scene', ?, 'latent interaction')",
+            (event_id, scene_id),
+        )
+        created.append(event_id)
+        mem_id = f"mem_pair_{uuid.uuid4().hex[:12]}"
+        derived_memories.append((event_id, mem_id, a["person_id"], b["person_id"], summary))
+
+    conn.commit()
+    conn.close()
+
+    for event_id, mem_id, pid_a, pid_b, summary in derived_memories:
+        apply_patch_record(
+            db_path=db_path,
+            patch=build_patch(
+                source_event_id=event_id,
+                target_type="memory",
+                target_id=mem_id,
+                operation="create_memory",
+                payload={
+                    "memory_id": mem_id,
+                    "memory_type": "shared_memory",
+                    "summary": summary,
+                    "relevance_score": 0.55,
+                    "confidence": 0.55,
+                    "is_shared": 1,
+                    "status": "active",
+                    "metadata_json": {
+                        "source": "latent_interaction",
+                        "actors": [pid_a, pid_b],
+                        "scene_id": scene_id,
+                    },
+                },
+                confidence=0.55,
+                reason="memory derived from latent interaction",
+            ),
+        )
+        owner_conn = connect(db_path)
+        for pid in (pid_a, pid_b):
+            owner_conn.execute(
+                "INSERT INTO memory_owners(memory_id, owner_type, owner_id, role_label) "
+                "VALUES(?, 'person', ?, 'pair')",
+                (mem_id, pid),
+            )
+        owner_conn.commit()
+        owner_conn.close()
+
+    return {
+        "created_count": len(created),
+        "event_ids": created,
+        "remaining_budget": remaining - len(created),
         "reason": "ok",
     }
