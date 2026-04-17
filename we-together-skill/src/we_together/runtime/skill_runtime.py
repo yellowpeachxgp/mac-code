@@ -19,6 +19,7 @@ class SkillRequest:
     scene_id: str
     user_input: str
     metadata: dict = field(default_factory=dict)
+    tools: list[dict] = field(default_factory=list)  # [{name, description, input_schema}]
 
     def to_dict(self) -> dict:
         return {
@@ -28,6 +29,7 @@ class SkillRequest:
             "scene_id": self.scene_id,
             "user_input": self.user_input,
             "metadata": dict(self.metadata),
+            "tools": [dict(t) for t in self.tools],
         }
 
 

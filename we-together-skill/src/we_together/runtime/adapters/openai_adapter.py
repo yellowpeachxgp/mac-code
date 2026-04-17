@@ -16,13 +16,27 @@ class OpenAISkillAdapter:
         messages = [{"role": "system", "content": request.system_prompt}]
         for m in request.messages:
             messages.append(dict(m))
-        return {
+        payload = {
             "messages": messages,
             "metadata": {
                 "scene_id": request.scene_id,
                 **request.metadata,
             },
         }
+        if request.tools:
+            # OpenAI function schema: {type: "function", function: {name, description, parameters}}
+            payload["tools"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t.get("description", ""),
+                        "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+                    },
+                }
+                for t in request.tools
+            ]
+        return payload
 
     def invoke(
         self,

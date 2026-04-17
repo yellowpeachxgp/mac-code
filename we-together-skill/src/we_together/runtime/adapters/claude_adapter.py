@@ -15,7 +15,7 @@ class ClaudeSkillAdapter:
     name = "claude"
 
     def build_payload(self, request: SkillRequest) -> dict:
-        return {
+        payload = {
             "system": request.system_prompt,
             "messages": [dict(m) for m in request.messages],
             "metadata": {
@@ -24,6 +24,16 @@ class ClaudeSkillAdapter:
                 **request.metadata,
             },
         }
+        if request.tools:
+            payload["tools"] = [
+                {
+                    "name": t["name"],
+                    "description": t.get("description", ""),
+                    "input_schema": t.get("input_schema", {"type": "object", "properties": {}}),
+                }
+                for t in request.tools
+            ]
+        return payload
 
     def invoke(
         self,
