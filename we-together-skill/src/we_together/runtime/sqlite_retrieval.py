@@ -773,6 +773,47 @@ def _build_recent_changes(conn: sqlite3.Connection, limit: int) -> list[dict]:
     ]
 
 
+def _build_cross_scene_echoes(
+    conn: sqlite3.Connection,
+    *,
+    current_scene_id: str,
+    limit: int,
+    min_confidence: float = 0.7,
+) -> list[dict]:
+    """其他 active scene 的高权重 events 回响。
+
+    仅返回 visibility_level 非 'private' 的 event，防止越权泄露。
+    """
+    rows = conn.execute(
+        """
+        SELECT e.event_id, e.scene_id, e.summary, e.confidence, e.timestamp,
+               s.scene_type, s.scene_summary
+        FROM events e
+        JOIN scenes s ON s.scene_id = e.scene_id
+        WHERE e.scene_id IS NOT NULL
+          AND e.scene_id != ?
+          AND s.status = 'active'
+          AND e.confidence >= ?
+          AND (e.visibility_level IS NULL OR e.visibility_level != 'private')
+        ORDER BY e.timestamp DESC
+        LIMIT ?
+        """,
+        (current_scene_id, min_confidence, limit),
+    ).fetchall()
+    return [
+        {
+            "event_id": r["event_id"],
+            "scene_id": r["scene_id"],
+            "scene_type": r["scene_type"],
+            "scene_summary": r["scene_summary"],
+            "summary": r["summary"],
+            "confidence": r["confidence"],
+            "timestamp": r["timestamp"],
+        }
+        for r in rows
+    ]
+
+
 def _build_open_branch_summary(
     conn: sqlite3.Connection,
     *,
@@ -1033,6 +1074,9 @@ def build_runtime_retrieval_package_from_db(
     recent_changes = []
     if max_recent_changes is not None and max_recent_changes > 0:
         recent_changes = _build_recent_changes(conn, limit=max_recent_changes)
+    cross_scene_echoes = _build_cross_scene_echoes(
+        conn, current_scene_id=scene_id, limit=max_recent_changes or 5,
+    )
     conn.close()
 
     package = {
@@ -1052,6 +1096,7 @@ def build_runtime_retrieval_package_from_db(
         "response_policy": response_policy,
         "safety_and_budget": {**safety_and_budget, **branch_summary},
         "recent_changes": recent_changes,
+        "cross_scene_echoes": cross_scene_echoes,
     }
     if input_hash and not debug_scores:
         cache_id = f"cache_{uuid.uuid4().hex}"
