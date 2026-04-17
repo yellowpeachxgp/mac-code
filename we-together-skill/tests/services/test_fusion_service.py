@@ -203,3 +203,58 @@ def test_fuse_all_runs_both(temp_project_with_migrations):
     out = fuse_all(db_path, source_event_id="evt_fuse")
     assert out["identity"]["fused_count"] == 2
     assert out["relation"]["fused_count"] == 1
+
+
+def test_low_tier_name_collision_opens_local_branch(temp_project_with_migrations):
+    """low-tier 且同名 → 开 branch，而非直接合并。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+    _seed_evidence(db_path)
+    _seed_event(db_path)
+
+    # 高置信先落：Harvey
+    write_identity_candidate(
+        db_path=db_path, evidence_id="evd_fuse",
+        platform="email", external_id="h1@a.com",
+        display_name="Harvey", confidence=0.9,
+    )
+    fuse_identity_candidates(db_path)
+
+    # 低置信第二条：同名但 external_id 不同
+    write_identity_candidate(
+        db_path=db_path, evidence_id="evd_fuse",
+        platform="wechat", external_id="harvey_wx",
+        display_name="Harvey", confidence=0.2,  # low tier
+    )
+    result = fuse_identity_candidates(db_path, source_event_id="evt_fuse")
+
+    assert result["branched"] == 1
+    assert result["fused_count"] == 0
+
+    conn = sqlite3.connect(db_path)
+    branches = conn.execute(
+        "SELECT branch_id, status FROM local_branches WHERE scope_type = 'person'",
+    ).fetchall()
+    branch_candidates = conn.execute(
+        "SELECT COUNT(*) FROM branch_candidates",
+    ).fetchone()[0]
+    conn.close()
+
+    assert len(branches) == 1
+    assert branches[0][1] == "open"
+    assert branch_candidates == 2  # merge + new
+
+
+def test_low_tier_without_conflict_does_not_branch(temp_project_with_migrations):
+    """low-tier 但无同名 → 正常新建 person，不开 branch。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+    _seed_evidence(db_path)
+
+    write_identity_candidate(
+        db_path=db_path, evidence_id="evd_fuse", display_name="Ivy", confidence=0.2,
+    )
+    result = fuse_identity_candidates(db_path)
+
+    assert result["branched"] == 0
+    assert result["created_persons"] == 1

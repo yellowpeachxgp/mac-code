@@ -17,6 +17,64 @@ from we_together.services.patch_service import build_patch
 from we_together.services.patch_applier import apply_patch_record
 
 
+LOW_TIER = "low"
+
+
+def _open_identity_branch(
+    db_path: Path,
+    *,
+    candidate_id: str,
+    display_name: str,
+    platform: str | None,
+    external_id: str | None,
+    existing_person_id: str,
+    confidence: float,
+    source_event_id: str | None,
+) -> str:
+    """低置信冲突：开 local_branch 让人类选择合并还是新建。"""
+    branch_id = f"branch_idc_{uuid.uuid4().hex[:12]}"
+    payload = {
+        "branch_id": branch_id,
+        "scope_type": "person",
+        "scope_id": existing_person_id,
+        "status": "open",
+        "reason": f"低置信 identity 候选 {candidate_id} 与 {existing_person_id} (name={display_name}) 冲突",
+        "created_from_event_id": source_event_id,
+        "branch_candidates": [
+            {
+                "candidate_id": f"cand_merge_{uuid.uuid4().hex[:8]}",
+                "label": "合并到现有人物",
+                "payload_json": {"mode": "merge", "target_person_id": existing_person_id},
+                "confidence": confidence,
+                "status": "open",
+            },
+            {
+                "candidate_id": f"cand_new_{uuid.uuid4().hex[:8]}",
+                "label": "新建独立人物",
+                "payload_json": {
+                    "mode": "new",
+                    "display_name": display_name,
+                    "platform": platform,
+                    "external_id": external_id,
+                },
+                "confidence": 1.0 - confidence,
+                "status": "open",
+            },
+        ],
+    }
+    patch = build_patch(
+        source_event_id=source_event_id or f"evt_fuse_{candidate_id}",
+        target_type="local_branch",
+        target_id=branch_id,
+        operation="create_local_branch",
+        payload=payload,
+        confidence=confidence,
+        reason="low-tier identity candidate opened a branch",
+    )
+    apply_patch_record(db_path=db_path, patch=patch)
+    return branch_id
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -51,12 +109,19 @@ def _find_person_by_identity(
     return row[0] if row else None
 
 
-def fuse_identity_candidates(db_path: Path, *, limit: int = 100) -> dict:
+def fuse_identity_candidates(
+    db_path: Path,
+    *,
+    limit: int = 100,
+    source_event_id: str | None = None,
+    branch_on_low_tier_conflict: bool = True,
+) -> dict:
     """把 open 状态的 identity_candidates 合并到 persons + identity_links。
 
     策略：
       - 若 (platform, external_id) 已存在 identity_links → 复用 linked person_id
-      - 否则若有同名 primary_name person → 复用
+      - 否则若有同名 primary_name person 且为 high/medium 置信度 → 复用
+      - 否则若为 low 置信度且有同名存在 + branch_on_low_tier_conflict → 开 local_branch
       - 否则创建新 person
     """
     conn = connect(db_path)
@@ -75,27 +140,48 @@ def fuse_identity_candidates(db_path: Path, *, limit: int = 100) -> dict:
     fused = 0
     created_persons = 0
     reused_persons = 0
+    branched = 0
 
     for row in rows:
         candidate_id = row["candidate_id"]
         platform = row["platform"]
         external_id = row["external_id"]
         display_name = row["display_name"] or candidate_id
+        tier = row["confidence_tier"]
 
-        # 复用 identity_links 已有 person
+        # 1) 复用 identity_links 已有 person
         person_id: str | None = None
         if platform and external_id:
             conn_r = connect(db_path)
             person_id = _find_person_by_identity(conn_r, platform, external_id)
             conn_r.close()
 
+        # 2) 同名查找
         if person_id is None:
             conn_r = connect(db_path)
-            person_id = _find_person_by_name(conn_r, display_name)
+            same_name_pid = _find_person_by_name(conn_r, display_name)
             conn_r.close()
-            if person_id is not None:
+
+            if same_name_pid is not None:
+                if tier == LOW_TIER and branch_on_low_tier_conflict:
+                    # low-tier + 名字冲突 → 开 branch 而非直接合并
+                    _open_identity_branch(
+                        db_path,
+                        candidate_id=candidate_id,
+                        display_name=display_name,
+                        platform=platform,
+                        external_id=external_id,
+                        existing_person_id=same_name_pid,
+                        confidence=row["confidence"],
+                        source_event_id=source_event_id,
+                    )
+                    # 不标记 linked，保持 open 等人类决策
+                    branched += 1
+                    continue
+                person_id = same_name_pid
                 reused_persons += 1
 
+        # 3) 新建 person
         if person_id is None:
             person_id = _new_person_id()
             conn_w = connect(db_path)
@@ -155,6 +241,7 @@ def fuse_identity_candidates(db_path: Path, *, limit: int = 100) -> dict:
         "fused_count": fused,
         "created_persons": created_persons,
         "reused_persons": reused_persons,
+        "branched": branched,
     }
 
 
