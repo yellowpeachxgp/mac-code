@@ -105,6 +105,23 @@
 - snapshot CLI 已新增 replay 子命令
 - 当前本地全量测试通过：122 passed
 
+Phase 4-7 追加能力（本阶段新增）：
+
+- LLM adapter 抽象（mock/anthropic/openai_compat），核心路径不依赖任何 SDK
+- 统一候选中间层（identity_candidates/event_candidates/facet_candidates/relation_clues/group_clues）
+- fusion_service：candidate → persons/relations；低置信冲突自动开 local_branch
+- LLM 驱动的 narration 抽取（`llm_extraction_service.extract_candidates_from_text`）
+- SkillRuntime 协议 + prompt_composer + Claude/OpenAI 双适配器
+- chat REPL：retrieval → SkillRequest → LLM → 落图谱
+- person facets 按 scene_type 投影（work/life/persona/style/boundary）
+- relation 漂移、state 衰减、记忆综合相关性分
+- branch 自动解决器；scene 转换推荐器
+- self-activation：无输入时的内心独白事件
+- 微信 CSV importer 原型（复用 WeChatMsg 导出格式）
+- 工程基建：ruff + mypy + e2e_smoke + bench + GitHub Actions CI
+- Society C demo 数据集（seed_demo.py）
+- 当前本地全量测试通过：201 passed
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)

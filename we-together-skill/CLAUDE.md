@@ -66,15 +66,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 存储层（`db/migrations/*.sql`）
 
-5 个 migration 定义了完整 schema。**Phase 3 的原则是不新增 migration，只复用现有表和列**：
+6 个 migration 定义了完整 schema：
 
-- **核心实体**：`persons` / `identity_links` / `relations` / `groups` / `group_members` / `memories` / `memory_owners` / `scenes` / `scene_participants` / `scene_active_relations`
+- **核心实体**：`persons` / `identity_links` / `relations` / `groups` / `group_members` / `memories` / `memory_owners` / `scenes` / `scene_participants` / `scene_active_relations` / `person_facets` / `relation_facets`
 - **事件与关联**：`events` / `event_participants` / `event_targets` / `raw_evidence` / `import_jobs`
 - **留痕演化**：`patches` / `snapshots` / `snapshot_entities` / `local_branches` / `branch_candidates`
-- **实体级链路**：`entity_links` / `states`
+- **候选中间层（Phase 4）**：`identity_candidates` / `event_candidates` / `facet_candidates` / `relation_clues` / `group_clues`
+- **实体级链路**：`entity_links` / `states` / `entity_tags` / `entity_aliases`
 - **运行时缓存**：`retrieval_cache`
 
-合并/归档类操作只更新外键引用和 `status`，不改 schema。
+## LLM 与 SkillRuntime（Phase 4-5）
+
+- `src/we_together/llm/`：`LLMClient` Protocol + providers (mock/anthropic/openai_compat)；核心路径**不直接 import SDK**
+- `get_llm_client(provider=None)` 依 `WE_TOGETHER_LLM_PROVIDER` 切换
+- `runtime/skill_runtime.py`：`SkillRequest`/`SkillResponse`（平台无关）
+- `runtime/prompt_composer.py`：retrieval_package → {system, messages}
+- `runtime/adapters/`：Claude / OpenAI 两套适配器语义等价
+- 端到端：`chat_service.run_turn()` 或 REPL `scripts/chat.py`
+
+## 候选中间层与融合（Phase 4）
+
+- `candidate_store.write_*` 把 importer / LLM 输出落到 `*_candidates` / `*_clues` 表
+- `fusion_service.fuse_identity_candidates / fuse_relation_clues / fuse_all` 把候选升级为主图对象
+- `llm_extraction_service.extract_candidates_from_text` 用 LLM 抽取 candidate
+- 低置信 identity 冲突 → `create_local_branch` patch，不直接改主图
+- `branch_resolver_service.auto_resolve_branches` 负责之后的自动 resolve
+
+## 演化服务（Phase 6）
+
+- `relation_drift_service.drift_relations()`：按 event 窗口重算 strength（+/-0.03..0.05）
+- `state_decay_service.decay_states()`：按 decay_policy 衰减 confidence
+- `_build_relevant_memories`：综合分 = type × relevance × confidence × recency × overlap × scene_match
+- `scene_transition_service.suggest_next_scenes()`：下一场景推荐
+- `self_activation_service.self_activate()`：无输入时的内心独白（Phase 7）
 
 ## 测试基线
 

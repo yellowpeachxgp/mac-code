@@ -1,6 +1,6 @@
 # 当前状态
 
-日期：2026-04-12
+日期：2026-04-17
 
 当前已完成：
 
@@ -101,6 +101,50 @@
 - snapshot CLI 已新增 replay 子命令
 - 当前本地全量测试通过：122 passed
 
+## Phase 4 — 让蒸馏变真（已完成）
+
+- 新增 migration 0006：identity_candidates / event_candidates / facet_candidates / relation_clues / group_clues
+- candidate_store 统一写入 API，confidence 分层（high/medium/low）
+- LLM adapter 抽象（`src/we_together/llm/`）：Protocol + mock/anthropic/openai_compat providers
+- factory 按 `WE_TOGETHER_LLM_PROVIDER` 切换；核心路径不直接 import SDK
+- fusion_service：candidate → persons / identity_links / relations，所有变更走 patch
+- 低置信 identity 冲突自动开 local_branch（含 merge/new 两候选），不直接合并
+- llm_extraction_service：LLM 驱动的 narration 候选抽取（内部创建 evidence + candidates）
+- ADR 0002 定稿 LLM-in-the-loop 五个决策
+
+## Phase 5 — 让 Skill 变通用（已完成）
+
+- runtime/skill_runtime.py：SkillRequest / SkillResponse 数据结构（平台无关）
+- runtime/prompt_composer.py：retrieval_package → {system, messages}（含参与者/关系/记忆/状态/recent_changes/policy 七段）
+- adapters/claude_adapter + adapters/openai_adapter：两套宿主语义等价
+- chat_service.run_turn：端到端 retrieval → adapter → LLM → 图谱演化
+- scripts/chat.py REPL，支持 /who /pkg /switch /exit
+
+## Phase 6 — 让图谱变活（已完成）
+
+- patch_applier 新增 upsert_facet，复用现有 person_facets 表
+- retrieval 按 scene.scene_type 投影 facets（SCENE_FACET_POLICY）
+- relation_drift_service：按 event 窗口重算 strength（+/-0.03..0.05），落 update_entity patch
+- state_decay_service：linear/exponential/step/none 四种 decay_policy，低置信标记 deactivated
+- _build_relevant_memories：综合分 = type_weight × relevance × confidence × recency × overlap × scene_match
+- branch_resolver_service：显著占优的 branch 自动 resolve
+- scene_transition_service：给出下一场景候选（切 type / 扩 group / 引入关系对方）
+
+## Phase 7 — 生态自转（进行中）
+
+- importers/wechat_text_importer.py：CSV → candidate 层，fusion 后创建 persons/relations
+- self_activation_service：无输入时生成 self_reflection_event，受 daily_budget 约束
+
+## 工程基建
+
+- pyproject.toml 加入 ruff + mypy；scripts/lint.sh 本地工程化检查
+- scripts/e2e_smoke.sh：10 步端到端链路（bootstrap→seed→retrieve→turn→snapshot→drift→decay→merge→summary）
+- scripts/bench.py：build_retrieval cold/warm + apply_state_patch 延迟百分位
+- .github/workflows/ci.yml：install + ruff + mypy + pytest + e2e smoke
+- scripts/seed_demo.py：Society C 小社会（8 人 × 8 关系 × 3 场景）
+
+- 当前本地全量测试通过：201 passed
+
 当前主设计稿：
 
 - [2026-04-05-we-together-core-design.md](../specs/2026-04-05-we-together-core-design.md)
@@ -119,7 +163,9 @@
 
 下一步建议：
 
-- 接真实平台 importer 与宿主适配层
-- 扩展复杂关系推理能力
-- 接入多源冲突归并策略
-- 验证完整工程闭环在 Skill 宿主中的运行
+- 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
+- 图片/截图 OCR 抽取链路
+- LLM 驱动的 facet 增量更新（目前 upsert_facet 走规则）
+- 神经单元网格式：多 scene 并发自激活 + 人物间的自发交互事件
+- 多图谱联邦（一个 skill 引用另一个 skill 的 person/relation）
+- 宿主适配层扩展（Coze / LangChain / 飞书机器人）
