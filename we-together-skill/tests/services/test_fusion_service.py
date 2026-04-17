@@ -258,3 +258,40 @@ def test_low_tier_without_conflict_does_not_branch(temp_project_with_migrations)
 
     assert result["branched"] == 0
     assert result["created_persons"] == 1
+
+
+def test_fuse_group_clue_creates_group_and_members(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+    _seed_evidence(db_path)
+
+    cid_a = write_identity_candidate(
+        db_path=db_path, evidence_id="evd_fuse", display_name="GA", confidence=0.9,
+    )
+    cid_b = write_identity_candidate(
+        db_path=db_path, evidence_id="evd_fuse", display_name="GB", confidence=0.9,
+    )
+    cid_c = write_identity_candidate(
+        db_path=db_path, evidence_id="evd_fuse", display_name="GC", confidence=0.9,
+    )
+    fuse_identity_candidates(db_path)
+
+    from we_together.services.candidate_store import write_group_clue
+    write_group_clue(
+        db_path=db_path, evidence_id="evd_fuse",
+        group_type_hint="team", group_name_hint="Mock Team",
+        member_candidate_ids=[cid_a, cid_b, cid_c],
+        confidence=0.8,
+    )
+
+    from we_together.services.fusion_service import fuse_group_clues
+    out = fuse_group_clues(db_path)
+    assert out["fused_count"] == 1
+    assert out["created_groups"] == 1
+
+    conn = sqlite3.connect(db_path)
+    member_count = conn.execute(
+        "SELECT COUNT(*) FROM group_members WHERE group_id IN (SELECT group_id FROM groups WHERE name = 'Mock Team')"
+    ).fetchone()[0]
+    conn.close()
+    assert member_count == 3

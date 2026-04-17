@@ -384,7 +384,124 @@ def fuse_relation_clues(
     }
 
 
+def fuse_group_clues(
+    db_path: Path,
+    *,
+    limit: int = 100,
+) -> dict:
+    """把 open 状态的 group_clues 升级为 groups + group_members。
+
+    策略：
+      - member_candidate_ids 必须都已 linked 到 person_id，否则跳过
+      - 若已存在同名 group 直接复用
+    """
+    conn = connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT * FROM group_clues
+        WHERE status = 'open'
+        ORDER BY confidence DESC, created_at ASC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    conn.close()
+
+    fused = 0
+    created_groups = 0
+    skipped = 0
+
+    for row in rows:
+        clue_id = row["clue_id"]
+        cand_ids = json.loads(row["member_candidate_ids_json"] or "[]")
+        if len(cand_ids) < 2:
+            skipped += 1
+            continue
+
+        person_ids: list[str] = []
+        conn_r = connect(db_path)
+        conn_r.row_factory = sqlite3.Row
+        for cid in cand_ids:
+            r = conn_r.execute(
+                "SELECT linked_person_id FROM identity_candidates WHERE candidate_id = ?",
+                (cid,),
+            ).fetchone()
+            if r and r["linked_person_id"]:
+                person_ids.append(r["linked_person_id"])
+        conn_r.close()
+
+        if len(person_ids) < 2:
+            skipped += 1
+            continue
+
+        group_name = row["group_name_hint"] or f"group_{clue_id}"
+        conn_r = connect(db_path)
+        conn_r.row_factory = sqlite3.Row
+        existing = conn_r.execute(
+            "SELECT group_id FROM groups WHERE name = ? AND status = 'active' LIMIT 1",
+            (group_name,),
+        ).fetchone()
+        conn_r.close()
+
+        if existing:
+            group_id = existing["group_id"]
+        else:
+            group_id = f"group_{uuid.uuid4().hex[:12]}"
+            conn_w = connect(db_path)
+            conn_w.execute(
+                """
+                INSERT INTO groups(
+                    group_id, group_type, name, summary, status, confidence,
+                    metadata_json, created_at, updated_at
+                ) VALUES(?, ?, ?, ?, 'active', ?, '{}', ?, ?)
+                """,
+                (
+                    group_id,
+                    row["group_type_hint"] or "social_group",
+                    group_name,
+                    f"fused from clue {clue_id}",
+                    row["confidence"],
+                    _now(), _now(),
+                ),
+            )
+            conn_w.commit()
+            conn_w.close()
+            created_groups += 1
+
+        # 添加 members
+        conn_w = connect(db_path)
+        for pid in person_ids:
+            conn_w.execute(
+                """
+                INSERT OR IGNORE INTO group_members(
+                    group_id, person_id, role_label, joined_at, status, metadata_json
+                ) VALUES(?, ?, 'member', ?, 'active', '{}')
+                """,
+                (group_id, pid, _now()),
+            )
+        conn_w.commit()
+        conn_w.close()
+
+        mark_candidate_linked(
+            db_path,
+            "group_clues",
+            "clue_id",
+            clue_id,
+            link_col="linked_group_id",
+            link_id=group_id,
+        )
+        fused += 1
+
+    return {
+        "fused_count": fused,
+        "created_groups": created_groups,
+        "skipped": skipped,
+    }
+
+
 def fuse_all(db_path: Path, *, source_event_id: str | None = None) -> dict:
     r1 = fuse_identity_candidates(db_path)
     r2 = fuse_relation_clues(db_path, source_event_id=source_event_id)
-    return {"identity": r1, "relation": r2}
+    r3 = fuse_group_clues(db_path)
+    return {"identity": r1, "relation": r2, "group": r3}
