@@ -4,9 +4,9 @@ from __future__ import annotations
 import json
 
 from we_together.llm.client import (
+    JSONExtractionError,
     LLMMessage,
     LLMResponse,
-    JSONExtractionError,
 )
 
 

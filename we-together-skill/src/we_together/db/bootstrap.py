@@ -1,9 +1,8 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 from we_together.db.migrator import run_migrations
 from we_together.db.seeds import load_seed_files
-
 
 RUNTIME_DIRS = [
     "db",

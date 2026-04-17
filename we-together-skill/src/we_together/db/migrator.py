@@ -2,7 +2,6 @@ from pathlib import Path
 
 from we_together.db.connection import connect
 
-
 MIGRATION_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS schema_migrations(
     version TEXT PRIMARY KEY,

@@ -1,8 +1,8 @@
-from datetime import UTC, datetime
 import hashlib
 import json
-from pathlib import Path
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from we_together.db.connection import connect
 from we_together.importers.email_importer import import_email_file

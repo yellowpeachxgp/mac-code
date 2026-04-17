@@ -14,17 +14,16 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from we_together.db.bootstrap import bootstrap_project
-from we_together.services.scene_service import create_scene, add_scene_participant
-from we_together.services.group_service import create_group, add_group_member
+from we_together.services.group_service import add_group_member, create_group
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
+from we_together.services.scene_service import add_scene_participant, create_scene
 
 
 def _now() -> str:

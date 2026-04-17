@@ -11,15 +11,14 @@
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import math
-from pathlib import Path
 import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
 
 from we_together.db.connection import connect
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
-
 
 DEFAULT_THRESHOLD = 0.1
 

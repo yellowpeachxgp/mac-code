@@ -1,9 +1,9 @@
-from datetime import UTC, datetime
 import hashlib
 import json
-from pathlib import Path
 import re
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from we_together.db.connection import connect
 from we_together.importers.text_chat_importer import import_text_chat

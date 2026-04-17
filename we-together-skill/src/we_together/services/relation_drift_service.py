@@ -9,14 +9,13 @@
 """
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-import sqlite3
 
 from we_together.db.connection import connect
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
-
 
 POSITIVE_KEYWORDS = ("好", "谢谢", "一起", "顺利", "开心", "加油", "关心")
 NEGATIVE_KEYWORDS = ("烦", "吵", "糟糕", "冲突", "争执", "分手", "退出")

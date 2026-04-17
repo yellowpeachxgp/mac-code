@@ -2,8 +2,8 @@ import sqlite3
 from pathlib import Path
 
 from we_together.db.connection import connect
-from we_together.services.patch_service import build_patch
 from we_together.services.patch_applier import apply_patch_record
+from we_together.services.patch_service import build_patch
 
 
 def score_candidates(left: dict, right: dict) -> float:

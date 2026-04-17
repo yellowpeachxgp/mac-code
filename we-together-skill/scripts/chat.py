@@ -10,11 +10,10 @@
   /switch X   切换 scene
   /exit       退出
 """
-from pathlib import Path
-import sys
 import argparse
 import json
-
+import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"

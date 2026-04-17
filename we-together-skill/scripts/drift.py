@@ -1,8 +1,7 @@
-from pathlib import Path
-import sys
 import argparse
 import json
-
+import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -10,7 +9,6 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from we_together.services.relation_drift_service import drift_relations
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="关系漂移：按 event 窗口重算 strength")

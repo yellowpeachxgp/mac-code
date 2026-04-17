@@ -5,17 +5,16 @@
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
-from pathlib import Path
 import sqlite3
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from we_together.db.connection import connect
 from we_together.services.candidate_store import mark_candidate_linked
-from we_together.services.patch_service import build_patch
 from we_together.services.patch_applier import apply_patch_record
-
+from we_together.services.patch_service import build_patch
 
 LOW_TIER = "low"
 

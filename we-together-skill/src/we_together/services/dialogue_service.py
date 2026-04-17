@@ -1,18 +1,18 @@
-from datetime import UTC, datetime
 import hashlib
 import json
-from pathlib import Path
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from we_together.db.connection import connect
-from we_together.services.ingestion_helpers import persist_snapshot_with_entities
-from we_together.services.snapshot_service import build_snapshot, build_snapshot_entities
 from we_together.runtime.sqlite_retrieval import (
     build_runtime_retrieval_package_from_db,
     invalidate_runtime_retrieval_cache,
 )
-from we_together.services.patch_service import infer_dialogue_patches
+from we_together.services.ingestion_helpers import persist_snapshot_with_entities
 from we_together.services.patch_applier import apply_patch_record
+from we_together.services.patch_service import infer_dialogue_patches
+from we_together.services.snapshot_service import build_snapshot, build_snapshot_entities
 
 
 def record_dialogue_event(

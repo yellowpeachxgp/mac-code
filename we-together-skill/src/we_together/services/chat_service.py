@@ -9,7 +9,7 @@ from pathlib import Path
 from we_together.llm.client import LLMClient
 from we_together.runtime.adapters import ClaudeSkillAdapter, OpenAISkillAdapter
 from we_together.runtime.prompt_composer import build_skill_request
-from we_together.runtime.skill_runtime import SkillRequest, SkillResponse
+from we_together.runtime.skill_runtime import SkillResponse
 from we_together.runtime.sqlite_retrieval import (
     build_runtime_retrieval_package_from_db,
 )
@@ -18,7 +18,6 @@ from we_together.services.dialogue_service import (
 )
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import infer_dialogue_patches
-
 
 ADAPTERS = {
     "claude": ClaudeSkillAdapter,

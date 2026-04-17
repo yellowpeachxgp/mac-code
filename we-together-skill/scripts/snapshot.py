@@ -1,16 +1,14 @@
-from pathlib import Path
-import sys
 import argparse
 import json
-
+import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from we_together.services.snapshot_service import list_snapshots, rollback_to_snapshot, replay_patches_after_snapshot
-
+from we_together.services.snapshot_service import list_snapshots, replay_patches_after_snapshot, rollback_to_snapshot
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="List or rollback snapshots")

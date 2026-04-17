@@ -7,10 +7,10 @@
 - JSON mode 以最小契约提供：输入 prompt + schema hint，返回解析后的 dict
 """
 from we_together.llm.client import (
+    JSONExtractionError,
     LLMClient,
     LLMMessage,
     LLMResponse,
-    JSONExtractionError,
 )
 from we_together.llm.factory import get_llm_client
 

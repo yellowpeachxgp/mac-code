@@ -1,13 +1,13 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class ActivationState(str, Enum):
+class ActivationState(StrEnum):
     INACTIVE = "inactive"
     LATENT = "latent"
     EXPLICIT = "explicit"
 
 
-class ResponseMode(str, Enum):
+class ResponseMode(StrEnum):
     SINGLE_PRIMARY = "single_primary"
     PRIMARY_PLUS_SUPPORT = "primary_plus_support"
     MULTI_PARALLEL = "multi_parallel"

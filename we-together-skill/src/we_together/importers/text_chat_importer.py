@@ -3,7 +3,6 @@ import uuid
 
 from we_together.importers.base import ImportResult
 
-
 LINE_RE = re.compile(
     r"^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s+(?P<speaker>[^:：]+)[:：]\s*(?P<content>.+)$"
 )

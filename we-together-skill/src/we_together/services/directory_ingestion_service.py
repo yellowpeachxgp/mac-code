@@ -2,7 +2,6 @@ from pathlib import Path
 
 from we_together.services.file_ingestion_service import ingest_file_auto
 
-
 SUPPORTED_SUFFIXES = {".txt", ".md", ".eml"}
 
 

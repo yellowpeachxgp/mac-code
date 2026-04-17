@@ -2,10 +2,10 @@
 
 导入器产出的候选对象先落此层，再由 fusion_service 聚合为 patch。
 """
-from datetime import UTC, datetime
 import json
-from pathlib import Path
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from we_together.db.connection import connect
 

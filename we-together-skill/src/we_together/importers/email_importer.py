@@ -1,8 +1,8 @@
+import re
+import uuid
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
-import re
-import uuid
 
 from we_together.importers.base import ImportResult
 

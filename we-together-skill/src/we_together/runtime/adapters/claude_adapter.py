@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from we_together.llm.client import LLMMessage, LLMClient
+from we_together.llm.client import LLMClient, LLMMessage
 from we_together.runtime.skill_runtime import SkillRequest, SkillResponse
 
 
