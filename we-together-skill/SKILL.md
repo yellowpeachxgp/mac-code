@@ -74,28 +74,69 @@ version: "0.1.0"
 - retrieval package 支持预算裁剪 max_memories / max_relations / max_states
 - retrieval package 包含 recent_changes 近期变更上下文
 - snapshot 支持 replay_patches_after_snapshot() 回滚后重放
+- LLM adapter 抽象（mock/anthropic/openai_compat），所有 LLM 调用统一走 LLMClient
+- 统一候选中间层：identity_candidates/event_candidates/facet_candidates/relation_clues/group_clues
+- fusion_service: candidate → patch 归并，低置信冲突自动开 local_branch
+- SkillRuntime 协议 + Claude/OpenAI adapters，可在不同宿主运行
+- chat_service.run_turn 端到端：retrieval → SkillRequest → LLM → 落图谱
+- person facets 多层（work/life/persona/style/boundary），retrieval 按 scene_type 投影
+- 关系漂移 / state 衰减 / 记忆综合分 三套演化服务
+- branch_resolver_service 自动解决显著占优的分支
+- scene_transition_service 给出下一场景推荐
+- self_activation_service 无用户输入时生成内心独白事件
+- 微信 CSV importer 原型
 
 当前 CLI：
 
 ```bash
+# 基础设施
 .venv/bin/python scripts/bootstrap.py --root .
-.venv/bin/python scripts/create_group.py --root . --group-type team --name "核心团队" --summary "主开发小组" --member person_demo:owner
-.venv/bin/python scripts/create_scene.py --root . --scene-type private_chat --summary "night chat" --location-scope remote --channel-scope private_dm --visibility-scope mutual_visible --participant person_demo
-.venv/bin/python scripts/import_narration.py --root . --text "小王和小李以前是同事，现在还是朋友。" --source-name manual-note
-.venv/bin/python scripts/import_text_chat.py --root . --source-name chat.txt --transcript $'2026-04-06 23:10 小王: 今天好累\n2026-04-06 23:11 小李: 早点休息\n'
-.venv/bin/python scripts/import_auto.py --root . --source-name auto.txt --text $'2026-04-06 23:10 小王: 今天好累\n2026-04-06 23:11 小李: 早点休息\n'
+.venv/bin/python scripts/seed_demo.py --root .
+
+# 导入
+.venv/bin/python scripts/import_narration.py --root . --text "..." --source-name manual
+.venv/bin/python scripts/import_text_chat.py --root . --source-name chat.txt --transcript "..."
+.venv/bin/python scripts/import_auto.py --root . --source-name auto.txt --text "..."
 .venv/bin/python scripts/import_email_file.py --root . --file ./sample.eml
 .venv/bin/python scripts/import_file_auto.py --root . --file ./sample.txt
 .venv/bin/python scripts/import_directory.py --root . --directory ./sample_data
-.venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --cache-ttl 3600
+
+# 场景/群组
+.venv/bin/python scripts/create_group.py --root . --group-type team --name "核心团队" --summary "主开发小组" --member person_demo:owner
+.venv/bin/python scripts/create_scene.py --root . --scene-type private_chat --summary "night chat" --location-scope remote --channel-scope private_dm --visibility-scope mutual_visible --participant person_demo
+
+# 运行时
+.venv/bin/python scripts/build_retrieval_package.py --root . --scene-id <scene_id> --max-memories 20 --max-relations 10 --max-states 30
 .venv/bin/python scripts/record_dialogue.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaker person_demo
 .venv/bin/python scripts/dialogue_turn.py --root . --scene-id <scene_id> --user-input "你好" --response-text "你好呀" --speaking-person-ids person_demo
+.venv/bin/python scripts/chat.py --root . --scene-id <scene_id> --provider mock --adapter claude   # REPL
+.venv/bin/python scripts/self_activate.py --root . --scene-id <scene_id> --daily-budget 3
+
+# 演化管理
+.venv/bin/python scripts/drift.py --root . --window-days 30
+.venv/bin/python scripts/decay.py --root .
 .venv/bin/python scripts/merge_duplicates.py --root .
+.venv/bin/python scripts/auto_resolve_branches.py --root . --threshold 0.8 --margin 0.2
+
+# 快照/回滚
 .venv/bin/python scripts/snapshot.py --root . list
 .venv/bin/python scripts/snapshot.py --root . rollback --snapshot-id <snapshot_id>
 .venv/bin/python scripts/snapshot.py --root . replay --snapshot-id <snapshot_id>
+
+# 工程
 .venv/bin/python scripts/graph_summary.py --root .
+.venv/bin/python scripts/bench.py --persons 100 --events 500 --memories 200 --runs 30
+bash scripts/e2e_smoke.sh
+bash scripts/lint.sh
 ```
+
+## 运行时环境变量
+
+| 变量 | 取值 | 作用 |
+|------|------|------|
+| `WE_TOGETHER_LLM_PROVIDER` | `mock`/`anthropic`/`openai_compat` | 选择 LLM provider（默认 mock） |
+| `ANTHROPIC_API_KEY` | str | Anthropic 访问凭证 |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` | str | OpenAI 兼容后端
 
 ## 你在此仓库中的工作方式
 
