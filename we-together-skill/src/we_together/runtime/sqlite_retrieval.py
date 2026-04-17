@@ -566,26 +566,98 @@ def _refresh_scene_active_relations(
         )
 
 
-def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: list[str], limit: int | None = None) -> list[dict]:
+MEMORY_TYPE_WEIGHTS = {
+    "shared_memory": 1.0,
+    "group_memory": 0.9,
+    "relationship_memory": 0.85,
+    "individual_memory": 0.6,
+}
+MEMORY_RECENCY_HALF_LIFE_DAYS = 60.0
+MEMORY_PARTICIPANT_OVERLAP_WEIGHT = 0.3
+MEMORY_SCENE_MATCH_WEIGHT = 0.15
+
+
+def _memory_recency_factor(created_at: str | None) -> float:
+    ts = _parse_timestamp(created_at)
+    if ts is None:
+        return 0.7
+    age_days = max(0.0, (datetime.now(UTC) - ts).total_seconds() / 86400)
+    import math as _math
+    return _math.pow(0.5, age_days / MEMORY_RECENCY_HALF_LIFE_DAYS)
+
+
+def _compute_memory_score(
+    row: sqlite3.Row,
+    *,
+    active_person_set: set[str],
+    owners_map: dict[str, set[str]],
+    scene_type: str | None,
+) -> float:
+    base = MEMORY_TYPE_WEIGHTS.get(row["memory_type"], 0.7)
+    relevance = row["relevance_score"] if row["relevance_score"] is not None else 0.6
+    conf = row["confidence"] if row["confidence"] is not None else 0.6
+    recency = _memory_recency_factor(row["created_at"])
+
+    owners = owners_map.get(row["memory_id"], set())
+    overlap = len(owners & active_person_set)
+    overlap_factor = 1.0 + (MEMORY_PARTICIPANT_OVERLAP_WEIGHT * min(overlap, 3))
+
+    scene_factor = 1.0
+    metadata_scene_type = None
+    try:
+        meta = json.loads(row["metadata_json"] or "{}")
+        metadata_scene_type = meta.get("scene_type")
+    except Exception:
+        metadata_scene_type = None
+    if scene_type and metadata_scene_type == scene_type:
+        scene_factor = 1.0 + MEMORY_SCENE_MATCH_WEIGHT
+
+    return base * relevance * conf * recency * overlap_factor * scene_factor
+
+
+def _build_relevant_memories(
+    conn: sqlite3.Connection,
+    activated_person_ids: list[str],
+    limit: int | None = None,
+    *,
+    scene_type: str | None = None,
+) -> list[dict]:
     if not activated_person_ids:
         return []
 
     sql = """
-        SELECT DISTINCT m.memory_id, m.summary, m.memory_type, m.relevance_score, m.confidence
+        SELECT DISTINCT m.memory_id, m.summary, m.memory_type, m.relevance_score,
+                        m.confidence, m.created_at, m.metadata_json, m.is_shared
         FROM memories m
         JOIN memory_owners mo ON mo.memory_id = m.memory_id
         WHERE mo.owner_id IN (%s)
-        AND m.is_shared = 1
         AND m.status = 'active'
-        ORDER BY m.relevance_score DESC, m.created_at DESC
         """ % ",".join("?" for _ in activated_person_ids)
 
     params: list = list(activated_person_ids)
-    if limit is not None:
-        sql += " LIMIT ?"
-        params.append(limit)
-
     memory_rows = conn.execute(sql, tuple(params)).fetchall()
+
+    owner_rows = conn.execute(
+        "SELECT memory_id, owner_id FROM memory_owners WHERE owner_type = 'person'"
+    ).fetchall()
+    owners_map: dict[str, set[str]] = {}
+    for r in owner_rows:
+        owners_map.setdefault(r["memory_id"], set()).add(r["owner_id"])
+
+    active_set = set(activated_person_ids)
+    scored: list[tuple[float, sqlite3.Row]] = []
+    for row in memory_rows:
+        score = _compute_memory_score(
+            row,
+            active_person_set=active_set,
+            owners_map=owners_map,
+            scene_type=scene_type,
+        )
+        scored.append((score, row))
+
+    scored.sort(key=lambda x: (x[0], x[1]["created_at"] or ""), reverse=True)
+    selected = scored[:limit] if limit else scored
+
     return [
         {
             "memory_id": row["memory_id"],
@@ -593,8 +665,9 @@ def _build_relevant_memories(conn: sqlite3.Connection, activated_person_ids: lis
             "summary": row["summary"],
             "relevance_score": row["relevance_score"],
             "confidence": row["confidence"],
+            "composite_score": score,
         }
-        for row in memory_rows
+        for score, row in selected
     ]
 
 
@@ -870,7 +943,12 @@ def build_runtime_retrieval_package_from_db(
     conn.commit()
     activation_map, safety_and_budget = _build_activation_map(conn, scene, participants_rows)
     activated_person_ids = [item["person_id"] for item in activation_map]
-    relevant_memories = _build_relevant_memories(conn, activated_person_ids, limit=max_memories)
+    relevant_memories = _build_relevant_memories(
+        conn,
+        activated_person_ids,
+        limit=max_memories,
+        scene_type=scene["scene_type"],
+    )
     relation_ids = [item["relation_id"] for item in active_relations]
     open_branches = _fetch_open_local_branches(
         conn,
