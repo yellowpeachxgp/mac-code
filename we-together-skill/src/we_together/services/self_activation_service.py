@@ -1,0 +1,176 @@
+"""自激活（Self-activation）服务 — 神经单元网格雏形。
+
+在没有 user input 的时刻，也允许图谱自我演化：
+  - 从当前 scene 的 activation_map 选一批活跃/潜在人物
+  - 为每个人生成 self_reflection_event（内心独白 / 自主行动意图）
+  - 受 daily_budget 限制，避免无界自激活
+
+这为 Phase 7 的"无外部输入即可演化"提供最小雏形。
+真实质量取决于后续配合 LLM 的推理深度，当前 stub 使用固定模板。
+"""
+from __future__ import annotations
+
+import json
+import sqlite3
+import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+from we_together.db.connection import connect
+from we_together.llm.client import LLMClient, LLMMessage
+
+
+DEFAULT_DAILY_BUDGET = 3
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _count_today_self_events(conn: sqlite3.Connection) -> int:
+    start = (_now() - timedelta(hours=24)).isoformat()
+    row = conn.execute(
+        """
+        SELECT COUNT(*) FROM events
+        WHERE event_type = 'self_reflection_event'
+        AND created_at >= ?
+        """,
+        (start,),
+    ).fetchone()
+    return row[0] or 0
+
+
+def _default_reflection(display_name: str, scene_summary: str) -> str:
+    return f"{display_name} 安静地思考：{scene_summary}"
+
+
+def _llm_reflection(
+    llm_client: LLMClient,
+    *,
+    display_name: str,
+    persona: str | None,
+    scene_summary: str,
+) -> str:
+    messages = [
+        LLMMessage(
+            role="system",
+            content=(
+                "你扮演一个角色，为其生成一段一两句的内心独白。"
+                "严格保持角色人设，不要输出解释或 meta 信息。"
+            ),
+        ),
+        LLMMessage(
+            role="user",
+            content=(
+                f"角色: {display_name}\n"
+                f"人设: {persona or '未知'}\n"
+                f"当前场景: {scene_summary}\n"
+                "请输出这位角色此刻的内心独白。"
+            ),
+        ),
+    ]
+    return llm_client.chat(messages).content.strip()
+
+
+def self_activate(
+    db_path: Path,
+    *,
+    scene_id: str,
+    llm_client: LLMClient | None = None,
+    daily_budget: int = DEFAULT_DAILY_BUDGET,
+    per_run_limit: int = 2,
+) -> dict:
+    conn = connect(db_path)
+    conn.row_factory = sqlite3.Row
+    scene = conn.execute(
+        "SELECT scene_id, scene_summary FROM scenes WHERE scene_id = ?", (scene_id,)
+    ).fetchone()
+    if scene is None:
+        conn.close()
+        raise ValueError(f"Scene not found: {scene_id}")
+
+    used_today = _count_today_self_events(conn)
+    remaining_budget = max(0, daily_budget - used_today)
+    if remaining_budget == 0:
+        conn.close()
+        return {"created_count": 0, "reason": "daily_budget_exhausted"}
+
+    # 选显式/潜伏激活的参与者
+    participant_rows = conn.execute(
+        """
+        SELECT sp.person_id, p.primary_name, p.persona_summary, sp.activation_state,
+               sp.activation_score
+        FROM scene_participants sp
+        JOIN persons p ON p.person_id = sp.person_id
+        WHERE sp.scene_id = ?
+        ORDER BY sp.activation_score DESC
+        """,
+        (scene_id,),
+    ).fetchall()
+
+    candidates = [
+        row for row in participant_rows
+        if row["activation_state"] in ("explicit", "latent")
+    ][: min(per_run_limit, remaining_budget)]
+
+    scene_summary = scene["scene_summary"] or "unknown scene"
+    created_ids: list[str] = []
+    now_iso = _now().isoformat()
+
+    for row in candidates:
+        display_name = row["primary_name"]
+        if llm_client is not None:
+            try:
+                reflection = _llm_reflection(
+                    llm_client,
+                    display_name=display_name,
+                    persona=row["persona_summary"],
+                    scene_summary=scene_summary,
+                )
+            except Exception:
+                reflection = _default_reflection(display_name, scene_summary)
+        else:
+            reflection = _default_reflection(display_name, scene_summary)
+
+        event_id = f"evt_self_{uuid.uuid4().hex[:12]}"
+        conn.execute(
+            """
+            INSERT INTO events(
+                event_id, event_type, source_type, scene_id, timestamp, summary,
+                visibility_level, confidence, is_structured,
+                raw_evidence_refs_json, metadata_json, created_at
+            ) VALUES(?, 'self_reflection_event', 'self_activation', ?, ?, ?,
+                     'visible', 0.6, 1, '[]', ?, ?)
+            """,
+            (
+                event_id, scene_id, now_iso, reflection,
+                json.dumps({"kind": "self_reflection", "actor": row["person_id"]},
+                            ensure_ascii=False),
+                now_iso,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO event_participants(event_id, person_id, participant_role)
+            VALUES(?, ?, 'actor')
+            """,
+            (event_id, row["person_id"]),
+        )
+        conn.execute(
+            """
+            INSERT INTO event_targets(event_id, target_type, target_id, impact_hint)
+            VALUES(?, 'scene', ?, 'self reflection')
+            """,
+            (event_id, scene_id),
+        )
+        created_ids.append(event_id)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "created_count": len(created_ids),
+        "event_ids": created_ids,
+        "remaining_budget": remaining_budget - len(created_ids),
+        "reason": "ok",
+    }
