@@ -115,3 +115,38 @@ def test_memory_score_includes_composite_field(temp_project_with_migrations):
     assert len(pkg["relevant_memories"]) == 1
     assert "composite_score" in pkg["relevant_memories"][0]
     assert pkg["relevant_memories"][0]["composite_score"] > 0
+
+
+def test_memory_score_breakdown_when_debug(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+    _add_person(db_path, "person_db", "DB")
+    _seed_memory(db_path, "mem_db", "shared_memory", ["person_db"],
+                 metadata={"scene_type": "work_discussion"})
+
+    scene_id = create_scene(
+        db_path=db_path, scene_type="work_discussion", scene_summary="w",
+        environment={"location_scope": "remote", "channel_scope": "group_channel",
+                     "visibility_scope": "group_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=scene_id, person_id="person_db",
+                          activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    # 默认不带 breakdown
+    pkg = build_runtime_retrieval_package_from_db(db_path=db_path, scene_id=scene_id)
+    assert "score_breakdown" not in pkg["relevant_memories"][0]
+
+    # debug_scores=True 时带 breakdown
+    pkg_dbg = build_runtime_retrieval_package_from_db(
+        db_path=db_path, scene_id=scene_id, debug_scores=True,
+    )
+    mem = pkg_dbg["relevant_memories"][0]
+    assert "score_breakdown" in mem
+    bd = mem["score_breakdown"]
+    for key in ("base_type", "relevance", "confidence", "recency",
+                "overlap_factor", "scene_factor", "composite"):
+        assert key in bd, f"missing key {key}"
+    # composite 应与顶层 composite_score 一致
+    assert abs(bd["composite"] - mem["composite_score"]) < 1e-9
+    # scene_type 匹配 → scene_factor > 1
+    assert bd["scene_factor"] > 1.0

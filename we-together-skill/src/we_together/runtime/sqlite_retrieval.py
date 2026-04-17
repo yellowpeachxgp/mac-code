@@ -591,7 +591,7 @@ def _compute_memory_score(
     active_person_set: set[str],
     owners_map: dict[str, set[str]],
     scene_type: str | None,
-) -> float:
+) -> tuple[float, dict]:
     base = MEMORY_TYPE_WEIGHTS.get(row["memory_type"], 0.7)
     relevance = row["relevance_score"] if row["relevance_score"] is not None else 0.6
     conf = row["confidence"] if row["confidence"] is not None else 0.6
@@ -611,7 +611,18 @@ def _compute_memory_score(
     if scene_type and metadata_scene_type == scene_type:
         scene_factor = 1.0 + MEMORY_SCENE_MATCH_WEIGHT
 
-    return base * relevance * conf * recency * overlap_factor * scene_factor
+    composite = base * relevance * conf * recency * overlap_factor * scene_factor
+    breakdown = {
+        "base_type": base,
+        "relevance": relevance,
+        "confidence": conf,
+        "recency": recency,
+        "overlap": overlap,
+        "overlap_factor": overlap_factor,
+        "scene_factor": scene_factor,
+        "composite": composite,
+    }
+    return composite, breakdown
 
 
 def _build_relevant_memories(
@@ -620,6 +631,7 @@ def _build_relevant_memories(
     limit: int | None = None,
     *,
     scene_type: str | None = None,
+    debug_scores: bool = False,
 ) -> list[dict]:
     if not activated_person_ids:
         return []
@@ -644,21 +656,22 @@ def _build_relevant_memories(
         owners_map.setdefault(r["memory_id"], set()).add(r["owner_id"])
 
     active_set = set(activated_person_ids)
-    scored: list[tuple[float, sqlite3.Row]] = []
+    scored: list[tuple[float, dict, sqlite3.Row]] = []
     for row in memory_rows:
-        score = _compute_memory_score(
+        score, breakdown = _compute_memory_score(
             row,
             active_person_set=active_set,
             owners_map=owners_map,
             scene_type=scene_type,
         )
-        scored.append((score, row))
+        scored.append((score, breakdown, row))
 
-    scored.sort(key=lambda x: (x[0], x[1]["created_at"] or ""), reverse=True)
+    scored.sort(key=lambda x: (x[0], x[2]["created_at"] or ""), reverse=True)
     selected = scored[:limit] if limit else scored
 
-    return [
-        {
+    result = []
+    for score, breakdown, row in selected:
+        item = {
             "memory_id": row["memory_id"],
             "memory_type": row["memory_type"],
             "summary": row["summary"],
@@ -666,8 +679,10 @@ def _build_relevant_memories(
             "confidence": row["confidence"],
             "composite_score": score,
         }
-        for score, row in selected
-    ]
+        if debug_scores:
+            item["score_breakdown"] = breakdown
+        result.append(item)
+    return result
 
 
 def _build_current_states(
@@ -882,11 +897,12 @@ def build_runtime_retrieval_package_from_db(
     max_relations: int | None = 10,
     max_states: int | None = 30,
     max_recent_changes: int | None = 5,
+    debug_scores: bool = False,
 ) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
-    if input_hash:
+    if input_hash and not debug_scores:
         now_iso = datetime.now(UTC).isoformat()
         cached_row = conn.execute(
             """
@@ -947,6 +963,7 @@ def build_runtime_retrieval_package_from_db(
         activated_person_ids,
         limit=max_memories,
         scene_type=scene["scene_type"],
+        debug_scores=debug_scores,
     )
     relation_ids = [item["relation_id"] for item in active_relations]
     open_branches = _fetch_open_local_branches(
@@ -1036,7 +1053,7 @@ def build_runtime_retrieval_package_from_db(
         "safety_and_budget": {**safety_and_budget, **branch_summary},
         "recent_changes": recent_changes,
     }
-    if input_hash:
+    if input_hash and not debug_scores:
         cache_id = f"cache_{uuid.uuid4().hex}"
         created_at_dt = datetime.now(UTC)
         created_at = created_at_dt.isoformat()
