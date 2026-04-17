@@ -31,6 +31,18 @@ def build_graph_summary(db_path: Path) -> dict:
         "SELECT status, COUNT(*) AS cnt FROM branch_candidates GROUP BY status"
     ).fetchall()
     candidate_status_distribution = {row[0]: row[1] for row in candidate_status_rows}
+
+    # Phase 4 候选层计数
+    candidate_layer_counts: dict[str, dict[str, int]] = {}
+    for table in ("identity_candidates", "event_candidates", "facet_candidates",
+                   "relation_clues", "group_clues"):
+        rows = conn.execute(
+            f"SELECT status, COUNT(*) FROM {table} GROUP BY status"
+        ).fetchall()
+        candidate_layer_counts[table] = {row[0]: row[1] for row in rows}
+
+    person_facet_count = conn.execute("SELECT COUNT(*) FROM person_facets").fetchone()[0]
+
     people = [row[0] for row in conn.execute("SELECT primary_name FROM persons ORDER BY primary_name").fetchall()]
     conn.close()
     return {
@@ -48,6 +60,8 @@ def build_graph_summary(db_path: Path) -> dict:
         "state_count": state_count,
         "patch_count": patch_count,
         "candidate_status_distribution": candidate_status_distribution,
+        "candidate_layer_counts": candidate_layer_counts,
+        "person_facet_count": person_facet_count,
         "people": people,
     }
 
