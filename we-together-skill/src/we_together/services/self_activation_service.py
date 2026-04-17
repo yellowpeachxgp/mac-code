@@ -18,6 +18,8 @@ from pathlib import Path
 
 from we_together.db.connection import connect
 from we_together.llm.client import LLMClient, LLMMessage
+from we_together.services.patch_applier import apply_patch_record
+from we_together.services.patch_service import build_patch
 
 
 DEFAULT_DAILY_BUDGET = 3
@@ -79,6 +81,7 @@ def self_activate(
     llm_client: LLMClient | None = None,
     daily_budget: int = DEFAULT_DAILY_BUDGET,
     per_run_limit: int = 2,
+    derive_memories: bool = True,
 ) -> dict:
     conn = connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -114,9 +117,9 @@ def self_activate(
     ][: min(per_run_limit, remaining_budget)]
 
     scene_summary = scene["scene_summary"] or "unknown scene"
-    created_ids: list[str] = []
-    now_iso = _now().isoformat()
 
+    # 先算出每个 candidate 的 reflection 文本，不在 conn 打开时调 LLM
+    prepared: list[dict] = []
     for row in candidates:
         display_name = row["primary_name"]
         if llm_client is not None:
@@ -131,7 +134,17 @@ def self_activate(
                 reflection = _default_reflection(display_name, scene_summary)
         else:
             reflection = _default_reflection(display_name, scene_summary)
+        prepared.append({
+            "person_id": row["person_id"],
+            "reflection": reflection,
+        })
 
+    # 所有事件写完再 commit，避免与后续 patch_applier 嵌套 connect 冲突
+    created_ids: list[str] = []
+    derived_memories: list[tuple[str, str, str]] = []  # (event_id, memory_id, person_id, reflection)
+    now_iso = _now().isoformat()
+
+    for item in prepared:
         event_id = f"evt_self_{uuid.uuid4().hex[:12]}"
         conn.execute(
             """
@@ -143,8 +156,8 @@ def self_activate(
                      'visible', 0.6, 1, '[]', ?, ?)
             """,
             (
-                event_id, scene_id, now_iso, reflection,
-                json.dumps({"kind": "self_reflection", "actor": row["person_id"]},
+                event_id, scene_id, now_iso, item["reflection"],
+                json.dumps({"kind": "self_reflection", "actor": item["person_id"]},
                             ensure_ascii=False),
                 now_iso,
             ),
@@ -154,7 +167,7 @@ def self_activate(
             INSERT INTO event_participants(event_id, person_id, participant_role)
             VALUES(?, ?, 'actor')
             """,
-            (event_id, row["person_id"]),
+            (event_id, item["person_id"]),
         )
         conn.execute(
             """
@@ -164,9 +177,47 @@ def self_activate(
             (event_id, scene_id),
         )
         created_ids.append(event_id)
+        if derive_memories:
+            mem_id = f"mem_self_{uuid.uuid4().hex[:12]}"
+            derived_memories.append((event_id, mem_id, item["person_id"], item["reflection"]))
 
     conn.commit()
     conn.close()
+
+    # conn 已关闭；现在安全地调 patch_applier
+    for event_id, mem_id, person_id, reflection in derived_memories:
+        apply_patch_record(
+            db_path=db_path,
+            patch=build_patch(
+                source_event_id=event_id,
+                target_type="memory",
+                target_id=mem_id,
+                operation="create_memory",
+                payload={
+                    "memory_id": mem_id,
+                    "memory_type": "individual_memory",
+                    "summary": reflection,
+                    "relevance_score": 0.5,
+                    "confidence": 0.6,
+                    "is_shared": 0,
+                    "status": "active",
+                    "metadata_json": {
+                        "source": "self_activation",
+                        "actor_person_id": person_id,
+                        "scene_id": scene_id,
+                    },
+                },
+                confidence=0.6,
+                reason="memory derived from self-reflection",
+            ),
+        )
+        owner_conn = connect(db_path)
+        owner_conn.execute(
+            "INSERT INTO memory_owners(memory_id, owner_type, owner_id, role_label) VALUES(?, 'person', ?, 'self')",
+            (mem_id, person_id),
+        )
+        owner_conn.commit()
+        owner_conn.close()
 
     return {
         "created_count": len(created_ids),

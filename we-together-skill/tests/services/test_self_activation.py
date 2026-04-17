@@ -92,3 +92,53 @@ def test_self_activate_respects_daily_budget(temp_project_with_migrations):
     r2 = self_activate(db_path=db_path, scene_id=sid, daily_budget=1, per_run_limit=1)
     assert r2["created_count"] == 0
     assert r2["reason"] == "daily_budget_exhausted"
+
+
+def test_self_activate_derives_individual_memory(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+    _add_person(db_path, "person_zm", "Zm")
+    sid = create_scene(
+        db_path=db_path, scene_type="private_chat", scene_summary="derive memo",
+        environment={"location_scope": "remote", "channel_scope": "private_dm",
+                     "visibility_scope": "mutual_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=sid, person_id="person_zm",
+                          activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    r = self_activate(db_path=db_path, scene_id=sid,
+                       daily_budget=1, per_run_limit=1, derive_memories=True)
+    assert r["created_count"] == 1
+
+    conn = sqlite3.connect(db_path)
+    mem_count = conn.execute(
+        "SELECT COUNT(*) FROM memories WHERE memory_type = 'individual_memory'"
+    ).fetchone()[0]
+    owner_count = conn.execute(
+        "SELECT COUNT(*) FROM memory_owners WHERE owner_id = 'person_zm' AND role_label = 'self'"
+    ).fetchone()[0]
+    conn.close()
+    assert mem_count >= 1
+    assert owner_count >= 1
+
+
+def test_self_activate_can_skip_memory_derivation(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+    _add_person(db_path, "person_zm2", "Zm2")
+    sid = create_scene(
+        db_path=db_path, scene_type="private_chat", scene_summary="no memo",
+        environment={"location_scope": "remote", "channel_scope": "private_dm",
+                     "visibility_scope": "mutual_visible"},
+    )
+    add_scene_participant(db_path=db_path, scene_id=sid, person_id="person_zm2",
+                          activation_state="explicit", activation_score=1.0, is_speaking=True)
+
+    self_activate(db_path=db_path, scene_id=sid, derive_memories=False, per_run_limit=1)
+
+    conn = sqlite3.connect(db_path)
+    mem = conn.execute(
+        "SELECT COUNT(*) FROM memories WHERE memory_type = 'individual_memory'"
+    ).fetchone()[0]
+    conn.close()
+    assert mem == 0
