@@ -190,6 +190,15 @@
 - ADR 0005 定稿 Phase 9 四个决策
 - 当前本地全量测试通过：254 passed
 
+## Phase 10 — 真实世界数据化（Real-world Ingestion，已完成）
+
+- imessage_importer（macOS chat.db 只读）/ wechat_db_importer（明文 sqlite）/ mbox_importer（RW-1/2/3）
+- vision provider + image_importer（VLM 图片描述链路，含 AnthropicVisionClient 延迟 SDK）（RW-4）
+- social_importer（通用 JSON dump: 关注/被关注/帖子/@提及）（RW-5）
+- evidence_dedup_service + evidence_hash_registry 辅助表（RW-6）
+- ADR 0006 定稿 Phase 10 四个决策
+- 当前本地全量测试通过：260 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
