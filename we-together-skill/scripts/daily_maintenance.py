@@ -5,7 +5,9 @@
   2. state decay
   3. branch auto resolve
   4. merge_duplicates (identity 合并)
-  5. graph_summary 打印
+  5. persona drift (LLM)
+  6. memory condense (LLM)
+  7. graph_summary 打印
 """
 import argparse
 import json
@@ -20,6 +22,8 @@ if str(SRC) not in sys.path:
 
 from we_together.services.branch_resolver_service import auto_resolve_branches
 from we_together.services.identity_fusion_service import find_and_merge_duplicates
+from we_together.services.memory_condenser_service import condense_memory_clusters
+from we_together.services.persona_drift_service import drift_personas
 from we_together.services.relation_drift_service import drift_relations
 from we_together.services.state_decay_service import decay_states
 
@@ -32,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--branch-threshold", type=float, default=0.8)
     parser.add_argument("--branch-margin", type=float, default=0.2)
     parser.add_argument("--merge-threshold", type=float, default=0.7)
+    parser.add_argument("--skip-llm", action="store_true", help="跳过 persona drift / condense")
     args = parser.parse_args()
 
     db_path = Path(args.root) / "db" / "main.sqlite3"
@@ -43,4 +48,15 @@ if __name__ == "__main__":
         ),
         "merge_duplicates": find_and_merge_duplicates(db_path, threshold=args.merge_threshold),
     }
+    if not args.skip_llm:
+        try:
+            report["persona_drift"] = drift_personas(
+                db_path, window_days=args.drift_window_days
+            )
+        except Exception as exc:
+            report["persona_drift"] = {"error": str(exc)}
+        try:
+            report["memory_condense"] = condense_memory_clusters(db_path)
+        except Exception as exc:
+            report["memory_condense"] = {"error": str(exc)}
     print(json.dumps(report, ensure_ascii=False, indent=2))
