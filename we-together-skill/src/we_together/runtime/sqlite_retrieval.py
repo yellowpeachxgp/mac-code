@@ -103,6 +103,62 @@ def _fetch_person_profiles(conn: sqlite3.Connection, person_ids: list[str]) -> d
     }
 
 
+SCENE_FACET_POLICY: dict[str, list[str]] = {
+    "work_discussion": ["work", "style"],
+    "meeting": ["work", "style", "boundary"],
+    "group_chat": ["persona", "style", "work"],
+    "casual_social": ["persona", "style", "life"],
+    "private_chat": ["persona", "style", "life", "boundary"],
+    "intimate": ["persona", "style", "life", "boundary"],
+}
+DEFAULT_FACET_PROJECTION = ["persona", "style"]
+
+
+def _allowed_facet_types_for_scene(scene_type: str | None) -> list[str]:
+    if not scene_type:
+        return DEFAULT_FACET_PROJECTION
+    return SCENE_FACET_POLICY.get(scene_type, DEFAULT_FACET_PROJECTION)
+
+
+def _fetch_person_facets_projected(
+    conn: sqlite3.Connection,
+    person_ids: list[str],
+    allowed_types: list[str],
+) -> dict[str, list[dict]]:
+    if not person_ids or not allowed_types:
+        return {}
+
+    rows = conn.execute(
+        """
+        SELECT person_id, facet_type, facet_key, facet_value_json, confidence
+        FROM person_facets
+        WHERE person_id IN (%s) AND facet_type IN (%s)
+        ORDER BY facet_type, facet_key
+        """
+        % (
+            ",".join("?" for _ in person_ids),
+            ",".join("?" for _ in allowed_types),
+        ),
+        tuple(person_ids) + tuple(allowed_types),
+    ).fetchall()
+    out: dict[str, list[dict]] = {}
+    for row in rows:
+        try:
+            value_payload = json.loads(row["facet_value_json"])
+        except (TypeError, json.JSONDecodeError):
+            value_payload = {"value": row["facet_value_json"]}
+        out.setdefault(row["person_id"], []).append(
+            {
+                "facet_type": row["facet_type"],
+                "facet_key": row["facet_key"],
+                "facet_value": value_payload.get("value") if isinstance(value_payload, dict) else value_payload,
+                "scope_hint": value_payload.get("scope_hint") if isinstance(value_payload, dict) else None,
+                "confidence": row["confidence"],
+            }
+        )
+    return out
+
+
 def _merge_activation_candidate(
     activation_map: dict[str, dict],
     *,
@@ -862,6 +918,10 @@ def build_runtime_retrieval_package_from_db(
         "activation_barrier": scene["activation_barrier"],
     }
     person_profiles = _fetch_person_profiles(conn, scene_person_ids)
+    allowed_facet_types = _allowed_facet_types_for_scene(scene["scene_type"])
+    person_facets_map = _fetch_person_facets_projected(
+        conn, scene_person_ids, allowed_facet_types
+    )
     participants = [
         {
             "person_id": row["person_id"],
@@ -871,6 +931,7 @@ def build_runtime_retrieval_package_from_db(
             "persona_summary": person_profiles.get(row["person_id"], {}).get("persona_summary"),
             "style_summary": person_profiles.get(row["person_id"], {}).get("style_summary"),
             "boundary_summary": person_profiles.get(row["person_id"], {}).get("boundary_summary"),
+            "projected_facets": person_facets_map.get(row["person_id"], []),
         }
         for row in participants_rows
     ]

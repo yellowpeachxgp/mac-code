@@ -337,6 +337,60 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
             "UPDATE persons SET status = 'merged', metadata_json = ?, updated_at = ? WHERE person_id = ?",
             (json.dumps(meta, ensure_ascii=False), now, source_pid),
         )
+    elif patch["operation"] == "upsert_facet":
+        facet_id = payload.get("facet_id") or f"facet_{patch['patch_id'][-16:]}"
+        value_json = payload.get("facet_value_json")
+        if value_json is None:
+            # 允许传入 facet_value + scope_hint + metadata_json，组合成 facet_value_json
+            value_json = {
+                "value": payload.get("facet_value"),
+                "scope_hint": payload.get("scope_hint"),
+                "metadata": payload.get("metadata_json", {}),
+            }
+        existing = conn.execute(
+            """
+            SELECT facet_id FROM person_facets
+            WHERE person_id = ? AND facet_type = ? AND facet_key = ?
+            """,
+            (payload["person_id"], payload["facet_type"], payload["facet_key"]),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """
+                UPDATE person_facets
+                SET facet_value_json = ?, confidence = ?,
+                    source_event_refs_json = ?, updated_at = ?
+                WHERE facet_id = ?
+                """,
+                (
+                    json.dumps(value_json, ensure_ascii=False),
+                    payload.get("confidence"),
+                    json.dumps(payload.get("source_event_refs_json", []), ensure_ascii=False),
+                    now,
+                    existing[0],
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO person_facets(
+                    facet_id, person_id, facet_type, facet_key,
+                    facet_value_json, confidence, source_event_refs_json,
+                    created_at, updated_at
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    facet_id,
+                    payload["person_id"],
+                    payload["facet_type"],
+                    payload["facet_key"],
+                    json.dumps(value_json, ensure_ascii=False),
+                    payload.get("confidence"),
+                    json.dumps(payload.get("source_event_refs_json", []), ensure_ascii=False),
+                    now,
+                    now,
+                ),
+            )
     else:
         conn.execute(
             "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
