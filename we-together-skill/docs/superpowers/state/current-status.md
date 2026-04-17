@@ -168,6 +168,18 @@
 - [0001-phase-1-architecture-baseline.md](../decisions/0001-phase-1-architecture-baseline.md)
 - [2026-04-05-product-mandate.md](../vision/2026-04-05-product-mandate.md)
 
+## Phase 8 — 图谱活化（Neural Mesh，已完成）
+
+- runtime/multi_scene_activation.build_multi_scene_activation 聚合多个 active scene 的 activation_map（NM-1）
+- memory_cluster_service.cluster_memories + memory_condenser_service.condense_memory_clusters：LLM 驱动的记忆聚类与凝练（NM-2）
+- persona_drift_service.drift_personas：窗口 events → LLM 重新蒸馏 persona/style_summary（NM-3）
+- self_activation_service.self_activate_pair_interactions：pair 自发交互事件 + 双人 shared_memory（NM-4）
+- runtime_retrieval 新增 cross_scene_echoes：其他 active scene 的高权重事件回响（NM-5）
+- migration 0007 cold_memories / cold_memory_owners + memory_archive_service：归档 + 恢复（NM-6）
+- daily_maintenance.py 扩展至 6 步（原 4 步 + persona_drift + memory_condense），--skip-llm 开关
+- ADR 0004 定稿 Phase 8 六个决策
+- 当前本地全量测试通过：234 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
