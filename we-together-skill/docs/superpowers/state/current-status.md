@@ -180,6 +180,16 @@
 - ADR 0004 定稿 Phase 8 六个决策
 - 当前本地全量测试通过：234 passed
 
+## Phase 9 — 宿主生态（Host Ecosystem，已完成）
+
+- SkillRequest.tools 跨宿主抽象；Claude 透传、OpenAI 翻译为 function schema（HE-1）
+- agent_loop_service.run_turn_agent：tool_call→tool_result 循环，每步落 events 表（HE-2）
+- packaging/skill_packager：pack/unpack .weskill.zip + manifest（HE-3）
+- 四个新宿主 adapter（纯函数，无 SDK）：飞书（+ 签名校验）/ LangChain / Coze / MCP（HE-4/5/6/7）
+- scripts/agent_chat.py 内置 graph_summary / retrieval_pkg 工具示例
+- ADR 0005 定稿 Phase 9 四个决策
+- 当前本地全量测试通过：254 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
