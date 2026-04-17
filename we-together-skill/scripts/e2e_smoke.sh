@@ -42,7 +42,16 @@ echo "[8/10] state decay"
 echo "[9/10] merge_duplicates"
 "${PY}" scripts/merge_duplicates.py --root "${TMP_ROOT}" >/dev/null
 
-echo "[10/10] graph_summary"
+echo "[10/13] graph_summary"
 "${PY}" scripts/graph_summary.py --root "${TMP_ROOT}" >/dev/null
+
+echo "[11/13] import_llm (mock provider)"
+"${PY}" scripts/import_llm.py --root "${TMP_ROOT}" --text "Alice 和 Bob 是同事。" --source-name e2e --provider mock >/dev/null
+
+echo "[12/13] auto_resolve_branches"
+"${PY}" scripts/auto_resolve_branches.py --root "${TMP_ROOT}" --threshold 0.7 --margin 0.1 >/dev/null
+
+echo "[13/13] self_activate"
+"${PY}" scripts/self_activate.py --root "${TMP_ROOT}" --scene-id "${WORK_SCENE}" --daily-budget 2 --per-run 1 --provider mock >/dev/null
 
 echo "===> OK"
