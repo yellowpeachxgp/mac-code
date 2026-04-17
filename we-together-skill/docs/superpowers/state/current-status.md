@@ -1,6 +1,6 @@
 # 当前状态
 
-日期：2026-04-17
+日期：2026-04-18
 
 当前已完成：
 
@@ -143,7 +143,14 @@
 - .github/workflows/ci.yml：install + ruff + mypy + pytest + e2e smoke
 - scripts/seed_demo.py：Society C 小社会（8 人 × 8 关系 × 3 场景）
 
-- 当前本地全量测试通过：201 passed
+- 当前本地全量测试通过：216 passed
+
+## Phase 7 收尾增补（2026-04-18）
+
+- person_activity_service：聚合 person 近期活动（persona/facets/events/relations/memories/scenes）为单份 profile，供 debug / skill 展示（Slice C1）
+- runtime_retrieval 新增 `debug_scores` 开关，memory 附带 `score_breakdown` 暴露 base_type / relevance / confidence / recency / overlap / scene_factor 中间量；debug 模式跳过缓存读写（Slice W2）
+- relation_conflict_service：按窗口内 relation 相关 events 做 sentiment 分析，统计 ± 反转次数，识别"正负情绪反复震荡"的冲突关系；emit_memory=True 时生成 `conflict_signal` 低置信 memory（Slice U2）
+- `docs/superpowers/importers/2026-04-18-importer-status-matrix.md`：已实现层 importer 契约矩阵（8 类 importer 的 patch 类型、是否直接落主图、fuse_all 升级路径、retrieval 可见性差异）
 
 当前主设计稿：
 
