@@ -2,6 +2,15 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## Unreleased
+
+- `services/vector_index`：`sqlite_vec` backend 从 `*_fallback` 升级为真 SQL 查询路径，使用 `vec_distance_cosine(...)` 直接在现有 embedding 表上做 KNN
+- `services/vector_index`：`faiss` backend 从 `*_fallback` 升级为真 `IndexFlatIP` 内存索引，保留现有 BLOB schema
+- `services/vector_index.hierarchical_query(..., backend=...)`：分 backend 走 filtered SQL / filtered FAISS / flat_python
+- `services/embedding_recall.associate_by_embedding(..., index_backend=...)`：允许显式选择索引 backend
+- `scripts/bench_scale.py`：新增 `--backend` 参数，输出报告里显式带 `backend`
+- `services/vector_similarity.decode_vec`：接受 `bytes | bytearray | memoryview`，对 SQLite BLOB 更稳健
+
 ## v0.17.0 — 2026-04-19
 
 第十轮一次性无人值守推进：Phase 51-57。**638 passed (+44, +2 skipped)**，新增 7 个 ADR（0053-0059）。**维度跃迁**：社会图谱→世界图谱，被动 agent→自主+梦+学习，孤立代码→社区就绪。

@@ -58,6 +58,7 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=10000)
     ap.add_argument("--dim", type=int, default=32)
     ap.add_argument("--queries", type=int, default=50)
+    ap.add_argument("--backend", default="flat_python")
     args = ap.parse_args()
 
     db = Path(args.root).resolve() / "db" / "main.sqlite3"
@@ -70,7 +71,7 @@ def main() -> int:
     seed_s = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    idx = VectorIndex.build(db, target="memory", backend="flat_python")
+    idx = VectorIndex.build(db, target="memory", backend=args.backend)
     build_s = time.perf_counter() - t0
 
     client = MockEmbeddingClient(dim=args.dim)
@@ -84,6 +85,7 @@ def main() -> int:
     qps = args.queries / q_total_s if q_total_s > 0 else 0.0
 
     report = {
+        "backend": idx.backend,
         "n_seeded": args.n, "dim": args.dim,
         "seed_s": round(seed_s, 3),
         "build_s": round(build_s, 3),

@@ -1,6 +1,6 @@
 # 当前状态
 
-日期：2026-04-18
+日期：2026-04-19
 
 当前已完成：
 
@@ -78,6 +78,8 @@
 - resolve_local_branch 已可读取 selected candidate 的 payload_json 中的 effect_patches，并逐个应用到主图谱
 - ingestion 共用 SQL 已抽取为 ingestion_helpers.py（persist_import_job / persist_raw_evidence / persist_patch_record / persist_snapshot_with_entities）
 - ingestion_service.py 和 email_ingestion_service.py 已调用共用 helper，消除重复代码
+- `VectorIndex(backend='sqlite_vec'|'faiss')` 已从 stub 升级为真 backend：前者走 sqlite-vec SQL 距离函数，后者走 FAISS `IndexFlatIP`
+- `embedding_recall.associate_by_embedding()` 已支持 `index_backend` 显式选择；`bench_scale.py` 已支持 `--backend`
 - retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
 - 对话演化循环已闭合：dialogue_service.record_dialogue_event() 将对话写为 dialogue_event + snapshot
 - infer_dialogue_patches() 从对话内容推理 scene mood state 和多人共享 memory
@@ -461,7 +463,7 @@
 
 - service inventory（60+ 服务，无 dead）
 - migration audit（15 条，3 低热全保留）
-- VectorIndex backend 扩展到 sqlite_vec / faiss stub（延迟 import）
+- VectorIndex backend 扩展到 sqlite_vec / faiss（延迟 import；现已真接）
 - `scripts/bench_scale.py` 10k+ 压测
 - ADR 0038
 

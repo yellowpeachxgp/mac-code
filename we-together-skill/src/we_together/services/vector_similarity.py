@@ -13,8 +13,9 @@ def encode_vec(vec: list[float]) -> bytes:
     return struct.pack(f"<{len(vec)}f", *vec)
 
 
-def decode_vec(blob: bytes) -> list[float]:
+def decode_vec(blob: bytes | bytearray | memoryview) -> list[float]:
     """解码 float32 BLOB 回 float list。"""
+    blob = bytes(blob)
     count = len(blob) // 4
     return list(struct.unpack(f"<{count}f", blob))
 
@@ -22,7 +23,7 @@ def decode_vec(blob: bytes) -> list[float]:
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b) or not a:
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0 or norm_b == 0:

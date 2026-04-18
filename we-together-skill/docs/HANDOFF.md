@@ -3,6 +3,7 @@
 > **对象**：Codex（或任一继任 AI assistant）
 > **目标**：读完本文档 + [`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md) 后 **5 分钟**内回到工作状态。
 > **当前版本**：**v0.18.0** — tag 已打 — 690 passed + 2 skipped — 本地 main 分支已包含所有已提交内容。
+> **代码事实补丁**：当前代码自审为 **28 条不变式**（以 `src/we_together/invariants.py` 为准），且 `sqlite_vec/faiss` 已从 stub 升级为真 backend。
 
 ---
 
@@ -14,7 +15,7 @@
   - **B 通用型 Skill** 9.8/10（Claude Skills / OpenAI Assistants / MCP 三路宿主 + plugin 扩展点）
   - **C 数字赛博生态圈** 9.7/10（tick + 神经网格 + 世界建模 + Agent 自主 + 年度真跑证据）
 - **工作模式**：用户每次说**"继续推进任务"** / **"进入无人值守连续推进模式"** / **"至少小一百个 task"** → Codex 进入**大批量 TaskCreate → 按 phase 交付 → commit → ADR → bump → tag** 的长工作流。
-- **绝对规则**：新功能不能破坏 30 条不变式；任何新 migration / 破坏性变更必须先写 ADR。
+- **绝对规则**：新功能不能破坏当前不变式注册表；任何新 migration / 破坏性变更必须先写 ADR。
 
 ---
 
@@ -27,7 +28,7 @@
 | cli VERSION | `0.18.0` |
 | pytest 基线 | **690 passed + 2 skipped**，~26s 本机 |
 | ADR 总数 | 66（`docs/superpowers/decisions/0001-0066`）|
-| 不变式 | **30 条**（`src/we_together/invariants.py`）|
+| 不变式 | **28 条**（`src/we_together/invariants.py`）|
 | Migrations | **21 条**（`db/migrations/0001..0021`）|
 | Benchmarks | 10（含 `year_runs/` `scale/` `tick_runs/`）|
 | Test coverage | 约 90% |
@@ -37,7 +38,7 @@
 cd we-together-skill
 .venv/bin/python -m pytest -q         # 期望 690 passed, 2 skipped
 .venv/bin/python scripts/self_audit.py        # 整体自描述
-.venv/bin/python scripts/invariants_check.py summary  # 30 条不变式 100% 覆盖
+.venv/bin/python scripts/invariants_check.py summary  # 28 条不变式 100% 覆盖
 .venv/bin/we-together version         # we-together 0.18.0
 ```
 
@@ -66,7 +67,7 @@ cd we-together-skill
 
 ---
 
-## 3. 30 条不变式（违反必 CI 红 — 不变式 #29）
+## 3. 当前 28 条不变式（历史文档曾写 30；以代码为准）
 
 **完整列表见** [`src/we_together/invariants.py`](../src/we_together/invariants.py) + [`docs/superpowers/state/2026-04-19-invariants-coverage.md`](superpowers/state/2026-04-19-invariants-coverage.md)。
 
@@ -166,7 +167,7 @@ we-together-skill/
 | 导入 | `ingestion_service` / `email_ingestion_service` / `file_ingestion_service` / `directory_ingestion_service` / `auto_ingestion_service` | 统一 importer 契约 |
 | 融合 | `identity_fusion_service` / `fusion_service` / `candidate_store` / `branch_resolver_service` | Phase 4 |
 | Retrieval | `memory_recall_service` / `embedding_recall` / `associative_recall` | 三条职责不重叠 |
-| Vector | `vector_index` / `vector_similarity` / `embedding_cache` | flat_python + sqlite_vec/faiss stub |
+| Vector | `vector_index` / `vector_similarity` / `embedding_cache` | flat_python + sqlite_vec/faiss 真 backend（`auto` 仍保持 flat_python） |
 | 演化 | `state_decay_service` / `relation_drift_service` / `self_activation_service` / `time_simulator` / `tick_sanity` | tick 闭环 |
 | 主动 | `proactive_agent` / `proactive_prefs` | v0.13（#18）|
 | 元认知 | `contradiction_detector` | v0.13（只读不写） |
@@ -293,10 +294,10 @@ we-together-skill/
 
 ### 留给 v0.19 的候选（按优先级）
 
-**方向 1 ★★★★★ — 真接入外部 lib**（把 v0.17/0.18 的 stub 变真）
-- 真 sqlite-vec 接入（现为 `_require_sqlite_vec` stub → raise）
-- 真 FAISS 接入
-- 100k / 1M 规模压测 + 报告归档
+**方向 1 ★★★★★ — 真接入外部 lib**
+- 已完成：真 sqlite-vec 接入
+- 已完成：真 FAISS 接入
+- 下一步：100k / 1M 规模压测 + 报告归档
 
 **方向 2 ★★★★★ — 真 LLM 端到端**（需要 key）
 - 真跑 `simulate_year --budget 30` 用 Anthropic/OpenAI
@@ -336,11 +337,11 @@ git tag -l | tail -5                           # 确认 v0.18.0 已 tag
 
 # 3. 自描述（反身能力的使用）
 .venv/bin/python scripts/self_audit.py
-# 输出：ADR=66, invariants=30, services=60+, migrations=21
+# 输出：ADR=66, invariants=28, services=60+, migrations=21
 
 # 4. 不变式覆盖
 .venv/bin/python scripts/invariants_check.py summary
-# 期望 {"total_invariants": 30, "coverage_ratio": 1.0}
+# 期望 {"total_invariants": 28, "coverage_ratio": 1.0}
 
 # 5. 跑一份 exemplar scenario 看看
 .venv/bin/python scripts/scenario_runner.py --scenario family --root /tmp/wt_test
@@ -485,7 +486,7 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 ### 如果用户只说"继续推进" → 你需要：
 1. 跑 `pytest -q` 确认 690 passed 基线保持
 2. 读 `docs/superpowers/decisions/0066-phase-58-64-synthesis.md` 的 **"下一阶段候选"**
-3. 从方向 1（真 sqlite-vec / FAISS / 100k 压测）开始，这是最有技术纵深的
+3. 从方向 1 的下一步（100k / 1M 压测 + 真实 backend 性能归档）开始，这是最有技术纵深的
 
 ### 如果用户说"新的启发性规划" → 你需要：
 1. 重读 product-mandate（不变！）
@@ -506,7 +507,7 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 
 这是一个**非常工程化**的项目：
 - 不是 "先做出来再说" 的原型
-- 所有改动都要对得起 30 条不变式
+- 所有改动都要对得起当前不变式注册表
 - 所有新能力都要给得出证据（测试 / 归档 / ADR）
 
 但它也**不是死板**的：

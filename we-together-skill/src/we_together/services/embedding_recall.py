@@ -21,6 +21,7 @@ def associate_by_embedding(
     top_k: int = 5,
     model_filter: str | None = None,
     filter_person_ids: list[str] | None = None,
+    index_backend: str = "auto",
 ) -> dict:
     if embedding_client is None:
         return {"associated": [], "seed": seed_text,
@@ -28,18 +29,39 @@ def associate_by_embedding(
 
     query_vec = embedding_client.embed([seed_text])[0]
 
+    from we_together.services.vector_index import VectorIndex
+
     # 层级检索：过滤 person_ids 时走 hierarchical_query
     if filter_person_ids:
-        from we_together.services.vector_index import VectorIndex
         top = VectorIndex.hierarchical_query(
             db_path, query_vec, target="memory",
             filter_person_ids=filter_person_ids, k=top_k,
+            backend=index_backend,
         )
         return {
             "associated": [mid for mid, _ in top],
             "scores": [round(s, 4) for _, s in top],
             "seed": seed_text,
             "mode": "hierarchical",
+        }
+
+    if model_filter is None:
+        idx = VectorIndex.build(db_path, target="memory", backend=index_backend)
+        top = idx.query(query_vec, k=top_k)
+        if not top:
+            return {
+                "associated": [],
+                "seed": seed_text,
+                "reason": "no_embeddings_indexed",
+                "candidate_count": idx.size(),
+                "backend": idx.backend,
+            }
+        return {
+            "associated": [mid for mid, _ in top],
+            "scores": [round(s, 4) for _, s in top],
+            "seed": seed_text,
+            "candidate_count": idx.size(),
+            "backend": idx.backend,
         }
 
     conn = connect(db_path)

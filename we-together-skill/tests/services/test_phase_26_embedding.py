@@ -6,6 +6,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
+from embed_backfill import backfill_embeddings  # noqa: E402
+
 from we_together.db.bootstrap import bootstrap_project  # noqa: E402
 from we_together.eval.embedding_retrieval_eval import (  # noqa: E402
     run_embedding_retrieval_eval,
@@ -18,8 +20,6 @@ from we_together.services.vector_similarity import (  # noqa: E402
     encode_vec,
     top_k,
 )
-from embed_backfill import backfill_embeddings  # noqa: E402
-
 
 # --- vector_similarity ---
 
@@ -27,7 +27,7 @@ def test_encode_decode_roundtrip():
     vec = [0.1, -0.2, 0.3, 0.4]
     decoded = decode_vec(encode_vec(vec))
     # float32 精度损失，容差比较
-    for a, b in zip(vec, decoded):
+    for a, b in zip(vec, decoded, strict=False):
         assert abs(a - b) < 1e-5
 
 
@@ -86,7 +86,8 @@ def test_backfill_memory_embeddings(temp_project_with_migrations):
                datetime('now'), datetime('now'))""",
             (f"m_be_{i}", s),
         )
-    c.commit(); c.close()
+    c.commit()
+    c.close()
 
     client = MockEmbeddingClient(dim=16)
     result = backfill_embeddings(db, target="memory", embedding_client=client)
@@ -109,7 +110,8 @@ def test_associate_by_embedding_finds_similar(temp_project_with_migrations):
                datetime('now'), datetime('now'))""",
             (mid, t),
         )
-    c.commit(); c.close()
+    c.commit()
+    c.close()
 
     backfill_embeddings(db, target="memory", embedding_client=client)
     result = associate_by_embedding(
@@ -128,6 +130,31 @@ def test_associate_no_embeddings(temp_project_with_migrations):
         db, seed_text="x", embedding_client=client,
     )
     assert result["reason"] == "no_embeddings_indexed"
+
+
+def test_associate_by_embedding_accepts_index_backend(temp_project_with_migrations):
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    client = MockEmbeddingClient(dim=16)
+    c = sqlite3.connect(db)
+    c.execute(
+        """INSERT INTO memories(memory_id, memory_type, summary, relevance_score,
+           confidence, is_shared, status, metadata_json, created_at, updated_at)
+           VALUES('m_idx_backend', 'shared_memory', '工作会议 项目 代码', 0.7, 0.7, 1, 'active', '{}',
+           datetime('now'), datetime('now'))"""
+    )
+    c.commit()
+    c.close()
+    backfill_embeddings(db, target="memory", embedding_client=client)
+
+    result = associate_by_embedding(
+        db,
+        seed_text="工作会议 项目 代码",
+        embedding_client=client,
+        top_k=1,
+        index_backend="flat_python",
+    )
+    assert result["associated"] == ["m_idx_backend"]
 
 
 # --- eval ---

@@ -10,7 +10,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 
 def test_vector_index_backend_validation():
-    from we_together.services.vector_index import _resolve_backend, SUPPORTED_BACKENDS
+    from we_together.services.vector_index import SUPPORTED_BACKENDS, _resolve_backend
     assert _resolve_backend("auto") == "flat_python"
     assert _resolve_backend("flat_python") == "flat_python"
     assert "sqlite_vec" in SUPPORTED_BACKENDS
@@ -19,6 +19,7 @@ def test_vector_index_backend_validation():
 
 def test_vector_index_unknown_backend_raises():
     import pytest
+
     from we_together.services.vector_index import _resolve_backend
     with pytest.raises(ValueError, match="unknown backend"):
         _resolve_backend("qdrant")
@@ -99,3 +100,28 @@ def test_vector_index_build_with_explicit_flat_python(temp_project_with_migratio
     db = temp_project_with_migrations / "db" / "main.sqlite3"
     idx = VectorIndex.build(db, target="memory", backend="flat_python")
     assert idx.backend == "flat_python"
+
+
+def test_bench_scale_supports_backend_flag(temp_project_with_migrations, monkeypatch, capsys):
+    from we_together.db.bootstrap import bootstrap_project
+    bootstrap_project(temp_project_with_migrations)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "bench_scale.py",
+            "--root",
+            str(temp_project_with_migrations),
+            "--n",
+            "2",
+            "--queries",
+            "1",
+            "--backend",
+            "flat_python",
+        ],
+    )
+    import bench_scale
+
+    rc = bench_scale.main()
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert '"backend": "flat_python"' in out
