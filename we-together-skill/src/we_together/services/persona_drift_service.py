@@ -116,5 +116,18 @@ def drift_personas(
             reason=f"persona drift from {u['events_used']} events",
         )
         apply_patch_record(db_path=db_path, patch=patch)
+        # 写 persona_history（Phase 15 TL-1）
+        try:
+            from we_together.services.persona_history_service import record_persona_change
+            record_persona_change(
+                db_path,
+                person_id=u["person_id"],
+                persona_summary=u["payload"].get("persona_summary"),
+                style_summary=u["payload"].get("style_summary"),
+                source_reason=f"drift from {u['events_used']} events",
+                confidence=0.55,
+            )
+        except Exception:
+            pass
 
     return {"drifted_count": len(updates), "window_days": window_days, "details": updates}
