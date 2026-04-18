@@ -40,7 +40,7 @@ def test_load_groundtruth_and_pairs():
     gt = load_groundtruth(REPO_ROOT / "benchmarks" / "society_c_groundtruth.json")
     assert gt.benchmark_name == "society_c_v1"
     pairs = gt.relation_pairs()
-    assert ("Alice", "Bob", "colleague") in pairs
+    assert ("Alice", "Bob", "work") in pairs
 
 
 def test_load_groundtruth_missing_raises(tmp_path):

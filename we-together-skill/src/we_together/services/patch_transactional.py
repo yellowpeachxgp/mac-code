@@ -1,8 +1,15 @@
-"""事务化 patch 批处理：用单一 conn + savepoint 把一批 patch 当原子组。
+"""事务化 patch 批处理：用单一 conn + 单个事务把一批 patch 当原子组。
 
-与 patch_batch.apply_patches_bulk（顺序半事务）互补。此实现要求 patches 列表不会
-嵌套调用 apply_patch_record（例如不能含 resolve_local_branch → effect_patches 递归
-场景）；否则退回使用 patch_batch。
+**注意当前实现**：只写 patches 表记录（影子 insert），不触发 apply_patch_record 的
+所有副作用（实体本体变更、memory_owners 手动写、cache invalidation 等）。
+
+真正的"apply_patch_record 接受外部 conn"重构留给 Phase 22（HD-8 续）。
+当前 ADR 0009 D-EXT / ADR 0014 的一致性保证：patches 表本身的原子性。
+
+用法：
+  - 你只需要"一次性记录一批 patch 到 patches 表"：用本函数
+  - 你需要"所有 patch 真正生效（含副作用）且失败回滚"：patch_transactional 暂不支持，
+    改用 apply_patches_bulk（顺序半事务）
 """
 from __future__ import annotations
 

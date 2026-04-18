@@ -73,11 +73,29 @@ def simulate_what_if(
             "error": str(exc),
             "predictions": [],
             "confidence": 0.0,
+            "mock_mode": True,
         }
+
+    predictions = list(payload.get("predictions") or [])
+    confidence = float(payload.get("confidence") or 0.0)
+
+    # Mock fallback：LLM 未返回 predictions key 时给占位
+    provider = getattr(client, "provider", "") or ""
+    mock_mode = provider == "mock" and not predictions
+    if mock_mode:
+        predictions = [{
+            "horizon_days": 30,
+            "prediction": (
+                "（mock 模式占位）当前 WE_TOGETHER_LLM_PROVIDER=mock，"
+                "未产出实际推演。请设置真实 provider（anthropic / openai_compat）。"
+            ),
+            "affected_entities": [],
+        }]
 
     return {
         "hypothesis": hypothesis,
         "scene_id": scene_id,
-        "predictions": list(payload.get("predictions") or []),
-        "confidence": float(payload.get("confidence") or 0.0),
+        "predictions": predictions,
+        "confidence": confidence,
+        "mock_mode": mock_mode,
     }
