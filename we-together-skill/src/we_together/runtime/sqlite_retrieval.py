@@ -750,17 +750,31 @@ def _build_current_states(
     ]
 
 
-def _build_recent_changes(conn: sqlite3.Connection, limit: int) -> list[dict]:
-    rows = conn.execute(
-        """
-        SELECT patch_id, operation, target_type, reason, applied_at
-        FROM patches
-        WHERE status = 'applied'
-        ORDER BY applied_at DESC
-        LIMIT ?
-        """,
-        (limit,),
-    ).fetchall()
+def _build_recent_changes(
+    conn: sqlite3.Connection, limit: int, as_of: str | None = None,
+) -> list[dict]:
+    if as_of:
+        rows = conn.execute(
+            """
+            SELECT patch_id, operation, target_type, reason, applied_at
+            FROM patches
+            WHERE status = 'applied' AND applied_at <= ?
+            ORDER BY applied_at DESC
+            LIMIT ?
+            """,
+            (as_of, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT patch_id, operation, target_type, reason, applied_at
+            FROM patches
+            WHERE status = 'applied'
+            ORDER BY applied_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
     return [
         {
             "patch_id": row["patch_id"],
@@ -939,11 +953,12 @@ def build_runtime_retrieval_package_from_db(
     max_states: int | None = 30,
     max_recent_changes: int | None = 5,
     debug_scores: bool = False,
+    as_of: str | None = None,
 ) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
-    if input_hash and not debug_scores:
+    if input_hash and not debug_scores and not as_of:
         now_iso = datetime.now(UTC).isoformat()
         cached_row = conn.execute(
             """
@@ -1073,7 +1088,7 @@ def build_runtime_retrieval_package_from_db(
     response_policy = _build_response_policy(scene, participants_rows, activation_map)
     recent_changes = []
     if max_recent_changes is not None and max_recent_changes > 0:
-        recent_changes = _build_recent_changes(conn, limit=max_recent_changes)
+        recent_changes = _build_recent_changes(conn, limit=max_recent_changes, as_of=as_of)
     cross_scene_echoes = _build_cross_scene_echoes(
         conn, current_scene_id=scene_id, limit=max_recent_changes or 5,
     )
