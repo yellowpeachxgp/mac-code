@@ -61,6 +61,18 @@
 | `bench_large.py` | 大规模压测 + 冷/热检索延迟 p50/p95 |
 | `package_skill.py` | `.weskill.zip` 打包 / 解包 |
 
+## Phase 13-17 新增 CLI
+
+| 脚本 | 用途 |
+|---|---|
+| `onboard.py` | 交互式 onboarding 引导（5 步）支持 `--dry-run` |
+| `eval_relation.py` | 跑 relation 推理 eval；`--save-baseline` / `--baseline` 回归门禁 |
+| `timeline.py` | 打印 person 的 persona_history / active_relations / recent_events |
+| `relation_timeline.py` | 打印 relation 的 strength 时序（day/week/month bucket） |
+| `what_if.py` | What-if 社会模拟 teaser（LLM 推演） |
+
+统一入口：`we-together <subcommand>`（pip 安装后可用，见 `src/we_together/cli.py` 的 SCRIPT_MAP）
+
 ## 建议使用路径
 
 - 新环境：`bootstrap.py` → `seed_demo.py` → `build_retrieval_package.py`

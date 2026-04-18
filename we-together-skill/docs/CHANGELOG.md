@@ -2,6 +2,53 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.9.0 — 2026-04-18
+
+第二轮一次性无人值守推进：Phase 13-17。318 passed (+37)，新增 5 个 ADR（0010-0014）。
+
+### Phase 13 — 产品化与 Onboarding
+
+- `we-together` pip 包 + 统一 CLI (`src/we_together/cli.py`)
+- Docker 多阶段 + compose（app+metrics+branch-console） + README
+- `services/onboarding_flow` 5 步状态机 + `scripts/onboard.py --dry-run`
+- `examples/claude-code-skill/` + `examples/feishu-bot/`（stdlib webhook）
+- `docs/quickstart.md` 5 分钟从零到跑
+
+### Phase 14 — 评估与质量
+
+- `benchmarks/society_c_groundtruth.json`
+- `src/we_together/eval/`（groundtruth_loader / metrics / relation_inference / llm_judge / regression）
+- `scripts/eval_relation.py` + baseline / regression 门禁
+
+### Phase 15 — 时间维度
+
+- migration 0009 `persona_history` + 0010 `event_causality`
+- `services/persona_history_service` / `relation_history_service` / `event_causality_service` / `memory_recall_service`
+- `runtime_retrieval` 新增 `as_of` 参数（跳过 cache）
+- `scripts/timeline.py` + `scripts/relation_timeline.py`
+
+### Phase 17 — What-if Teaser
+
+- `src/we_together/simulation/what_if_service`（LLM 推演，不改图谱）
+- `scripts/what_if.py`
+
+### EXT 收口
+
+- `services/patch_transactional.apply_patches_transactional`（事务 ROLLBACK）
+- `services/rbac_service`（Role/Scope/TokenRegistry）
+- `observability/sinks`（StdoutSink + OTLPStubSink + Protocol）
+- `event_bus_service` 加 LocalFileBackend + NATSStubBackend
+
+### ADR 新增
+
+- 0010: Phase 13 产品化
+- 0011: Phase 14 评估
+- 0012: Phase 15 时间维度
+- 0013: Phase 17 what-if teaser
+- 0014: Phase 13-17 综合 + 不变式扩展至 10 条
+
+---
+
 ## v0.8.0 — 2026-04-18
 
 一次性无人值守推进完成五个大目标：Phase 8-12。281 passed，新增 8 个 ADR。
