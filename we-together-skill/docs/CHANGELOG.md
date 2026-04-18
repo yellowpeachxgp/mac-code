@@ -2,6 +2,70 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.17.0 — 2026-04-19
+
+第十轮一次性无人值守推进：Phase 51-57。**638 passed (+44, +2 skipped)**，新增 7 个 ADR（0053-0059）。**维度跃迁**：社会图谱→世界图谱，被动 agent→自主+梦+学习，孤立代码→社区就绪。
+
+### Phase 51 — 世界建模升维（C 支柱）
+
+- migration `0018_world_objects` + `0019_world_places` + `0020_world_projects`
+- `services/world_service`：register_object / transfer_object / register_place / get_place_lineage / register_project / set_project_status / active_world_for_scene
+- 跨类 entity_links：person→owns→object / event→at→place / project→involves→person
+- `scripts/world_cli.py`
+- **ADR 0053**，不变式 #26 世界对象时间范围
+
+### Phase 52 — AI Agent 元能力（C 支柱）
+
+- migration `0021_agent_drives` + `autonomous_actions`
+- `services/autonomous_agent`：compute_drives (5 类) / decide_action / record_autonomous_action
+- `services/dream_cycle`：archive + insight 生成 + learning
+- `scripts/dream_cycle.py`
+- **ADR 0054**，不变式 #27 自主可解释
+
+### Phase 53 — 质量与韧性（A 支柱）
+
+- `observability/otel_exporter`：OpenTelemetry NoOp-safe wrapper
+- property-based (optional hypothesis): mask_pii 幂等 / forget_score 单调
+- fuzz: 未知 operation / null memory / 5000 条批量
+- `.github/workflows/nightly.yml` UTC 02:00 自动 smoke
+- **ADR 0055**
+
+### Phase 54 — 社区就绪（B 支柱）
+
+- `CONTRIBUTING.md` / `CODE_OF_CONDUCT.md` / `SECURITY.md` / `GOVERNANCE.md`
+- `docs/comparisons/vs_mem0.md / vs_letta.md / vs_langmem.md`
+- `mkdocs.yml` + `docs/index.md`
+- `docs/good_first_issues.md` 20 条
+- `docs/tutorials/family_graph.md`
+- `.github/ISSUE_TEMPLATE/` + `PULL_REQUEST_TEMPLATE.md`
+- **ADR 0056**
+
+### Phase 55 — 差异化能力（C 支柱）
+
+- `services/working_memory`：per-scene 短时 buffer，TTL + capacity，不落 db
+- `services/derivation_rebuild`：insight / narrative / activation 派生可重建验证
+- **ADR 0057**，不变式 #28 派生可重建
+
+### Phase 56 — 发布准备（B 支柱）
+
+- `docs/release/pypi_checklist.md`
+- `docs/release/claude_skills_submission.md`
+- `scripts/release_prep.py --version X.Y.Z` 一键自检
+- **ADR 0058**
+
+### 不变式（ADR 0059）
+
+25 → **28**：
+- **#26** 世界对象必须有明确时间范围
+- **#27** Agent 自主行为必须可解释
+- **#28** 派生字段必须可从底层 events/memories 重建
+
+### 三支柱达成度
+
+- A 严格工程化：9.7 → **9.8**
+- B 通用型 Skill：9.7 → **9.8**
+- C 数字赛博生态圈：9.0 → **9.5**
+
 ## v0.16.0 — 2026-04-19
 
 第九轮一次性无人值守推进：Phase 44-50。**594 passed (+73)**，新增 7 个 ADR（0046-0052）+ 1 个 mega-plan + 1 个 diff 报告。

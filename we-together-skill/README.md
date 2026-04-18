@@ -205,6 +205,20 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：**594 passed**，ADR 0046-0052
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-44-50-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-44-50-mega-plan.md)
 
+### Phase 51-57（2026-04-19 v0.17.0 收尾）
+
+**维度跃迁**（非加功能）：
+
+- **世界建模升维（C 支柱提至 9.5）**：migration 0018 `objects` + 0019 `places` + 0020 `projects` / `services/world_service` 含 register_object/place/project + active_world_for_scene / 跨类 entity_links / `scripts/world_cli.py`（不变式 #26 世界对象时间范围）
+- **AI Agent 元能力**：migration 0021 `agent_drives` + `autonomous_actions` / `services/autonomous_agent` 5 类 drive（connection/curiosity/resolve/obligation/rest）+ decide_action + record 强制来源 / `services/dream_cycle` 压缩 + insight 生成 + learning（不变式 #27 自主可解释）
+- **质量与韧性（A 支柱提至 9.8）**：`observability/otel_exporter` NoOp-safe / property-based (Hypothesis optional) + fuzz / `.github/workflows/nightly.yml`
+- **社区就绪（B 支柱提至 9.8）**：CONTRIBUTING/COC/SECURITY/GOVERNANCE 四件套 / 3 份对比文档（vs Mem0/Letta/LangMem）/ mkdocs + GitHub 模板 / 20 条 Good First Issues
+- **差异化能力**：`services/working_memory` per-scene 短时 buffer / `services/derivation_rebuild` insight + activation 可重建验证（不变式 #28 派生可重建）
+- **发布准备**：PyPI checklist / Claude Skills 提交材料 / `scripts/release_prep.py` 自检
+- 不变式 25 → **28**（#26 世界对象时间 / #27 Agent 可解释 / #28 派生可重建）
+- 当前本地全量测试通过：**638 passed, 2 skipped**，ADR 0053-0059
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-51-57-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-51-57-mega-plan.md)
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)
