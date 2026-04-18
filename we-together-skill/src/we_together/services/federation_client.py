@@ -26,6 +26,7 @@ from dataclasses import dataclass
 class FederationClient:
     base_url: str
     timeout: float = 5.0
+    bearer_token: str | None = None
 
     def _get(self, path: str, params: dict | None = None) -> dict:
         url = self.base_url.rstrip("/") + path
@@ -33,10 +34,13 @@ class FederationClient:
             url += "?" + urllib.parse.urlencode({
                 k: v for k, v in params.items() if v is not None
             })
-        req = urllib.request.Request(url, headers={
+        headers = {
             "Accept": "application/json",
             "User-Agent": "we-together-federation-client/1",
-        })
+        }
+        if self.bearer_token:
+            headers["Authorization"] = f"Bearer {self.bearer_token}"
+        req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = resp.read().decode("utf-8")

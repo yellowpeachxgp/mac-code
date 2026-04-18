@@ -22,7 +22,7 @@ def _load_server_module():
 def test_capabilities_contains_protocol_version():
     m = _load_server_module()
     cap = m._capabilities()
-    assert cap["federation_protocol_version"] == "1"
+    assert cap["federation_protocol_version"] in ("1", "1.1")
     assert cap["skill_schema_version"] == "1"
     assert cap["read_only"] is True
 
@@ -137,7 +137,7 @@ def test_federation_client_against_server(temp_project_with_migrations):
         c = FederationClient(f"http://127.0.0.1:{port}", timeout=3.0)
 
         cap = c.capabilities()
-        assert cap["federation_protocol_version"] == "1"
+        assert cap["federation_protocol_version"] in ("1", "1.1")
 
         persons = c.list_persons()
         assert any(p["person_id"] == "pE2E" for p in persons["persons"])

@@ -1,4 +1,4 @@
-"""federation_http_server（Phase 42 FD MVP）：真 HTTP endpoint。
+"""federation_http_server（Phase 42 FD MVP / Phase 48 FS 加强）：真 HTTP endpoint。
 
 路由:
   GET /federation/v1/persons          列出本地 persons（applied visibility=shared+）
@@ -6,16 +6,22 @@
   GET /federation/v1/memories?owner_id=...  按 owner 列 memory（只返 is_shared=1）
   GET /federation/v1/capabilities     公告本 skill 提供的联邦能力
 
+Phase 48 新增：
+- Bearer token 鉴权（WE_TOGETHER_FED_TOKENS env var 以逗号分隔 token hashes）
+- rate limit（每 token 每分钟 60 次默认）
+- PII 脱敏（email/phone mask）
+- exportable=false 过滤
+
 设计:
 - Python stdlib http.server；不依赖 FastAPI
 - 读-only；本阶段不支持写（安全边界）
-- 身份: 无 auth（v0.15 MVP）；v0.16 加 token 或 mTLS
 - visibility 过滤在服务端完成
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -25,8 +31,11 @@ from urllib.parse import parse_qs, urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.runtime.skill_runtime import SKILL_SCHEMA_VERSION
+from we_together.services.federation_security import (
+    RateLimiter, hash_token, is_exportable, mask_pii, sanitize_record, verify_token,
+)
 
-FEDERATION_PROTOCOL_VERSION = "1"
+FEDERATION_PROTOCOL_VERSION = "1.1"
 
 
 def _capabilities() -> dict:
@@ -40,7 +49,9 @@ def _capabilities() -> dict:
             "/federation/v1/capabilities",
         ],
         "read_only": True,
-        "auth": "none (v0.15 MVP)",
+        "auth": "bearer (optional)",
+        "rate_limit_per_minute": 60,
+        "pii_masking": True,
     }
 
 
@@ -105,7 +116,13 @@ def _list_shared_memories(db: Path, *, owner_id: str | None = None, limit: int =
     return {"memories": [dict(r) for r in rows], "count": len(rows)}
 
 
-def make_handler(root: Path):
+def make_handler(root: Path, *,
+                  allowed_token_hashes: list[str] | None = None,
+                  rate_limiter: RateLimiter | None = None,
+                  mask_pii_on_export: bool = True):
+    token_hashes = allowed_token_hashes or []
+    limiter = rate_limiter
+
     class H(BaseHTTPRequestHandler):
         def _write_json(self, status: int, payload: dict):
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -115,22 +132,54 @@ def make_handler(root: Path):
             self.end_headers()
             self.wfile.write(body)
 
+        def _check_auth(self) -> tuple[bool, str]:
+            """返回 (allowed, token_key)。token_key 用于 rate limit 分桶。"""
+            if not token_hashes:
+                return True, "anonymous"  # 未配置 token → 开放
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                return False, "no_token"
+            token = auth[len("Bearer "):].strip()
+            if not token or not verify_token(token, token_hashes):
+                return False, "invalid_token"
+            return True, hash_token(token)[:12]
+
         def do_GET(self):
             parsed = urlparse(self.path)
             path = parsed.path
-            qs = parse_qs(parsed.query)
-            db = root / "db" / "main.sqlite3"
 
+            # capabilities 不需要鉴权（需暴露支持信息）
             if path == "/federation/v1/capabilities":
                 self._write_json(200, _capabilities())
                 return
+
+            # Auth
+            allowed, token_key = self._check_auth()
+            if not allowed:
+                self._write_json(401, {"error": "unauthorized", "reason": token_key})
+                return
+
+            # Rate limit
+            if limiter and not limiter.allow(token_key):
+                self._write_json(429, {
+                    "error": "rate_limited",
+                    "retry_after_seconds": int(limiter.window_seconds),
+                })
+                return
+
+            qs = parse_qs(parsed.query)
+            db = root / "db" / "main.sqlite3"
+
             if not db.exists():
                 self._write_json(503, {"error": "db not ready"})
                 return
 
             if path == "/federation/v1/persons":
                 limit = int(qs.get("limit", ["50"])[0])
-                self._write_json(200, _list_persons(db, limit=limit))
+                r = _list_persons(db, limit=limit)
+                if mask_pii_on_export:
+                    r["persons"] = [sanitize_record(p) for p in r["persons"]]
+                self._write_json(200, r)
                 return
             if path.startswith("/federation/v1/persons/"):
                 pid = path.rsplit("/", 1)[-1]
@@ -138,14 +187,20 @@ def make_handler(root: Path):
                 if p is None:
                     self._write_json(404, {"error": "person not found", "id": pid})
                 else:
+                    if not is_exportable(p):
+                        self._write_json(404, {"error": "not exportable"})
+                        return
+                    if mask_pii_on_export:
+                        p = sanitize_record(p)
                     self._write_json(200, p)
                 return
             if path == "/federation/v1/memories":
                 owner = qs.get("owner_id", [None])[0]
                 limit = int(qs.get("limit", ["50"])[0])
-                self._write_json(200, _list_shared_memories(
-                    db, owner_id=owner, limit=limit,
-                ))
+                r = _list_shared_memories(db, owner_id=owner, limit=limit)
+                if mask_pii_on_export:
+                    r["memories"] = [sanitize_record(m) for m in r["memories"]]
+                self._write_json(200, r)
                 return
 
             self._write_json(404, {"error": "not found", "path": path})
@@ -161,9 +216,24 @@ def main() -> int:
     ap.add_argument("--root", default=".")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=7781)
+    ap.add_argument("--disable-pii-mask", action="store_true")
     args = ap.parse_args()
     root = Path(args.root).resolve()
-    HTTPServer((args.host, args.port), make_handler(root)).serve_forever()
+
+    raw_tokens = os.environ.get("WE_TOGETHER_FED_TOKENS", "").strip()
+    allowed_hashes: list[str] = []
+    if raw_tokens:
+        for t in raw_tokens.split(","):
+            t = t.strip()
+            if t:
+                allowed_hashes.append(hash_token(t))
+
+    limiter = RateLimiter(max_per_minute=60)
+    handler = make_handler(
+        root, allowed_token_hashes=allowed_hashes,
+        rate_limiter=limiter, mask_pii_on_export=not args.disable_pii_mask,
+    )
+    HTTPServer((args.host, args.port), handler).serve_forever()
     return 0
 
 
