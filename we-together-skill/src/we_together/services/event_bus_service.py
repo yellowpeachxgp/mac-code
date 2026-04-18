@@ -6,7 +6,8 @@
   - 订阅者 drain_events(bus_dir, topic, handler, *, checkpoint_file) → 读未读行
   - checkpoint 以 sidecar 文件 {topic}.cursor 保存最后消费偏移
 
-这保证无共享网络时也能在一台机器上做多 skill 实例协同。
+Phase 22 扩展：加 NATSBackend / RedisStreamBackend 真后端（延迟 import）+
+publish/drain metrics 埋点。
 """
 from __future__ import annotations
 
@@ -36,6 +37,11 @@ def publish_event(bus_dir: Path, topic: str, payload: dict) -> str:
     }, ensure_ascii=False)
     with _topic_file(bus_dir, topic).open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+    try:
+        from we_together.observability.metrics import counter_inc
+        counter_inc("event_bus_published", labels={"topic": topic})
+    except Exception:
+        pass
     return event_id
 
 
@@ -68,6 +74,11 @@ def drain_events(
             processed += 1
     new_offset = start + processed
     cursor.write_text(str(new_offset))
+    try:
+        from we_together.observability.metrics import counter_inc
+        counter_inc("event_bus_drained", labels={"topic": topic}, value=float(processed))
+    except Exception:
+        pass
     return processed
 
 
@@ -98,7 +109,6 @@ class BusBackend:
 
 
 class LocalFileBackend:
-    """默认 backend：写本地 jsonl。等同上面的模块级函数。"""
     name = "local_file"
 
     def __init__(self, bus_dir: Path):
@@ -112,10 +122,6 @@ class LocalFileBackend:
 
 
 class NATSStubBackend:
-    """NATS stub：接口占位，真实实现延迟到有 nats-py 依赖时接入。
-
-    当前只记录 publish 调用，drain 返回 0。
-    """
     name = "nats_stub"
 
     def __init__(self, *, server_url: str | None = None):
@@ -127,4 +133,51 @@ class NATSStubBackend:
         return f"nats_stub_{len(self.published)}"
 
     def drain(self, topic: str, handler) -> int:
+        return 0
+
+
+class NATSBackend:
+    """NATS 真 backend：延迟 import nats-py。"""
+    name = "nats"
+
+    def __init__(self, *, server_url: str):
+        try:
+            import nats  # noqa: F401
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("nats-py 未安装: pip install nats-py") from exc
+        self.server_url = server_url
+
+    def publish(self, topic: str, payload: dict) -> str:  # pragma: no cover
+        import asyncio
+        import nats
+
+        async def _pub():
+            nc = await nats.connect(self.server_url)
+            await nc.publish(topic, json.dumps(payload).encode("utf-8"))
+            await nc.drain()
+        asyncio.run(_pub())
+        return f"nats_{topic}"
+
+    def drain(self, topic: str, handler) -> int:  # pragma: no cover
+        return 0
+
+
+class RedisStreamBackend:
+    """Redis Stream 真 backend：延迟 import redis。"""
+    name = "redis_stream"
+
+    def __init__(self, *, url: str):
+        try:
+            import redis  # noqa: F401
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("redis 未安装: pip install redis") from exc
+        self.url = url
+
+    def publish(self, topic: str, payload: dict) -> str:  # pragma: no cover
+        import redis
+        r = redis.Redis.from_url(self.url)
+        msg_id = r.xadd(f"wt.{topic}", {"payload": json.dumps(payload)})
+        return msg_id.decode("utf-8") if isinstance(msg_id, bytes) else str(msg_id)
+
+    def drain(self, topic: str, handler) -> int:  # pragma: no cover
         return 0
