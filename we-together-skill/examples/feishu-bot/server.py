@@ -1,7 +1,7 @@
 """飞书机器人 webhook server (stdlib 实现)。
 
 接收飞书 event webhook，经 feishu_adapter 转换为 SkillRequest，
-再走 chat_service.run_turn（本地 mock LLM 或真实 LLM provider）。
+调 chat_service.run_turn 做真实对话演化，回帖 LLM 回复。
 
 启动:
   python examples/feishu-bot/server.py --root ~/.we-together --scene-id <scene_id>
@@ -9,6 +9,7 @@
 
 环境变量:
   FEISHU_SIGNING_SECRET  飞书签名密钥（可选；设置后启用验签）
+  WE_TOGETHER_LLM_PROVIDER  mock / anthropic / openai_compat
 """
 from __future__ import annotations
 
@@ -22,12 +23,14 @@ from pathlib import Path
 # 让脚本能找到源码
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from we_together.llm import get_llm_client
 from we_together.runtime.adapters.feishu_adapter import (
     format_reply,
     parse_webhook_payload,
     verify_signature,
 )
 from we_together.runtime.skill_runtime import SkillResponse
+from we_together.services.chat_service import run_turn
 
 
 def _make_handler(*, db_path: Path, scene_id: str, secret: str | None):
@@ -59,11 +62,22 @@ def _make_handler(*, db_path: Path, scene_id: str, secret: str | None):
                 return
 
             req = parse_webhook_payload(raw, scene_id=scene_id)
-            # 这里只做 echo + 记录日志，实际调用留给外层 runtime 或 mock
-            resp = SkillResponse(
-                text=f"[we-together echo] 收到：{req.user_input}",
-                speaker_person_id=None,
-            )
+            # 真绑 chat_service.run_turn
+            try:
+                turn = run_turn(
+                    db_path=db_path,
+                    scene_id=scene_id,
+                    user_input=req.user_input,
+                    llm_client=get_llm_client(),
+                    adapter_name="openai_compat",
+                )
+                reply_text = turn.get("text") or turn.get("response_text") or ""
+                if not reply_text:
+                    reply_text = "[we-together] 收到但未产出回复"
+            except Exception as exc:
+                reply_text = f"[we-together error] {exc}"
+
+            resp = SkillResponse(text=reply_text, speaker_person_id=None)
             chat_id = (raw.get("message") or {}).get("chat_id", "")
             self._send(200, format_reply(resp, chat_id=chat_id))
 
@@ -89,13 +103,14 @@ def main() -> None:
     args = ap.parse_args()
     db_path = Path(args.root).resolve() / "db" / "main.sqlite3"
     secret = os.environ.get("FEISHU_SIGNING_SECRET")
+    provider = os.environ.get("WE_TOGETHER_LLM_PROVIDER", "mock")
 
     srv = HTTPServer(
         (args.host, args.port),
         _make_handler(db_path=db_path, scene_id=args.scene_id, secret=secret),
     )
-    print(f"feishu webhook listening on http://{args.host}:{args.port}  "
-          f"(signing={'on' if secret else 'off'})")
+    print(f"feishu webhook on http://{args.host}:{args.port}  "
+          f"(signing={'on' if secret else 'off'}, llm_provider={provider})")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
