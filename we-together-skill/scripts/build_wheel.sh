@@ -4,12 +4,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-python -m pip install --upgrade build twine
+# 优先用 .venv 中的 python，否则回退到 python3
+PY="${PYTHON:-}"
+if [ -z "$PY" ]; then
+  if [ -x ".venv/bin/python" ]; then
+    PY=".venv/bin/python"
+  else
+    PY="python3"
+  fi
+fi
 
-# 清理旧产物
+"$PY" -m pip install --upgrade build twine
+
 rm -rf dist build *.egg-info
 
-python -m build --sdist --wheel
+"$PY" -m build --sdist --wheel
 
 echo ""
 echo "产物："
@@ -17,7 +26,7 @@ ls -lh dist/
 
 echo ""
 echo "发布到 TestPyPI:"
-echo "  python -m twine upload --repository testpypi dist/*"
+echo "  $PY -m twine upload --repository testpypi dist/*"
 echo ""
 echo "发布到 PyPI（正式）:"
-echo "  python -m twine upload dist/*"
+echo "  $PY -m twine upload dist/*"

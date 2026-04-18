@@ -43,11 +43,14 @@ def run_turn(
     history: list[dict] | None = None,
     speaking_person_ids: list[str] | None = None,
     max_recent_changes: int | None = 5,
+    tools: list[dict] | None = None,
+    tool_dispatcher: dict | None = None,
+    max_tool_iters: int = 3,
 ) -> dict:
     """执行一轮完整对话：
     1) 拉取 retrieval_package
     2) 组装 SkillRequest
-    3) 通过 adapter + llm_client 生成回复
+    3) 通过 adapter + llm_client 生成回复（tools 非空时走 agent_runner tool-use loop）
     4) 把对话落盘（record + infer + apply）
     """
     # Phase 12 trace_id 注入
@@ -68,8 +71,23 @@ def run_turn(
         scene_id=scene_id,
         history=history,
     )
-    adapter = get_adapter(adapter_name)
-    response: SkillResponse = adapter.invoke(request, llm_client=llm_client)
+    if tools:
+        request.tools = list(tools)
+
+    agent_steps: list[dict] = []
+    agent_event_ids: list[str] = []
+    if tools and tool_dispatcher:
+        from we_together.runtime.agent_runner import run_tool_use_loop
+        agent_result = run_tool_use_loop(
+            request, llm_client=llm_client, tool_dispatcher=tool_dispatcher,
+            db_path=db_path, max_iters=max_tool_iters, adapter_name=adapter_name,
+        )
+        response: SkillResponse = agent_result.response
+        agent_steps = agent_result.steps
+        agent_event_ids = agent_result.event_ids
+    else:
+        adapter = get_adapter(adapter_name)
+        response = adapter.invoke(request, llm_client=llm_client)
 
     # 落图谱
     event_result = record_dialogue_event(
@@ -95,4 +113,6 @@ def run_turn(
         "event_id": event_result["event_id"],
         "snapshot_id": event_result["snapshot_id"],
         "applied_patch_count": len(patches),
+        "agent_steps": agent_steps,
+        "agent_event_ids": agent_event_ids,
     }
