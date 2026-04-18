@@ -208,6 +208,23 @@
 - ADR 0007 定稿 Phase 11 四个决策
 - 当前本地全量测试通过：268 passed
 
+## Phase 12 — 生产化硬化（Hardening，已完成）
+
+- observability/logger: stdlib + contextvars trace_id + JSON 格式（HD-1）
+- observability/metrics: 内存 counter/gauge + Prometheus 文本导出（HD-2）
+- config/loader: `we_together.toml` + env 两级合并，WeTogetherConfig dataclass（HD-3）
+- errors.py: WeTogetherError 六级层级（HD-4）
+- scripts/bench_large.py: 批量 person 插入 + 冷/热检索延迟 p50/p95（HD-5）
+- db/schema_version: bootstrap 预检漂移 → SchemaVersionError（HD-6）
+- services/patch_batch: apply_patches_bulk 顺序批处理（HD-8）
+- services/cache_warmer: warm_retrieval_cache 预热 active scenes（HD-9）
+- ADR 0008 定稿 Phase 12 九个决策
+- ADR 0009 综合架构总结 + 未来不变式（5 条）
+- docs/CHANGELOG.md 首版 + v0.8.0 条目
+- docs/superpowers/plans/2026-04-18-phase-8-12-mega-plan.md 归档
+- scripts/README.md CLI 索引
+- 当前本地全量测试通过：281 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
