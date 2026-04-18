@@ -4,13 +4,40 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "we-together"
-version = "0.1.0"
-description = "Skill-first social graph runtime"
+version = "0.9.0"
+description = "Skill-first social graph runtime — build and run a small digital society (scenes, events, memories, relations) that evolves over time."
+readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+  {name = "yellowpeach"},
+]
+keywords = ["skill", "social-graph", "llm", "anthropic", "openai", "knowledge-graph"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/yellowpeach/we-together-skill"
+Documentation = "https://github.com/yellowpeach/we-together-skill/tree/main/docs"
+Issues = "https://github.com/yellowpeach/we-together-skill/issues"
+
+[project.scripts]
+we-together = "we_together.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.10"]
+anthropic = ["anthropic>=0.34"]
+openai = ["openai>=1.40"]
+vision = ["anthropic>=0.34"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
