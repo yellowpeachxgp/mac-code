@@ -74,24 +74,15 @@ def clear_hooks() -> None:
 
 
 def _make_snapshot_after_tick(db_path: Path, tick_index: int) -> str | None:
-    from we_together.services.snapshot_service import build_snapshot
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        row = conn.execute(
-            "SELECT scene_id FROM scenes WHERE status='active' LIMIT 1",
-        ).fetchone()
-        if not row:
-            return None
-        scene_id = row["scene_id"]
-        snap = build_snapshot(conn, scene_id=scene_id)
         snap_id = f"snap_tick_{tick_index}_{int(datetime.now(UTC).timestamp())}"
         conn.execute(
-            """INSERT INTO snapshots(snapshot_id, scene_id, trigger_event_id,
-               patch_refs_json, summary, created_at)
-               VALUES(?, ?, NULL, ?, ?, datetime('now'))""",
-            (snap_id, scene_id, "[]",
-             f"tick {tick_index} auto-snapshot"),
+            """INSERT INTO snapshots(snapshot_id, based_on_snapshot_id,
+               trigger_event_id, summary, graph_hash, created_at)
+               VALUES(?, NULL, NULL, ?, NULL, datetime('now'))""",
+            (snap_id, f"tick {tick_index} auto-snapshot"),
         )
         conn.commit()
         return snap_id
