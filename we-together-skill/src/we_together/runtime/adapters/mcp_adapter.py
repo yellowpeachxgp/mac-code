@@ -63,6 +63,25 @@ WE_TOGETHER_MCP_TOOLS = [
             "properties": {"daily_budget": {"type": "integer", "default": 3}},
         },
     },
+    {
+        "name": "we_together_self_describe",
+        "description": "Describe the skill itself: ADRs / invariants / services / migrations counts.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "we_together_list_invariants",
+        "description": "List all invariants with their ADR refs and test coverage.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "we_together_check_invariant",
+        "description": "Show a single invariant by id (1..28+).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"invariant_id": {"type": "integer"}},
+            "required": ["invariant_id"],
+        },
+    },
 ]
 
 

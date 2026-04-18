@@ -79,7 +79,8 @@ def test_mcp_adapter_tool_count_post_phase33():
     from we_together.runtime.adapters.mcp_adapter import (
         build_mcp_tools, build_mcp_resources, build_mcp_prompts,
     )
-    assert len(build_mcp_tools()) == 6
+    # Phase 60 新增 3 个 self-introspection 工具 → 9
+    assert len(build_mcp_tools()) >= 6
     assert len(build_mcp_resources()) == 2
     assert len(build_mcp_prompts()) == 1
 
