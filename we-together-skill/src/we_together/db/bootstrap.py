@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 
 from we_together.db.migrator import run_migrations
+from we_together.db.schema_version import check_schema_version
 from we_together.db.seeds import load_seed_files
 
 RUNTIME_DIRS = [
@@ -52,6 +53,8 @@ def bootstrap_project(root: Path) -> None:
     _provision_bundled_assets(root)
     db_path = root / "db" / "main.sqlite3"
     migrations_dir = root / "db" / "migrations"
+    # 版本一致性预检：若 db 已存在且记录了本地缺失的 migration，立即报错
+    check_schema_version(db_path, migrations_dir)
     run_migrations(db_path, migrations_dir)
     seeds_dir = root / "db" / "seeds"
     load_seed_files(db_path, seeds_dir)
