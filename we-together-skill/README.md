@@ -193,6 +193,18 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：**521 passed**，ADR 0040-0045
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-38-43-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-38-43-mega-plan.md)
 
+### Phase 44-50（2026-04-19 v0.16.0 收尾）
+
+- **Plugin / Extension 架构**：`src/we_together/plugins/` 4 Protocol（Importer/Service/Provider/Hook）+ entry_points 发现 + `docs/plugins/authoring.md`（不变式 #23）
+- **图谱时间 + 自修复**：migration 0017 `graph_clock` / `services/graph_clock` (fallback datetime.now) / `integrity_audit` / `self_repair`（policy: report_only/propose/auto，仅 safe fix auto）/ `scripts/simulate_year.py`（不变式 #24）
+- **多 Agent REPL**：`services/multi_agent_dialogue`（互听 + 打断 + 私聊 + transcript→event）/ `scripts/multi_agent_chat.py`
+- **规模化 50-500 人**：`scripts/seed_society_m/l.py`，50 人 retrieval p95 < 1500ms 性能基线
+- **联邦安全 v1.1**：Bearer token + rate limit + PII 自动脱敏（email/phone mask）+ `is_exportable` visibility（不变式 #25）
+- **i18n + 时序观测**：`runtime/prompt_i18n` (zh/en/ja) / `observability/time_series_svg` SVG sparkline / `observability/webhook_alert`
+- 不变式 22 → **25**（#23 plugin registry / #24 graph_clock / #25 跨图谱出口 PII mask）
+- 当前本地全量测试通过：**594 passed**，ADR 0046-0052
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-44-50-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-44-50-mega-plan.md)
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)

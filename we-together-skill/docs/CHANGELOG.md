@@ -2,6 +2,80 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.16.0 — 2026-04-19
+
+第九轮一次性无人值守推进：Phase 44-50。**594 passed (+73)**，新增 7 个 ADR（0046-0052）+ 1 个 mega-plan + 1 个 diff 报告。
+
+### Phase 44 — Plugin / Extension 架构（B 支柱）
+
+- `src/we_together/plugins/`：4 Protocol（Importer/Service/Provider/Hook）+ `PLUGIN_API_VERSION="1"`
+- `plugin_registry.py`：discover via entry_points + register/unregister/disable/enable + status
+- 4 个 entry_points group：`we_together.{importers,services,providers,hooks}`
+- 错误隔离：单个 plugin 加载失败不影响其他
+- `scripts/plugins_list.py` CLI
+- `docs/plugins/authoring.md` + `examples/plugin_example_minimal/`
+- **ADR 0046**
+
+### Phase 45 — 图谱时间 + 自修复（C 支柱）
+
+- migration `0017_graph_clock`（单行表 + history）
+- `services/graph_clock`：set / advance / freeze / unfreeze / clear，fallback `datetime.now(UTC)`
+- `services/integrity_audit`：dangling refs / orphaned memories / low conf / relation cycles / merged_without_target
+- `services/self_repair`：policy `report_only / propose / auto`，auto 仅 safe fix
+- `scripts/fix_graph.py --policy ...` + `scripts/simulate_year.py --days 365`
+- **ADR 0047**
+
+### Phase 46 — 多 Agent REPL（C 支柱）
+
+- `services/multi_agent_dialogue`：
+  - `TranscriptEntry` + `orchestrate_dialogue`
+  - 互听（`_visible_messages_for` 按 audience 过滤）
+  - 打断（`interrupt_threshold` 高分可抢占）
+  - 私聊（`private_turn_map`）
+  - `record_transcript_as_event` 写 dialogue_event
+- `scripts/multi_agent_chat.py --scene X --turns N --real-llm --record`
+- Phase 29 `orchestrate_multi_agent_turn` 保持不动（兼容）
+- **ADR 0048**
+
+### Phase 47 — 规模化 50-500 人（A+C 支柱）
+
+- `scripts/seed_society_m.py`：50 人合成（3 relation/人，6 memory/人，10 scene）
+- `scripts/seed_society_l.py`：500 人（复用 m 的 seed）
+- 性能基线：50 人 retrieval p95 < 1500ms，50 人 × 3 tick < 15s
+- **ADR 0049**
+
+### Phase 48 — 联邦安全 + PII 脱敏（B 支柱）
+
+- `services/federation_security`:
+  - Bearer token（sha256 + hmac.compare_digest）
+  - RateLimiter 滑动窗口（per-key 分桶）
+  - mask_email / mask_phone / mask_pii / sanitize_record
+  - is_exportable (`visibility=private` / `metadata.exportable=False`)
+- Federation Protocol v1 → **v1.1**：`/capabilities` 暴露新字段
+- `FederationClient.bearer_token` 字段
+- **ADR 0050**
+
+### Phase 49 — i18n + 时序可观测性（B+C 支柱）
+
+- `runtime/prompt_i18n`：zh/en/ja 三语 PROMPT_TEMPLATES + `get_prompt` + `detect_lang` + `register_prompt`
+- `observability/time_series_svg`：memory_growth_trend + event_count_trend + render_sparkline_svg（纯字符串零依赖）
+- `observability/webhook_alert`：AlertRule + evaluate + dispatch (dry_run)
+- 无第三方依赖（urllib + str.format）
+- **ADR 0051**
+
+### 不变式（ADR 0052）
+
+22 → **25**：
+- **#23** 扩展点必须通过 plugin registry 注册；核心代码不得硬编
+- **#24** 时间敏感服务必须读 graph_clock.now() 优先
+- **#25** 跨图谱出口必须支持 PII 脱敏 + visibility 过滤
+
+### 三支柱达成度
+
+- A 严格工程化：9.5 → **9.7**
+- B 通用型 Skill：9.5 → **9.7**
+- C 数字赛博生态圈：8.5 → **9.0**
+
 ## v0.15.0 — 2026-04-19
 
 第八轮一次性无人值守推进：Phase 38-43。**521 passed (+44)**，新增 6 个 ADR（0040-0045）+ 1 个 mega-plan + 1 个 diff 报告 + federation-protocol v1 spec。

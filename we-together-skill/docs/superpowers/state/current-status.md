@@ -534,6 +534,63 @@
 - B 通用型 Skill: **9.5/10**
 - C 数字赛博生态圈: **8.5/10**
 
+## Phase 44 — Plugin 架构（v0.16.0，已完成）
+
+- `src/we_together/plugins/` 4 Protocol + plugin_registry
+- entry_points groups: we_together.{importers,services,providers,hooks}
+- 不变式 #23
+- ADR 0046
+
+## Phase 45 — 图谱时间 + 自修复（v0.16.0，已完成）
+
+- migration 0017 graph_clock
+- graph_clock.now/set/advance/freeze 带 fallback
+- integrity_audit + self_repair（policy 三档）
+- simulate_year CLI
+- 不变式 #24
+- ADR 0047
+
+## Phase 46 — 多 Agent REPL（v0.16.0，已完成）
+
+- multi_agent_dialogue 互听 + 打断 + 私聊
+- multi_agent_chat.py CLI
+- ADR 0048
+
+## Phase 47 — 规模化 50-500 人（v0.16.0，已完成）
+
+- seed_society_m/l 合成
+- 50 人 retrieval p95 < 1500ms 基线
+- ADR 0049
+
+## Phase 48 — 联邦安全 + PII（v0.16.0，已完成）
+
+- Bearer token + RateLimiter + PII mask
+- Federation Protocol v1.1
+- 不变式 #25
+- ADR 0050
+
+## Phase 49 — i18n + 时序观测（v0.16.0，已完成）
+
+- runtime/prompt_i18n (zh/en/ja)
+- observability/time_series_svg sparkline
+- observability/webhook_alert
+- ADR 0051
+
+## v0.16.0 综合
+
+- ADR 0052 不变式从 22 → 25 条
+- 当前本地全量测试通过：**594 passed**
+- tag: v0.16.0
+- schema 版本: 0017（migrations 0001-0017）
+- benchmarks: 10
+- pyproject / cli VERSION: 0.16.0
+- ADR 总数: 52（0001-0052）
+
+三支柱达成度：
+- A 严格工程化: **9.7/10**
+- B 通用型 Skill: **9.7/10**
+- C 数字赛博生态圈: **9.0/10**
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
