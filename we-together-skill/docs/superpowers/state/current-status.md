@@ -432,6 +432,54 @@
 - pyproject / cli VERSION: 0.13.0
 - ADR 总数: 33（0001-0033）
 
+## Phase 33 — 真 Skill 宿主（v0.14.0，已完成）
+
+- `runtime/skill_runtime`：加 `SKILL_SCHEMA_VERSION="1"` + `from_dict` 校验（不变式 #19）
+- `runtime/adapters/mcp_adapter`：tools 2→6，新增 resources + prompts
+- `scripts/mcp_server.py`：补齐 resources/read + prompts/get
+- `scripts/verify_skill_package.py` + `scripts/demo_openai_assistant.py`
+- ADR 0034 + 0035
+
+## Phase 34 — 持续演化 Tick 闭环（v0.14.0，已完成）
+
+- `services/time_simulator.py`：TickResult / TickBudget / run_tick / simulate / rollback
+- 每 tick 自动 snapshot（不变式 #20 tick 写入可回滚）
+- `services/tick_sanity.py`：check_growth / check_anomalies / evaluate
+- `scripts/simulate_week.py` CLI
+- ADR 0036
+
+## Phase 35 — 媒体资产落盘（v0.14.0，已完成）
+
+- migration 0015 media_assets + media_refs
+- `services/media_asset_service`：register / list / link / filter_by_visibility (hash dedup)
+- `services/ocr_service`：ocr_to_memory / transcribe_to_event
+- `scripts/import_image.py`
+- benchmark: multimodal_retrieval_groundtruth.json
+- ADR 0037
+
+## Phase 36 — 规模化 & 债务清理（v0.14.0，已完成）
+
+- service inventory（60+ 服务，无 dead）
+- migration audit（15 条，3 低热全保留）
+- VectorIndex backend 扩展到 sqlite_vec / faiss stub（延迟 import）
+- `scripts/bench_scale.py` 10k+ 压测
+- ADR 0038
+
+## v0.14.0 综合
+
+- ADR 0039 不变式从 18 → 20 条
+- 当前本地全量测试通过：**477 passed**
+- tag: v0.14.0
+- schema 版本: 0015（migrations 0001-0015）
+- benchmarks: 9（+ multimodal_retrieval_groundtruth）
+- pyproject / cli VERSION: 0.14.0
+- ADR 总数: 39（0001-0039）
+
+三支柱达成度：
+- A 严格工程化: 9.5/10
+- B 通用型 Skill: 8/10
+- C 数字赛博生态圈: 7/10
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）

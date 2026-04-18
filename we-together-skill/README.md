@@ -172,6 +172,16 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：**436 passed**，ADR 0028-0033
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-28-32-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-28-32-mega-plan.md)
 
+### Phase 33-37（2026-04-19 v0.14.0 收尾）
+
+- **真 Skill 宿主（B 支柱提至 8/10）**：SkillRuntime v1 schema 冻结（`SKILL_SCHEMA_VERSION="1"` + `from_dict` 校验）/ MCP server 补齐 resources + prompts 全协议 / OpenAI Assistants demo / verify_skill_package
+- **持续演化 Tick 闭环（C 支柱提至 7/10）**：`time_simulator.run_tick / simulate` 编排 decay + drift + proactive + self_activation / tick 后自动 snapshot（不变式 #20）/ `tick_sanity.evaluate` 合理性 / `simulate_week.py` CLI
+- **媒体资产落盘**：migration 0015 `media_assets` + `media_refs` / `media_asset_service` hash dedup + visibility / `ocr_service.ocr_to_memory + transcribe_to_event` / `import_image.py` CLI
+- **规模化 & 债务清理**：service-inventory（60+ 服务审计，3 条 recall / 3 条 relation 职责不重叠）/ migration-audit / VectorIndex 扩展 `sqlite_vec / faiss` 延迟 import / `bench_scale.py` 10k+ 压测
+- 不变式 18 → **20**（新增 #19 schema 版本化 / #20 tick 可回滚）
+- 当前本地全量测试通过：**477 passed**，ADR 0034-0039
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-33-37-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-33-37-mega-plan.md)
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)

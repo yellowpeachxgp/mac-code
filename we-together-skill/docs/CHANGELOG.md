@@ -2,6 +2,59 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.14.0 — 2026-04-19
+
+第七轮一次性无人值守推进：Phase 33-37。**477 passed (+41)**，新增 6 个 ADR（0034-0039）+ 1 个 mega-plan + 1 个 diff 报告 + 2 个 audit 文档。
+
+### Phase 33 — 真 Skill 宿主
+
+- `runtime/skill_runtime.SkillRequest/Response` 加 `schema_version="1"` + `from_dict` 校验
+- **ADR 0034**：SkillRuntime v1 schema 冻结（不变式 #19）
+- `runtime/adapters/mcp_adapter`：tools 2 → 6（+ scene_list/snapshot_list/import_narration/proactive_scan），新增 `build_mcp_resources` / `build_mcp_prompts`
+- `scripts/mcp_server.py`：补齐 resources/list + resources/read + prompts/list + prompts/get
+- `scripts/verify_skill_package.py` 解包 zip smoke
+- `scripts/demo_openai_assistant.py` MCP → OpenAI function schema
+- **ADR 0035**：真 Skill 宿主落地
+
+### Phase 34 — 持续演化 Tick 闭环
+
+- `services/time_simulator.py`：TickResult / TickBudget / run_tick / simulate / rollback_to_tick
+- 编排 `state_decay` / `relation_drift` / `proactive_scan` / `self_activation` 到一次 tick
+- 每 tick 后自动 snapshot（**不变式 #20**：tick 写入可回滚至任一时间点）
+- `register_before/after_hook` 给 observability
+- `services/tick_sanity.py`：check_growth / check_anomalies / evaluate
+- `scripts/simulate_week.py --ticks 7 --budget 30` CLI
+- **ADR 0036**
+
+### Phase 35 — 媒体资产落盘
+
+- migration `0015_media_assets` + `media_refs`
+- `services/media_asset_service`：register (hash dedup) / list_by_owner / list_by_scene / link_to_memory / link_to_event / filter_by_visibility
+- `services/ocr_service`：`ocr_to_memory` (vision → media + memory) / `transcribe_to_event` (audio → media + event)
+- `scripts/import_image.py` 单图 OCR 导入
+- `benchmarks/multimodal_retrieval_groundtruth.json` v1
+- **ADR 0037**
+
+### Phase 36 — 规模化 & 债务清理
+
+- `docs/superpowers/state/2026-04-19-service-inventory.md`：60+ 服务审计，确认无 dead，3 条 recall / 3 条 relation 职责不重叠
+- `docs/superpowers/state/2026-04-19-migration-audit.md`：15 条 migration 写/读路径
+- `services/vector_index`：`SUPPORTED_BACKENDS = {auto, flat_python, sqlite_vec, faiss}` + `_require_*` 延迟 import
+- `scripts/bench_scale.py`：10k+ 合成 memory 压测
+- **ADR 0038**
+
+### 不变式（ADR 0039）
+
+18 条 → **20 条**：
+- **#19** SkillRuntime schema 必须版本化（破坏性变更需 v2）
+- **#20** tick 写入必须能回滚至任一时间点
+
+### 三支柱达成度
+
+- A 严格工程化：9 → **9.5**
+- B 通用型 Skill：6 → **8**
+- C 数字赛博生态圈：5 → **7**
+
 ## v0.13.0 — 2026-04-19
 
 第六轮一次性无人值守推进：Phase 28-32。**436 passed (+26)**，新增 6 个 ADR（0028-0033）+ 1 个 mega-plan + 1 个 diff 报告。
