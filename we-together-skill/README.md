@@ -154,6 +154,14 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：392 passed
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0020-0023 + 联邦 RFC
 
+### Phase 25-27（2026-04-19 v0.12.0 收尾）
+
+- **真 LLM 集成**：Anthropic/OpenAI `chat_with_tools` 原生 tool_use / `chat_stream` 流式；agent_runner 自动切 native；observability llm_hooks
+- **向量化图谱**：`EmbeddingClient` Protocol + OpenAI / sentence-transformers；migration 0013 embedding 三表；`vector_similarity` 纯 Python cosine/top_k；`associate_by_embedding` 替代 LLM stub；`embed_backfill` CLI
+- **规模与真生产**：v0.12.0 wheel 隔离验证；`.github/workflows/publish.yml` tag-push 自动发 PyPI；WAL 模式；Coverage 首版 **90%**；optional extras 扩展（embedding/nats/redis）
+- 当前本地全量测试通过：**410 passed**，Coverage 90%
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0024-0027
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)

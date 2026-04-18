@@ -344,6 +344,42 @@
 - tag: v0.11.0
 - schema 版本: 0012（migrations 0001-0012）
 - benchmarks: 6（未增）
+
+## Phase 25 — 真 LLM 集成（v0.12.0，已完成）
+
+- LLMClient 新增 chat_with_tools / chat_stream 两方法（Mock+Anthropic+OpenAI）
+- agent_runner 优先 native tool_use；Mock 仅在 scripted_tool_uses 非空时切 native
+- chat_service.run_turn_stream 流式版
+- observability/llm_hooks: register_hook + timed_call + LangSmithStubSink
+- ADR 0024
+
+## Phase 26 — 向量化图谱（v0.12.0，已完成）
+
+- llm/providers/embedding: EmbeddingClient Protocol + Mock + OpenAI + sentence-transformers
+- migration 0013 memory/event/person_embeddings
+- services/vector_similarity: encode/decode BLOB + cosine + top_k
+- services/embedding_recall.associate_by_embedding
+- scripts/embed_backfill.py
+- benchmarks/embedding_retrieval_groundtruth.json + eval 链路
+- ADR 0025
+
+## Phase 27 — 规模与真生产（v0.12.0，已完成）
+
+- pyproject + cli VERSION 0.11.0 → 0.12.0；wheel 隔离验证通过
+- .github/workflows/publish.yml tag-push 自动发布
+- .coveragerc + pytest-cov；Coverage 基线 90%
+- WAL 模式（bootstrap 时 PRAGMA journal_mode=WAL）
+- optional extras: [embedding][nats][redis]
+- docs/release_notes_template.md + publish.md 完整流程
+- ADR 0026
+
+## v0.12.0 综合
+
+- ADR 0027 不变式从 14 → 16 条
+- 当前本地全量测试通过：**410 passed**，Coverage 90%
+- tag: v0.12.0
+- schema 版本: 0013（migrations 0001-0013）
+- benchmarks: 7（+ embedding_retrieval）
 - pyproject / cli VERSION: 0.11.0
 
 下一步建议：
