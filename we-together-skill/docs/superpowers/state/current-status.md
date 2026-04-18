@@ -263,6 +263,50 @@
 - ADR 0013 定稿 Phase 17 teaser 四个决策
 - 当前本地全量测试通过：309 passed
 
+## Phase 18 — 生态对接真实化（v0.10.0，已完成）
+
+- MCP stdio server + Claude Code 接入指南
+- 飞书 bot 绑真实 chat_service.run_turn（含签名校验）
+- PyPI 发布工程（MANIFEST.in / build_wheel.sh / publish.md）
+- Docker CI workflow
+- Obsidian md 双向（importer + exporter）
+- ADR 0015
+
+## Phase 19 — 多模态深化（v0.10.0，已完成）
+
+- AudioTranscriber Protocol + Mock/Whisper stub
+- audio / video / document(PDF+DOCX) / screenshot_series importer
+- pHash + audio fingerprint + 汉明距离近似去重
+- multimodal benchmark 占位
+- ADR 0016
+
+## Phase 20 — 社会模拟完整版（v0.10.0，已完成）
+
+- simulation/conflict_predictor (SM-2)
+- simulation/scene_scripter (SM-3)
+- services/retire_person_service (SM-4)
+- simulation/era_evolution.simulate_era (SM-5)
+- scripts/simulate.py 合一 CLI
+- ADR 0017
+
+## Phase 21 — Eval 扩展（v0.10.0，已完成）
+
+- eval/condenser_eval + eval/persona_drift_eval
+- benchmark 扩至 6 个（society_c/d/work + condense + persona_drift + multimodal）
+- ADR 0018
+
+## v0.9.1 热修（已完成）
+
+- eval groundtruth core_type 对齐 seed_society_c（`work/intimacy/friendship/family/authority`）
+- what-if mock fallback + mock_mode 字段
+- eval/baseline.json 首版真实基线
+
+## Phase 18-21 综合
+
+- ADR 0019 不变式从 10 → 12 条
+- 当前本地全量测试通过：349 passed
+- tag: v0.9.1, v0.10.0
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
