@@ -244,6 +244,25 @@
 - ADR 0011 定稿 Phase 14 六个决策
 - 当前本地全量测试通过：298 passed
 
+## Phase 15 — 时间维度（Timeline，已完成）
+
+- migration 0009 persona_history + 0010 event_causality
+- services/persona_history_service：record / query / as_of
+- persona_drift_service 整合 history 写入
+- services/relation_history_service：按 day/week/month bucket 聚合 patches 中 strength 时序
+- services/event_causality_service：LLM 推理事件因果边
+- runtime_retrieval 新增 `as_of` 参数（过滤 recent_changes，跳过 cache）
+- services/memory_recall_service：anniversary 30/90/180/365 天高置信 memory 自动回忆
+- scripts/timeline.py + relation_timeline.py 两个时间视图 CLI
+- ADR 0012 定稿 Phase 15 七个决策
+
+## Phase 17 — What-if Teaser（单切片）
+
+- src/we_together/simulation/what_if_service.simulate_what_if：纯读取 + LLM 推演，不改图谱
+- scripts/what_if.py CLI
+- ADR 0013 定稿 Phase 17 teaser 四个决策
+- 当前本地全量测试通过：309 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
