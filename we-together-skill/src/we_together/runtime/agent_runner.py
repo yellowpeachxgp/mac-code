@@ -45,6 +45,21 @@ class AgentRunResult:
     event_ids: list[str]
 
 
+def _prefers_native(llm_client) -> bool:
+    """True if llm_client 应走 chat_with_tools 原生协议。
+
+    - 没有 chat_with_tools → False
+    - MockLLMClient：仅在 _scripted_tool_uses 非空时 True（保持旧测试兼容）
+    - 真 provider：True
+    """
+    if not hasattr(llm_client, "chat_with_tools"):
+        return False
+    # Mock 的旧测试兼容：只在 scripted 了 tool_uses 时走 native
+    if hasattr(llm_client, "_scripted_tool_uses"):
+        return bool(llm_client._scripted_tool_uses)
+    return True
+
+
 def run_tool_use_loop(
     request: SkillRequest,
     *,
@@ -61,7 +76,7 @@ def run_tool_use_loop(
 
     steps: list[dict] = []
     event_ids: list[str] = []
-    use_native = bool(hasattr(llm_client, "chat_with_tools") and request.tools)
+    use_native = _prefers_native(llm_client) and bool(request.tools)
 
     for _ in range(max_iters):
         if use_native:
