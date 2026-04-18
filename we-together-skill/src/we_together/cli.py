@@ -56,6 +56,10 @@ SCRIPT_MAP = {
     "record-dialogue": "record_dialogue.py",
     "extract-facets": "extract_facets.py",
     "chat": "chat.py",
+    # Phase 18+
+    "mcp-server": "mcp_server.py",
+    "import-audio": "import_audio.py",
+    "simulate": "simulate.py",
 }
 
 
