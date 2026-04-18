@@ -122,6 +122,16 @@ Phase 4-7 追加能力（本阶段新增）：
 - Society C demo 数据集（seed_demo.py）
 - 当前本地全量测试通过：201 passed
 
+### Phase 8-12（2026-04-18 v0.8.0 收尾）
+
+- 图谱活化：多场景并发激活 / 记忆凝练 / persona drift / 自发 pair 交互 / 跨场景 echo / 冷记忆归档
+- 宿主生态：`SkillRequest.tools` + agent loop + `.weskill.zip` 打包 + 4 个新 adapter（飞书 / LangChain / Coze / MCP）
+- 真实世界：iMessage / 微信 db / MBOX / VLM image / 社交 JSON importer + evidence 去重
+- 联邦：`external_person_refs` migration 0008 + 本地事件总线 + 裁决 mini-console + 多租户路由
+- 硬化：结构化日志 + Prometheus metrics + toml 配置 + schema 漂移检测 + `bench_large.py`
+- 当前本地全量测试通过：281 passed
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0004-0009
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)
