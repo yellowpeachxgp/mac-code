@@ -146,6 +146,14 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：349 passed
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0015-0019
 
+### Phase 22-24（2026-04-19 v0.11.0 收尾）
+
+- **联邦与互操作**：federation_fetcher（真拉远端） / NATS+Redis 事件总线真后端 / hot_reload 骨架 / CSV+Notion+Signal 迁移 importer / canonical JSON 图谱导入导出 / 联邦协议 RFC
+- **真集成 + 生产级**：tests/integration/ 端到端真跑链 / agent_runner tool_use 真多轮循环 / chat_service 支持 tools 参数 / StreamingSkillResponse / wheel 隔离安装验证 / 完整 CI workflow + pre-commit
+- **图谱叙事深度**：migration 0011 narrative_arcs + 0012 perceived_memory / narrative_service LLM 聚合章节 / perceived_memory 多视角 / graph_analytics（度/密度/孤立） / associative_recall stub / narrate + analyze CLI
+- 当前本地全量测试通过：392 passed
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0020-0023 + 联邦 RFC
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)
