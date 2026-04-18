@@ -236,6 +236,14 @@
 - ADR 0010 定稿 Phase 13 五个决策
 - 当前本地全量测试通过：288 passed
 
+## Phase 14 — 评估与质量（已完成）
+
+- benchmarks/society_c_groundtruth.json（8 人 / 4 期望关系 / 3 期望场景）
+- src/we_together/eval/：groundtruth_loader / metrics / relation_inference / llm_judge / regression
+- scripts/eval_relation.py + --save-baseline + --baseline 回归门禁（exit 3 on regression）
+- ADR 0011 定稿 Phase 14 六个决策
+- 当前本地全量测试通过：298 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
