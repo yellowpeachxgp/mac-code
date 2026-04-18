@@ -46,9 +46,35 @@ def cluster_memories(
     *,
     min_cluster_size: int = 2,
     owner_overlap_threshold: float = 0.5,
+    use_embedding: bool = False,
+    embedding_similarity_threshold: float = 0.75,
 ) -> list[dict]:
+    """聚类 memories。
+
+    - use_embedding=False（默认）：按 memory_type + owner Jaccard union-find
+    - use_embedding=True：要求 memory_embeddings 存在；按 cosine >= threshold union-find
+    """
     conn = connect(db_path)
     conn.row_factory = sqlite3.Row
+
+    if use_embedding:
+        # 检查 embedding 是否可用
+        try:
+            emb_rows = conn.execute(
+                "SELECT memory_id, vec FROM memory_embeddings"
+            ).fetchall()
+            emb_map: dict[str, list[float]] = {}
+            from we_together.services.vector_similarity import (
+                cosine_similarity, decode_vec,
+            )
+            for r in emb_rows:
+                emb_map[r["memory_id"]] = decode_vec(r["vec"])
+        except Exception:
+            emb_map = {}
+        if not emb_map:
+            # fallback Jaccard
+            use_embedding = False
+
     mem_rows = conn.execute(
         "SELECT memory_id, memory_type FROM memories WHERE status = 'active'"
     ).fetchall()
@@ -70,11 +96,24 @@ def cluster_memories(
     for mtype, mids in by_type.items():
         dsu = _DSU(mids)
         for i, a in enumerate(mids):
-            owners_a = owners_by_mid.get(a, set())
+            if use_embedding:
+                va = emb_map.get(a)
+                if va is None:
+                    continue
+            else:
+                owners_a = owners_by_mid.get(a, set())
             for b in mids[i + 1:]:
-                owners_b = owners_by_mid.get(b, set())
-                if _jaccard(owners_a, owners_b) >= owner_overlap_threshold:
-                    dsu.union(a, b)
+                if use_embedding:
+                    vb = emb_map.get(b)
+                    if vb is None:
+                        continue
+                    from we_together.services.vector_similarity import cosine_similarity
+                    if cosine_similarity(va, vb) >= embedding_similarity_threshold:
+                        dsu.union(a, b)
+                else:
+                    owners_b = owners_by_mid.get(b, set())
+                    if _jaccard(owners_a, owners_b) >= owner_overlap_threshold:
+                        dsu.union(a, b)
         groups: dict[str, list[str]] = {}
         for mid in mids:
             groups.setdefault(dsu.find(mid), []).append(mid)
@@ -91,6 +130,7 @@ def cluster_memories(
                 "memory_ids": members,
                 "owner_ids": sorted(owners_union),
                 "size": len(members),
+                "method": "embedding" if use_embedding else "jaccard",
             })
 
     return results

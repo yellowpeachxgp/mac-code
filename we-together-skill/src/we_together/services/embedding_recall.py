@@ -20,12 +20,28 @@ def associate_by_embedding(
     embedding_client,
     top_k: int = 5,
     model_filter: str | None = None,
+    filter_person_ids: list[str] | None = None,
 ) -> dict:
     if embedding_client is None:
         return {"associated": [], "seed": seed_text,
                  "reason": "no_embedding_client"}
 
     query_vec = embedding_client.embed([seed_text])[0]
+
+    # 层级检索：过滤 person_ids 时走 hierarchical_query
+    if filter_person_ids:
+        from we_together.services.vector_index import VectorIndex
+        top = VectorIndex.hierarchical_query(
+            db_path, query_vec, target="memory",
+            filter_person_ids=filter_person_ids, k=top_k,
+        )
+        return {
+            "associated": [mid for mid, _ in top],
+            "scores": [round(s, 4) for _, s in top],
+            "seed": seed_text,
+            "mode": "hierarchical",
+        }
+
     conn = connect(db_path)
     conn.row_factory = sqlite3.Row
     if model_filter:

@@ -954,6 +954,8 @@ def build_runtime_retrieval_package_from_db(
     max_recent_changes: int | None = 5,
     debug_scores: bool = False,
     as_of: str | None = None,
+    query_text: str | None = None,
+    embedding_client=None,
 ) -> dict:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -1021,6 +1023,33 @@ def build_runtime_retrieval_package_from_db(
         scene_type=scene["scene_type"],
         debug_scores=debug_scores,
     )
+    # Phase 28 VI-2: 若提供 query_text + embedding_client，按向量相似度重排
+    if query_text and embedding_client is not None and relevant_memories:
+        try:
+            from we_together.services.vector_similarity import cosine_similarity, decode_vec
+            query_vec = embedding_client.embed([query_text])[0]
+            mem_ids = [m["memory_id"] for m in relevant_memories]
+            placeholders = ",".join("?" for _ in mem_ids)
+            emb_rows = conn.execute(
+                f"SELECT memory_id, vec FROM memory_embeddings WHERE memory_id IN ({placeholders})",
+                tuple(mem_ids),
+            ).fetchall()
+            emb_map = {r["memory_id"]: decode_vec(r["vec"]) for r in emb_rows}
+            if emb_map:
+                rescored = []
+                for m in relevant_memories:
+                    vec = emb_map.get(m["memory_id"])
+                    sim = cosine_similarity(query_vec, vec) if vec else 0.0
+                    # 混合分：原 composite + 0.5 * sim
+                    boosted = m.get("composite_score", 0) + 0.5 * sim
+                    m2 = dict(m)
+                    m2["query_similarity"] = round(sim, 4)
+                    m2["boosted_score"] = round(boosted, 4)
+                    rescored.append((boosted, m2))
+                rescored.sort(key=lambda x: x[0], reverse=True)
+                relevant_memories = [m for _, m in rescored]
+        except Exception:
+            pass
     relation_ids = [item["relation_id"] for item in active_relations]
     open_branches = _fetch_open_local_branches(
         conn,
