@@ -307,6 +307,45 @@
 - 当前本地全量测试通过：349 passed
 - tag: v0.9.1, v0.10.0
 
+## Phase 22 — 联邦与互操作（v0.11.0，已完成）
+
+- services/federation_fetcher: LocalFileBackend + HTTPBackend + TTL cache + eager retrieval 注入
+- event_bus: NATSBackend / RedisStreamBackend（延迟 import）+ metrics 埋点
+- services/hot_reload: ReloadRegistry + poll_file_mtime
+- importers/migration: CSV / Notion export / Signal export（CSV 1000 行 < 1s）
+- services/graph_serializer: canonical JSON schema v1 round-trip
+- docs/superpowers/specs/2026-04-19-federation-protocol.md RFC draft
+- ADR 0020
+
+## Phase 23 — 真集成与生产级（v0.11.0，已完成）
+
+- tests/integration/test_full_flow.py: 6 个端到端真跑链
+- runtime/agent_runner.run_tool_use_loop: tool-use 多轮 + events 落库 + 错误路径
+- chat_service.run_turn 加 tools + tool_dispatcher
+- runtime/streaming.StreamingSkillResponse
+- scripts/build_wheel.sh: 隔离 venv 安装 we_together-0.11.0 验证通过
+- .github/workflows/ci.yml + .pre-commit-config.yaml
+- ADR 0021
+
+## Phase 24 — 图谱叙事深度（v0.11.0，已完成）
+
+- migration 0011 narrative_arcs + 0012 perceived_memory
+- services/narrative_service: LLM aggregate events → chapters
+- services/perceived_memory_service: 多视角记忆
+- services/graph_analytics: degree / density / isolated / full_report
+- services/associative_recall: LLM 主题联想触发 stub
+- scripts/narrate.py + scripts/analyze.py
+- ADR 0022
+
+## v0.11.0 综合
+
+- ADR 0023 不变式从 12 → 14 条
+- 当前本地全量测试通过：392 passed
+- tag: v0.11.0
+- schema 版本: 0012（migrations 0001-0012）
+- benchmarks: 6（未增）
+- pyproject / cli VERSION: 0.11.0
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）

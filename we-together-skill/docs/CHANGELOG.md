@@ -2,6 +2,48 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.11.0 — 2026-04-19
+
+第四轮一次性无人值守推进：Phase 22-24。392 passed (+43)，新增 4 个 ADR（0020-0023）+ 1 个 spec RFC。
+
+### Phase 22 — 联邦与互操作
+
+- `services/federation_fetcher`: LocalFileBackend + HTTPBackend + TTL cache + eager 注入
+- `event_bus_service`: 加 NATSBackend + RedisStreamBackend（延迟 import）+ metrics 埋点
+- `services/hot_reload`: ReloadRegistry + poll_file_mtime
+- `importers/migration_importer`: CSV / Notion export / Signal export
+- `services/graph_serializer`: canonical JSON schema v1 + round-trip
+- `docs/superpowers/specs/federation-protocol.md` RFC draft
+
+### Phase 23 — 真集成与生产级
+
+- `tests/integration/test_full_flow.py` 端到端 6 个测试
+- `runtime/agent_runner.run_tool_use_loop` 真 tool-use 多轮
+- `chat_service.run_turn` 加 tools / tool_dispatcher 参数
+- `runtime/streaming.StreamingSkillResponse`
+- wheel 隔离安装验证（we_together-0.11.0）
+- `.github/workflows/ci.yml` + `.pre-commit-config.yaml`
+
+### Phase 24 — 图谱叙事深度
+
+- migration 0011 narrative_arcs + 0012 perceived_memory
+- `services/narrative_service` / `perceived_memory_service` / `graph_analytics` / `associative_recall`
+- `scripts/narrate.py` + `scripts/analyze.py`
+
+### 基础设施
+
+- pyproject / cli VERSION 0.9.0 → 0.11.0
+- MANIFEST.in + include-package-data
+
+### ADR 新增
+
+- 0020: Phase 22 联邦与互操作
+- 0021: Phase 23 真集成与生产级
+- 0022: Phase 24 图谱叙事深度
+- 0023: Phase 22-24 综合 + 不变式扩展至 14 条
+
+---
+
 ## v0.10.0 — 2026-04-19
 
 第三轮一次性无人值守推进：Phase 18-21。349 passed (+31)，新增 5 个 ADR（0015-0019）。
