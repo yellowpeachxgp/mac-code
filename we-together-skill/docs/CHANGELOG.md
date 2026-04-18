@@ -2,6 +2,70 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.13.0 — 2026-04-19
+
+第六轮一次性无人值守推进：Phase 28-32。**436 passed (+26)**，新增 6 个 ADR（0028-0033）+ 1 个 mega-plan + 1 个 diff 报告。
+
+### Phase 28 — 向量索引 & 规模化
+
+- `services/vector_index.VectorIndex`：flat_python backend + `search_with_filter(person_ids)` 层级查询
+- `services/embedding_cache.EmbeddingLRUCache`：批级 dedup + hit/miss 计数
+- `db/backends.py`：SQLiteBackend + PGBackend（延迟 import psycopg）
+- `runtime/sqlite_retrieval`：+ `query_text` / `embedding_client` 参数 → embedding rerank
+- `services/embedding_recall`：+ `filter_person_ids` → 层级路径
+- `services/memory_cluster_service`：+ `use_embedding=True/False`，Jaccard fallback
+- `services/event_bus_service.NATSBackend.drain` 真实现（subscribe + asyncio timeout）
+
+### Phase 29 — 多智能体社会
+
+- `agents/person_agent.PersonAgent`：`from_db` / `speak` / `decide_speak`，按 `is_shared` + `owner_id` 分离 private vs shared memory
+- `agents/turn_taking`：`next_speaker(agents, activation_map, turn_state)` + `orchestrate_multi_agent_turn(agents, ..., turns)`
+- 不引入新表；多 agent 共享底层图谱真理（不变式 #17）
+
+### Phase 30 — 主动图谱
+
+- migration `0014_proactive_prefs`：mute / consent 偏好表
+- `services/proactive_prefs`：`set_mute / set_consent / is_allowed`
+- `services/proactive_agent`：
+  - `Trigger` dataclass + 三类扫描：`scan_anniversary_triggers / scan_silence_triggers / scan_all_triggers`
+  - `ProactiveIntent` + `generate_intent` (LLM JSON) + `execute_intent` (写 `proactive_intent_event`)
+  - `check_budget(daily_budget)` + `proactive_scan` 一键串
+- 主动写入必须经预算 + 偏好门控（不变式 #18）
+
+### Phase 31 — 元认知（矛盾检测）
+
+- `services/contradiction_detector`：
+  - `find_candidate_pairs(similarity_min)` 用 embedding cosine 配对
+  - `judge_contradiction(a, b, llm_client)` LLM JSON 判定
+  - `detect_contradictions` 整合，**只读不写**
+- `eval/contradiction_eval.run_contradiction_eval` 输出 `tp/fp/tn/fn/precision/recall`
+- `benchmarks/contradiction_groundtruth.json` v1，3 对 groundtruth
+
+### Phase 32 — 多模态原生（teaser）
+
+- `llm/providers/multimodal_embedding`：
+  - `MultimodalEmbeddingClient` Protocol（共享 dim 的 text/image embedding）
+  - `MockMultimodalClient`（sha256 hash → 确定性向量）
+  - `CLIPStubClient`（延迟 import transformers，缺包 raise）
+- `cross_modal_similarity(query, candidates, k)` 跨模态 top-k
+- 不写图谱，仅骨架；真接入留 v0.14（需 media_assets 迁移）
+
+### 不变式
+
+ADR 0027 16 条 → 18 条（参见 ADR 0033）：
+- **#17** 多 agent 共享底层图谱真理
+- **#18** 主动写入必须经预算 + 偏好门控
+
+## v0.12.0 — 2026-04-19
+
+第五轮：Phase 25-27（真 LLM / embedding 向量化 / 真生产化）。**410 passed (+18)**，新增 4 个 ADR（0024-0027）。
+
+- 真 LLM streaming + tool_use loop（Anthropic / OpenAI 双适配器）
+- EmbeddingClient Protocol + Mock + sentence-transformers extra
+- migration `0013` memory_embeddings BLOB float32 + cosine 检索
+- pyproject extras 矩阵 + ci.yml + pre-commit + coverage 90%
+- ADR 0024 真 LLM / 0025 embedding / 0026 production / 0027 综合 + 不变式 14 → 16 条
+
 ## v0.11.0 — 2026-04-19
 
 第四轮一次性无人值守推进：Phase 22-24。392 passed (+43)，新增 4 个 ADR（0020-0023）+ 1 个 spec RFC。

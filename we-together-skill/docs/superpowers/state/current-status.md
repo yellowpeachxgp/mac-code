@@ -382,6 +382,56 @@
 - benchmarks: 7（+ embedding_retrieval）
 - pyproject / cli VERSION: 0.11.0
 
+## Phase 28 — 向量索引 & 规模化（v0.13.0，已完成）
+
+- `services/vector_index.VectorIndex(flat_python)` + `search_with_filter(person_ids)` 层级查询
+- `services/embedding_cache.EmbeddingLRUCache` 批级 dedup + hit/miss 计数
+- `db/backends.py` SQLiteBackend + PGBackend (延迟 import psycopg)
+- `runtime/sqlite_retrieval` 接 `query_text + embedding_client` → embedding rerank
+- `services/embedding_recall` 加 `filter_person_ids` → 层级路径
+- `services/memory_cluster_service` 加 `use_embedding=True/False`，Jaccard fallback
+- `event_bus_service.NATSBackend.drain` 真实现（subscribe + asyncio timeout）
+- ADR 0028
+
+## Phase 29 — 多智能体社会（v0.13.0，已完成）
+
+- `agents/PersonAgent.from_db / speak / decide_speak`
+- `agents/turn_taking.next_speaker + orchestrate_multi_agent_turn`
+- 按 `is_shared + owner_id` 过滤 private vs shared memory（不引新表）
+- ADR 0029
+
+## Phase 30 — 主动图谱（v0.13.0，已完成）
+
+- migration `0014_proactive_prefs`
+- `services/proactive_prefs` set_mute / set_consent / is_allowed
+- `services/proactive_agent` Trigger 三类（anniversary/silence/conflict）+ Intent generate+execute + check_budget
+- 主动写入必须经预算 + 偏好门控（不变式 #18）
+- ADR 0030
+
+## Phase 31 — 元认知（v0.13.0，已完成）
+
+- `services/contradiction_detector`：embedding 配对 + LLM 判定，**只读不写**
+- `eval/contradiction_eval.run_contradiction_eval` 输出 P/R
+- `benchmarks/contradiction_groundtruth.json` v1
+- ADR 0031
+
+## Phase 32 — 多模态原生 teaser（v0.13.0，已完成）
+
+- `MultimodalEmbeddingClient` Protocol + MockMultimodalClient + CLIPStubClient（延迟 import）
+- `cross_modal_similarity(query, candidates, k)`
+- 不写图谱（teaser 边界）；真接入留 v0.14
+- ADR 0032
+
+## v0.13.0 综合
+
+- ADR 0033 不变式从 16 → 18 条
+- 当前本地全量测试通过：**436 passed**
+- tag: v0.13.0
+- schema 版本: 0014（migrations 0001-0014）
+- benchmarks: 8（+ contradiction_groundtruth）
+- pyproject / cli VERSION: 0.13.0
+- ADR 总数: 33（0001-0033）
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）

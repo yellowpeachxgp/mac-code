@@ -162,6 +162,16 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：**410 passed**，Coverage 90%
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0024-0027
 
+### Phase 28-32（2026-04-19 v0.13.0 收尾）
+
+- **向量索引 & 规模化**：`VectorIndex(flat_python)` + 层级 filter / `EmbeddingLRUCache` 批级 dedup / `db/backends.py` SQLite + PG 抽象 / NATS drain 真实现 / `runtime/sqlite_retrieval` 接 `query_text + embedding_client` rerank / cluster embedding-first + Jaccard fallback
+- **多智能体社会**：`agents/PersonAgent.from_db / speak / decide_speak`，按 `is_shared + owner_id` 过滤 private vs shared / `turn_taking.next_speaker + orchestrate_multi_agent_turn`（共享底层图谱真理，不变式 #17）
+- **主动图谱**：migration 0014 `proactive_prefs` / `proactive_agent` Trigger 三类（anniversary/silence/conflict）+ Intent generate+execute + `check_budget` 预算 + `set_mute/set_consent` 偏好（不变式 #18）
+- **元认知**：`contradiction_detector` 两阶段（embedding 配对 + LLM 判定，**只读不写**）+ `eval/contradiction_eval` (P/R) + `benchmarks/contradiction_groundtruth.json`
+- **多模态原生**（teaser）：`MultimodalEmbeddingClient` Protocol + `MockMultimodalClient` + `CLIPStubClient`（延迟 import）+ `cross_modal_similarity` top-k
+- 当前本地全量测试通过：**436 passed**，ADR 0028-0033
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-28-32-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-28-32-mega-plan.md)
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)
