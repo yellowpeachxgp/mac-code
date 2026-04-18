@@ -407,3 +407,9 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
     conn.commit()
     conn.close()
     invalidate_runtime_retrieval_cache(db_path=db_path)
+    # Phase 12 metrics 埋点
+    try:
+        from we_together.observability.metrics import counter_inc
+        counter_inc("patches_applied", labels={"operation": patch.get("operation", "unknown")})
+    except Exception:
+        pass

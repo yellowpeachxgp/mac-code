@@ -7,7 +7,9 @@
   4. merge_duplicates (identity 合并)
   5. persona drift (LLM)
   6. memory condense (LLM)
-  7. graph_summary 打印
+  7. memory_recall (anniversary) [Phase 15]
+  8. cache warmup [Phase 12]
+  9. graph_summary 打印
 """
 import argparse
 import json
@@ -21,8 +23,10 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from we_together.services.branch_resolver_service import auto_resolve_branches
+from we_together.services.cache_warmer import warm_retrieval_cache
 from we_together.services.identity_fusion_service import find_and_merge_duplicates
 from we_together.services.memory_condenser_service import condense_memory_clusters
+from we_together.services.memory_recall_service import recall_anniversary_memories
 from we_together.services.persona_drift_service import drift_personas
 from we_together.services.relation_drift_service import drift_relations
 from we_together.services.state_decay_service import decay_states
@@ -37,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--branch-margin", type=float, default=0.2)
     parser.add_argument("--merge-threshold", type=float, default=0.7)
     parser.add_argument("--skip-llm", action="store_true", help="跳过 persona drift / condense")
+    parser.add_argument("--skip-warm", action="store_true", help="跳过 retrieval cache 预热")
     args = parser.parse_args()
 
     db_path = Path(args.root) / "db" / "main.sqlite3"
@@ -59,4 +64,15 @@ if __name__ == "__main__":
             report["memory_condense"] = condense_memory_clusters(db_path)
         except Exception as exc:
             report["memory_condense"] = {"error": str(exc)}
+
+    try:
+        report["memory_recall"] = recall_anniversary_memories(db_path)
+    except Exception as exc:
+        report["memory_recall"] = {"error": str(exc)}
+
+    if not args.skip_warm:
+        try:
+            report["cache_warmup"] = warm_retrieval_cache(db_path)
+        except Exception as exc:
+            report["cache_warmup"] = {"error": str(exc)}
     print(json.dumps(report, ensure_ascii=False, indent=2))

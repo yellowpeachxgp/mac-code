@@ -50,6 +50,13 @@ def run_turn(
     3) 通过 adapter + llm_client 生成回复
     4) 把对话落盘（record + infer + apply）
     """
+    # Phase 12 trace_id 注入
+    try:
+        from we_together.observability.logger import bind_trace_id
+        bind_trace_id()
+    except Exception:
+        pass
+
     package = build_runtime_retrieval_package_from_db(
         db_path=db_path,
         scene_id=scene_id,

@@ -1140,4 +1140,11 @@ def build_runtime_retrieval_package_from_db(
         )
         conn.commit()
         conn.close()
+    # Phase 12 metrics 埋点
+    try:
+        from we_together.observability.metrics import counter_inc
+        counter_inc("retrieval_package_built",
+                     labels={"scene_type": str(scene["scene_type"])})
+    except Exception:
+        pass
     return package
