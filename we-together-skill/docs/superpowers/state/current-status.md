@@ -480,6 +480,60 @@
 - B 通用型 Skill: 8/10
 - C 数字赛博生态圈: 7/10
 
+## Phase 38 — 消费就绪（v0.15.0，已完成）
+
+- `scripts/dashboard.py` HTML + JSON API + /metrics
+- `scripts/skill_host_smoke.py` e2e
+- `docs/hosts/{claude-desktop,claude-code,openai-assistants}.md`
+- `docs/getting-started.md`
+- Bug fix: time_simulator snapshot SQL
+- ADR 0040
+
+## Phase 39 — Tick 真运行 + 归档（v0.15.0，已完成）
+
+- `services/tick_cost_tracker`
+- `simulate_week.py --archive` + 首份 baseline
+- `scripts/rollback_tick.py`
+- `docs/tick-scheduling.md`（crontab/k8s/NATS）
+- ADR 0041
+
+## Phase 40 — 神经网格式激活（v0.15.0，已完成）
+
+- migration 0016 activation_traces
+- `services/activation_trace_service`（record / query_path / multi_hop / plasticity / decay）
+- `scripts/activation_path.py`
+- 不变式 #21
+- ADR 0042
+
+## Phase 41 — 遗忘 / 压缩 / 拆分（v0.15.0，已完成）
+
+- `services/forgetting_service`（Ebbinghaus + archive ↔ reactivate）
+- `services/entity_unmerge_service`（merged → active，留痕 events）
+- 不变式 #22
+- ADR 0043
+
+## Phase 42 — 联邦 MVP Read-Only（v0.15.0，已完成）
+
+- `docs/superpowers/specs/federation-protocol-v1.md`
+- `scripts/federation_http_server.py`
+- `services/federation_client.py`
+- ADR 0044
+
+## v0.15.0 综合
+
+- ADR 0045 不变式从 20 → 22 条
+- 当前本地全量测试通过：**521 passed**
+- tag: v0.15.0
+- schema 版本: 0016（migrations 0001-0016）
+- benchmarks: 10（+ tick_run baseline）
+- pyproject / cli VERSION: 0.15.0
+- ADR 总数: 45（0001-0045）
+
+三支柱达成度：
+- A 严格工程化: 9.5/10
+- B 通用型 Skill: **9.5/10**
+- C 数字赛博生态圈: **8.5/10**
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）

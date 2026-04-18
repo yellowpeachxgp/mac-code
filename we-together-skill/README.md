@@ -182,6 +182,17 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：**477 passed**，ADR 0034-0039
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-33-37-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-33-37-mega-plan.md)
 
+### Phase 38-43（2026-04-19 v0.15.0 收尾）
+
+- **消费就绪（B 9.5/10）**：`scripts/dashboard.py` HTML + `/metrics` Prometheus / `scripts/skill_host_smoke.py` e2e / 三路宿主接入文档 `docs/hosts/{claude-desktop,claude-code,openai-assistants}.md` / `docs/getting-started.md` 5 分钟路径
+- **Tick 真归档**：`simulate_week.py --archive` / 首份 baseline `benchmarks/tick_runs/2026-04-18T19-37-40Z.json` / `services/tick_cost_tracker` / `scripts/rollback_tick.py` / `docs/tick-scheduling.md`（crontab + k8s + NATS）
+- **神经网格式激活（vision 兑现）**：migration 0016 `activation_traces` / `services/activation_trace_service` (record / query_path / multi_hop_activation BFS+decay / apply_plasticity) / `scripts/activation_path.py` introspection
+- **遗忘 + 拆分（对称可逆）**：`services/forgetting_service` (Ebbinghaus 曲线 + archive ↔ reactivate 对称) / `services/entity_unmerge_service` (unmerge_person + 留痕 events)
+- **联邦 MVP Read-Only**：`docs/superpowers/specs/federation-protocol-v1.md` / `scripts/federation_http_server.py` + `services/federation_client.py`
+- 不变式 20 → **22**（+ #21 激活可 introspect / + #22 写入对称撤销）
+- 当前本地全量测试通过：**521 passed**，ADR 0040-0045
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 [`docs/superpowers/plans/2026-04-19-phase-38-43-mega-plan.md`](docs/superpowers/plans/2026-04-19-phase-38-43-mega-plan.md)
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)

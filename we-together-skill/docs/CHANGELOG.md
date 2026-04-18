@@ -2,6 +2,74 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.15.0 — 2026-04-19
+
+第八轮一次性无人值守推进：Phase 38-43。**521 passed (+44)**，新增 6 个 ADR（0040-0045）+ 1 个 mega-plan + 1 个 diff 报告 + federation-protocol v1 spec。
+
+### Phase 38 — 消费就绪（B 支柱 8 → 9.5）
+
+- `scripts/dashboard.py`：单文件 HTML + `/api/summary` + `/api/tick` + `/metrics` Prometheus
+- `scripts/skill_host_smoke.py`：bootstrap → seed → run_turn → dashboard 4 步验收
+- 三份宿主接入文档：`docs/hosts/claude-desktop.md` / `claude-code.md` / `openai-assistants.md`
+- `docs/getting-started.md` 5 分钟路径
+- **Bug fix**：`time_simulator._make_snapshot_after_tick` 之前 SQL 列名错被 try/except 吞；修后 snapshot 真写入
+- **ADR 0040**
+
+### Phase 39 — Tick 真运行 + 归档（C 支柱提升）
+
+- `services/tick_cost_tracker`：track / track_estimated / summary by_provider
+- `scripts/simulate_week.py` 拆出 `build_report + archive`，加 `--archive` 开关
+- 首份归档 baseline：`benchmarks/tick_runs/2026-04-18T19-37-40Z.json`
+- `scripts/rollback_tick.py` CLI
+- `docs/tick-scheduling.md`：crontab / k8s CronJob / NATS-trigger 三种示例
+- 30-tick 稳定性测试作为回归 baseline
+- **ADR 0041**
+
+### Phase 40 — 神经网格式激活（vision 硬伤修复）
+
+- migration `0016_activation_traces`
+- `services/activation_trace_service`：record / record_batch / count_by_pair / query_path / multi_hop_activation (BFS+decay) / apply_plasticity / decay_traces
+- `scripts/activation_path.py --from X --to Y --max-hops 3` introspection CLI
+- **可塑性**：高频 person pair → relation.strength 上调（`max_strength=1.0` 收敛上界）
+- **安全边界**：仅对已存在 active relation 生效，不凭空造关系
+- 收敛测试：30 激活 + 10 轮 plasticity → strength ∈ [0.9, 1.0]
+- **ADR 0042**
+
+### Phase 41 — 遗忘 / 压缩 / 拆分（对称可逆）
+
+- `services/forgetting_service`：
+  - Ebbinghaus-like `_forget_score(days_idle, relevance)`
+  - `archive_stale_memories` (status → cold，不物理删)
+  - `reactivate_memory` 对称撤销
+  - `condense_cluster_candidates` 识别 condenser 候选
+  - `slimming_report` 指标
+- `services/entity_unmerge_service`：
+  - `unmerge_person` merged → active，留痕 `events(event_type=unmerge_event)`
+  - 不自动迁回关系（人工 gate）
+  - `derive_unmerge_candidates_from_contradictions` 只产 candidate
+- **ADR 0043**
+
+### Phase 42 — 联邦 MVP Read-Only（B 支柱）
+
+- `docs/superpowers/specs/federation-protocol-v1.md`
+- `scripts/federation_http_server.py`：`/capabilities` / `/persons` / `/persons/{pid}` / `/memories`
+- `services/federation_client.py`：`FederationClient(base_url).list_persons() / get_person() / list_memories()`
+- Read-Only + 无鉴权（v0.15 MVP，localhost/VPC 用）
+- e2e 真 HTTP roundtrip 测试
+- **ADR 0044**
+
+### 不变式（ADR 0045）
+
+20 条 → **22 条**：
+- **#21** 激活机制必须可 introspect（recent_traces / query_path / multi_hop 可序列化）
+- **#22** 图谱写入必须有对称撤销（merge ↔ unmerge / archive ↔ reactivate / create ↔ mark_inactive）
+
+### 三支柱达成度
+
+- A 严格工程化：9.5 → **9.5**
+- B 通用型 Skill：8 → **9.5**
+- C 数字赛博生态圈：7 → **8.5**
+
 ## v0.14.0 — 2026-04-19
 
 第七轮一次性无人值守推进：Phase 33-37。**477 passed (+41)**，新增 6 个 ADR（0034-0039）+ 1 个 mega-plan + 1 个 diff 报告 + 2 个 audit 文档。
