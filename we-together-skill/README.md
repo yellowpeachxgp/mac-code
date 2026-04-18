@@ -132,6 +132,20 @@ Phase 4-7 追加能力（本阶段新增）：
 - 当前本地全量测试通过：281 passed
 - 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0004-0009
 
+### Phase 13-17（2026-04-18 v0.9.0 收尾）
+
+见 CHANGELOG v0.9.0 条目 — 产品化 / eval / 时间维度 / what-if teaser / EXT 收口
+- 当前本地全量测试通过：318 passed
+
+### Phase 18-21（2026-04-19 v0.10.0 收尾）
+
+- **生态对接真实化**：MCP stdio server（Claude Code 接入）/ 飞书 bot 绑 `chat_service` / PyPI 发布工程 / Docker CI / Obsidian 双向同步
+- **多模态深化**：audio / video / PDF+DOCX / screenshot series importer + pHash / audio fingerprint 近似去重
+- **社会模拟完整版**：conflict_predictor / scene_scripter / retire_person / era_evolution（SM-2~5 全落地）
+- **Eval 扩展**：condenser eval + persona drift eval + 4 个新 benchmark（condense / persona_drift / society_d / society_work）
+- 当前本地全量测试通过：349 passed
+- 详见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md) 与 ADR 0015-0019
+
 当前核心设计文档：
 
 - [`docs/superpowers/vision/2026-04-05-product-mandate.md`](docs/superpowers/vision/2026-04-05-product-mandate.md)

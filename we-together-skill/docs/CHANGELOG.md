@@ -2,6 +2,55 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## v0.10.0 — 2026-04-19
+
+第三轮一次性无人值守推进：Phase 18-21。349 passed (+31)，新增 5 个 ADR（0015-0019）。
+
+### Phase 18 — 生态对接真实化
+
+- MCP stdio server (`scripts/mcp_server.py`) 接 Claude Code
+- 飞书 bot 绑真实 `chat_service.run_turn`（examples/feishu-bot）
+- PyPI 发布工程：MANIFEST.in / build_wheel.sh / publish.md checklist
+- `.github/workflows/docker.yml`
+- Obsidian md 双向同步（importer + exporter）
+
+### Phase 19 — 多模态深化
+
+- `AudioTranscriber` Protocol + MockAudioTranscriber + WhisperTranscriber stub
+- `audio_importer` / `video_importer` / `document_importer` / `screenshot_series_importer`
+- 多模态 dedup: pHash + audio fingerprint + 汉明距离近似去重
+- `benchmarks/multimodal_groundtruth.json`
+
+### Phase 20 — 社会模拟完整版
+
+- `simulation/conflict_predictor` (SM-2)
+- `simulation/scene_scripter` (SM-3)
+- `services/retire_person_service` (SM-4)
+- `simulation/era_evolution.simulate_era` (SM-5)
+- `scripts/simulate.py` 合一 CLI
+
+### Phase 21 — Eval 扩展
+
+- `eval/condenser_eval` + `eval/persona_drift_eval`
+- 4 个新 benchmark: condense / persona_drift / society_d / society_work
+- Eval 结果统一形状 `{benchmark, total, passed, pass_rate, cases}`
+
+### v0.9.1 — 热修
+
+- eval groundtruth core_type 对齐 seed_society_c（`work/intimacy/friendship/...`），precision/recall/f1 从 0.0 → 1.0
+- what-if mock 模式下给占位 prediction + `mock_mode` 字段
+- `eval/baseline.json` 首版真实基线
+
+### ADR 新增
+
+- 0015: Phase 18 生态对接
+- 0016: Phase 19 多模态
+- 0017: Phase 20 社会模拟
+- 0018: Phase 21 eval 扩展
+- 0019: Phase 18-21 综合 + 不变式扩展至 12 条
+
+---
+
 ## v0.9.0 — 2026-04-18
 
 第二轮一次性无人值守推进：Phase 13-17。318 passed (+37)，新增 5 个 ADR（0010-0014）。
