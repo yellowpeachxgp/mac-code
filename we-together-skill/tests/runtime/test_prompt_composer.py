@@ -133,9 +133,11 @@ def test_skill_request_to_dict_is_serializable():
     req = build_skill_request(retrieval_package=pkg, user_input="hi")
     d = req.to_dict()
     assert set(d.keys()) == {
+        "schema_version",
         "system_prompt", "messages", "retrieval_package", "scene_id", "user_input",
         "metadata", "tools",
     }
+    assert d["schema_version"] == "1"
 
 
 def test_skill_response_to_dict():
