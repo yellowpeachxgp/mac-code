@@ -1,19 +1,11 @@
-"""Agent tool-use 运行器（真接 adapter）：让 chat_service.run_turn 能在 tools
-非空时走 tool_call → tool_result → respond 的真循环。
+"""Agent tool-use 运行器（真接 adapter）。
 
-与 `services/agent_loop_service` 对比：
-  - agent_loop_service：独立 loop，不走 adapter；用 LLM.chat_json 驱动
-  - agent_runner（本模块）：挂在 chat_service 流程内，能 reuse retrieval_package +
-    SkillRequest 的所有字段（system_prompt/messages/tools）
-
-为了兼容 mock-first 测试，驱动协议仍是 LLM.chat_json，action schema：
-  {"action": "tool_call", "tool": str, "args": dict}
-  {"action": "respond", "text": str}
-这让未来真 Claude tool_use content_block 转换只需在 adapter 层加 parse。
+Phase 25 升级：
+  - 优先走 adapter-native 协议（llm_client.chat_with_tools → 原生 tool_use）
+  - fallback 到 chat_json 的 action 协议（MockLLMClient 旧测试路径）
 """
 from __future__ import annotations
 
-import sqlite3
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -62,19 +54,67 @@ def run_tool_use_loop(
     max_iters: int = 3,
     adapter_name: str = "openai_compat",
 ) -> AgentRunResult:
-    """真 tool-use loop：兼容已有 chat_json 的 MockLLMClient。
-
-    未来真 Anthropic tool_use：adapter 层在 parse_response 时把 content_block
-    of type 'tool_use' 翻译为 {"action": "tool_call", ...}，本函数保持不变。
-    """
+    """Tool-use loop。优先 chat_with_tools（原生），fallback chat_json。"""
     messages: list[LLMMessage] = [LLMMessage(role="system", content=request.system_prompt)]
     for m in request.messages:
         messages.append(LLMMessage(role=m["role"], content=m["content"]))
 
     steps: list[dict] = []
     event_ids: list[str] = []
+    use_native = bool(hasattr(llm_client, "chat_with_tools") and request.tools)
 
     for _ in range(max_iters):
+        if use_native:
+            try:
+                payload_native = llm_client.chat_with_tools(messages, request.tools)
+            except Exception as exc:
+                final = f"[agent error] {exc}"
+                return AgentRunResult(
+                    response=SkillResponse(text=final, raw={"adapter": adapter_name, "error": True}),
+                    steps=steps + [{"type": "error", "text": final}],
+                    event_ids=event_ids,
+                )
+            tool_uses = payload_native.get("tool_uses") or []
+            if tool_uses:
+                for tu in tool_uses:
+                    name = tu.get("name", "")
+                    args = tu.get("input") or {}
+                    steps.append({"type": "tool_call", "tool": name, "args": args,
+                                   "call_id": tu.get("id", "")})
+                    eid = _log_event(db_path, request.scene_id, "tool_use_event",
+                                      f"call {name} args={args}")
+                    if eid: event_ids.append(eid)
+                    if name not in tool_dispatcher:
+                        result = f"[unknown tool {name}]"; is_error = True
+                    else:
+                        try:
+                            result = tool_dispatcher[name](args); is_error = False
+                        except Exception as exc:
+                            result = f"[tool error] {exc}"; is_error = True
+                    steps.append({"type": "tool_result", "tool": name,
+                                   "result": result, "is_error": is_error})
+                    eid2 = _log_event(db_path, request.scene_id, "tool_result_event",
+                                       f"result {name}={result[:80]} err={is_error}")
+                    if eid2: event_ids.append(eid2)
+                    messages.append(LLMMessage(role="assistant",
+                                                 content=f"tool_call {name}"))
+                    messages.append(LLMMessage(role="user",
+                                                 content=f"tool_result: {result}" +
+                                                         (" [ERROR]" if is_error else "")))
+                continue
+            text = (payload_native.get("text") or "").strip()
+            steps.append({"type": "respond", "text": text})
+            policy = request.retrieval_package.get("response_policy", {})
+            resp = SkillResponse(
+                text=text,
+                speaker_person_id=policy.get("primary_speaker"),
+                supporting_speakers=list(policy.get("supporting_speakers", [])),
+                raw={"adapter": adapter_name, "tool_use": True,
+                      "step_count": len(steps), "native": True},
+            )
+            return AgentRunResult(response=resp, steps=steps, event_ids=event_ids)
+
+        # fallback: 旧 chat_json action 协议
         try:
             payload = llm_client.chat_json(
                 messages,
@@ -97,17 +137,13 @@ def run_tool_use_loop(
             eid = _log_event(db_path, request.scene_id, "tool_use_event",
                               f"call {tool} args={args}")
             if eid: event_ids.append(eid)
-
             if tool not in tool_dispatcher:
-                result = f"[unknown tool {tool}]"
-                is_error = True
+                result = f"[unknown tool {tool}]"; is_error = True
             else:
                 try:
-                    result = tool_dispatcher[tool](args)
-                    is_error = False
+                    result = tool_dispatcher[tool](args); is_error = False
                 except Exception as exc:
-                    result = f"[tool error] {exc}"
-                    is_error = True
+                    result = f"[tool error] {exc}"; is_error = True
             steps.append({"type": "tool_result", "tool": tool, "result": result,
                            "is_error": is_error})
             eid2 = _log_event(db_path, request.scene_id, "tool_result_event",
@@ -130,11 +166,9 @@ def run_tool_use_loop(
         )
         return AgentRunResult(response=resp, steps=steps, event_ids=event_ids)
 
-    # max_iters 用光
     final = "[agent exhausted max_iters]"
     return AgentRunResult(
-        response=SkillResponse(text=final, raw={"adapter": adapter_name,
-                                                 "exhausted": True}),
+        response=SkillResponse(text=final, raw={"adapter": adapter_name, "exhausted": True}),
         steps=steps + [{"type": "exhausted", "text": final}],
         event_ids=event_ids,
     )

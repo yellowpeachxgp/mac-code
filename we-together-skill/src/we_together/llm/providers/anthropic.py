@@ -1,11 +1,13 @@
-"""Anthropic Claude provider (延迟 import)。
+"""Anthropic Claude provider。
 
-core path 不直接依赖 anthropic 包，只在实例化时导入。
-测试不应直接调用此 provider，使用 MockLLMClient。
+Phase 25 扩展:
+  - chat_with_tools: 原生 content_block + tool_use 解析
+  - chat_stream: with client.messages.stream()
 """
 from __future__ import annotations
 
 import os
+from typing import Iterator
 
 from we_together.llm.client import LLMMessage, LLMResponse
 from we_together.llm.providers.mock import parse_json_loose
@@ -39,12 +41,11 @@ class AnthropicLLMClient:
         system_parts = [m.content for m in messages if m.role == "system"]
         others = [
             {"role": m.role, "content": m.content}
-            for m in messages
-            if m.role != "system"
+            for m in messages if m.role != "system"
         ]
         return "\n\n".join(system_parts), others
 
-    def chat(self, messages: list[LLMMessage], **kwargs) -> LLMResponse:
+    def chat(self, messages: list[LLMMessage], **kwargs) -> LLMResponse:  # pragma: no cover
         system, msgs = self._split_messages(messages)
         resp = self._client.messages.create(
             model=kwargs.get("model", self.model),
@@ -63,11 +64,8 @@ class AnthropicLLMClient:
         )
 
     def chat_json(
-        self,
-        messages: list[LLMMessage],
-        schema_hint: dict | str,
-        **kwargs,
-    ) -> dict:
+        self, messages: list[LLMMessage], schema_hint: dict | str, **kwargs,
+    ) -> dict:  # pragma: no cover
         guard = (
             "Return ONLY a valid JSON object matching this schema hint. "
             f"No explanation. Schema: {schema_hint}"
@@ -75,3 +73,47 @@ class AnthropicLLMClient:
         augmented = list(messages) + [LLMMessage(role="user", content=guard)]
         resp = self.chat(augmented, **kwargs)
         return parse_json_loose(resp.content)
+
+    def chat_with_tools(
+        self, messages: list[LLMMessage], tools: list[dict], **kwargs,
+    ) -> dict:  # pragma: no cover
+        """原生 Anthropic tool_use：解析 content_block 的 text / tool_use。"""
+        system, msgs = self._split_messages(messages)
+        resp = self._client.messages.create(
+            model=kwargs.get("model", self.model),
+            max_tokens=kwargs.get("max_tokens", self.max_tokens),
+            system=system or None,
+            messages=msgs,
+            tools=tools or None,
+        )
+        texts = []
+        tool_uses = []
+        for block in resp.content:
+            btype = getattr(block, "type", None)
+            if btype == "text":
+                texts.append(block.text)
+            elif btype == "tool_use":
+                tool_uses.append({
+                    "id": getattr(block, "id", ""),
+                    "name": getattr(block, "name", ""),
+                    "input": dict(getattr(block, "input", {}) or {}),
+                })
+        return {
+            "text": "".join(texts),
+            "tool_uses": tool_uses,
+            "stop_reason": getattr(resp, "stop_reason", "end_turn"),
+            "raw": {"id": getattr(resp, "id", None)},
+        }
+
+    def chat_stream(
+        self, messages: list[LLMMessage], **kwargs,
+    ) -> Iterator[str]:  # pragma: no cover
+        system, msgs = self._split_messages(messages)
+        with self._client.messages.stream(
+            model=kwargs.get("model", self.model),
+            max_tokens=kwargs.get("max_tokens", self.max_tokens),
+            system=system or None,
+            messages=msgs,
+        ) as stream:
+            for chunk in stream.text_stream:
+                yield chunk

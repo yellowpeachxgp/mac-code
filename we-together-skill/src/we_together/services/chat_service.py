@@ -116,3 +116,77 @@ def run_turn(
         "agent_steps": agent_steps,
         "agent_event_ids": agent_event_ids,
     }
+
+
+def run_turn_stream(
+    db_path: Path,
+    scene_id: str,
+    user_input: str,
+    *,
+    llm_client: LLMClient,
+    history: list[dict] | None = None,
+    speaking_person_ids: list[str] | None = None,
+    max_recent_changes: int | None = 5,
+):
+    """流式版 run_turn：返回 StreamingSkillResponse。
+
+    使用方式:
+      stream = run_turn_stream(db, scene, "xxx", llm_client=client)
+      for chunk in stream:
+          print(chunk, end="", flush=True)
+      result = stream.finalize_turn()  # 触发落图谱
+
+    llm_client 必须支持 chat_stream（MockLLMClient / Anthropic / OpenAICompat）。
+    """
+    from we_together.llm.client import LLMMessage
+    from we_together.runtime.streaming import StreamingSkillResponse
+
+    try:
+        from we_together.observability.logger import bind_trace_id
+        bind_trace_id()
+    except Exception:
+        pass
+
+    package = build_runtime_retrieval_package_from_db(
+        db_path=db_path, scene_id=scene_id, max_recent_changes=max_recent_changes,
+    )
+    request = build_skill_request(
+        retrieval_package=package, user_input=user_input,
+        scene_id=scene_id, history=history,
+    )
+    msgs: list[LLMMessage] = [LLMMessage(role="system", content=request.system_prompt)]
+    for m in request.messages:
+        msgs.append(LLMMessage(role=m["role"], content=m["content"]))
+
+    if not hasattr(llm_client, "chat_stream"):
+        raise ValueError(
+            f"llm_client {type(llm_client).__name__} does not support chat_stream"
+        )
+
+    chunks_iter = llm_client.chat_stream(msgs)
+    stream = StreamingSkillResponse(chunks=chunks_iter)
+
+    def _finalize_turn() -> dict:
+        final = stream.finalize()
+        event_result = record_dialogue_event(
+            db_path=db_path, scene_id=scene_id, user_input=user_input,
+            response_text=final.text, speaking_person_ids=speaking_person_ids,
+        )
+        patches = infer_dialogue_patches(
+            source_event_id=event_result["event_id"], scene_id=scene_id,
+            user_input=user_input, response_text=final.text,
+            speaking_person_ids=speaking_person_ids,
+        )
+        for p in patches:
+            apply_patch_record(db_path=db_path, patch=p)
+        return {
+            "request": request.to_dict(),
+            "response": final.to_dict(),
+            "event_id": event_result["event_id"],
+            "snapshot_id": event_result["snapshot_id"],
+            "applied_patch_count": len(patches),
+            "streaming": True,
+        }
+
+    stream.finalize_turn = _finalize_turn  # type: ignore[attr-defined]
+    return stream
