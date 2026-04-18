@@ -87,3 +87,44 @@ def peek_events(bus_dir: Path, topic: str, *, limit: int = 10) -> list[dict]:
         except json.JSONDecodeError:
             continue
     return out
+
+
+# --- Backend protocol（NATS / Redis Stream 可作为 drop-in 替换） ---
+
+class BusBackend:
+    """Bus backend Protocol."""
+    def publish(self, topic: str, payload: dict) -> str: ...
+    def drain(self, topic: str, handler) -> int: ...
+
+
+class LocalFileBackend:
+    """默认 backend：写本地 jsonl。等同上面的模块级函数。"""
+    name = "local_file"
+
+    def __init__(self, bus_dir: Path):
+        self.bus_dir = bus_dir
+
+    def publish(self, topic: str, payload: dict) -> str:
+        return publish_event(self.bus_dir, topic, payload)
+
+    def drain(self, topic: str, handler) -> int:
+        return drain_events(self.bus_dir, topic, handler)
+
+
+class NATSStubBackend:
+    """NATS stub：接口占位，真实实现延迟到有 nats-py 依赖时接入。
+
+    当前只记录 publish 调用，drain 返回 0。
+    """
+    name = "nats_stub"
+
+    def __init__(self, *, server_url: str | None = None):
+        self.server_url = server_url
+        self.published: list[tuple[str, dict]] = []
+
+    def publish(self, topic: str, payload: dict) -> str:
+        self.published.append((topic, dict(payload)))
+        return f"nats_stub_{len(self.published)}"
+
+    def drain(self, topic: str, handler) -> int:
+        return 0
