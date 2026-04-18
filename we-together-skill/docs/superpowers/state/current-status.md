@@ -225,6 +225,17 @@
 - scripts/README.md CLI 索引
 - 当前本地全量测试通过：281 passed
 
+## Phase 13 — 产品化与 Onboarding（已完成）
+
+- pyproject: 完整 metadata + 4 个 optional deps 分组 + console_scripts entry_point
+- src/we_together/cli.py 统一 CLI 入口，20+ 子命令 dispatch
+- docker/Dockerfile 多阶段 + docker-compose.yml (app + metrics:9100 + branch-console:8765) + .dockerignore + docker/README.md
+- services/onboarding_flow 5 步状态机 + scripts/onboard.py --dry-run
+- examples/claude-code-skill/（SKILL.md 专版 + use_cases.md + README）+ examples/feishu-bot/（stdlib webhook server + 签名校验 + url_verification challenge）
+- docs/quickstart.md: 5 分钟从零到跑
+- ADR 0010 定稿 Phase 13 五个决策
+- 当前本地全量测试通过：288 passed
+
 下一步建议：
 
 - 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
