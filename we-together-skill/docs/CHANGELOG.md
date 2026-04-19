@@ -19,6 +19,9 @@
 - `scripts/simulate_year.py`：新增 `--provider` / `--dry-run-provider-check` / usage summary / cost estimate
 - `llm/audited_client.py`：可审计 LLM wrapper，优先读原生 usage，无则回退估算
 - `.github/workflows/nightly.yml`：nightly 安装 `. [vector]` 并归档 `sqlite_vec` / `faiss` benchmark
+- `scripts/bench_scale.py`：新增 `--backend all` compare 模式，支持隔离 root 逐个 backend 真跑
+- `benchmarks/scale/`：新增 `bench_compare_100k_*.json` / `bench_compare_1m_*.json`
+- `docs/superpowers/state/2026-04-19-scale-bench-v2-report.md`：首次真 100k / 1M compare 报告
 
 ## v0.17.0 — 2026-04-19
 

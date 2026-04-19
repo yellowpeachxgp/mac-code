@@ -15,6 +15,7 @@ import json
 import platform
 import sqlite3
 import sys
+import tempfile
 import time
 import uuid
 from datetime import UTC, datetime
@@ -22,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from we_together.db.bootstrap import bootstrap_project
 from we_together.llm.providers.embedding import MockEmbeddingClient
 from we_together.services.vector_index import VectorIndex
 from we_together.services.vector_similarity import encode_vec
@@ -102,6 +104,102 @@ def archive_report(report: dict, bench_dir: Path) -> Path:
     return path
 
 
+def build_compare_report(
+    *,
+    n_seeded: int,
+    dim: int,
+    queries: int,
+    reports: list[dict],
+) -> dict:
+    fastest = min(reports, key=lambda item: item["per_query_ms"])
+    highest_qps = max(reports, key=lambda item: item["qps"])
+    return {
+        "mode": "compare",
+        "n_seeded": n_seeded,
+        "dim": dim,
+        "queries": queries,
+        "report_count": len(reports),
+        "reports": list(reports),
+        "fastest_backend": fastest["backend"],
+        "highest_qps_backend": highest_qps["backend"],
+        "platform": platform.platform(),
+        "python_version": platform.python_version(),
+        "generated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def archive_compare_report(report: dict, bench_dir: Path) -> Path:
+    bench_dir.mkdir(parents=True, exist_ok=True)
+    n_label = _format_n_label(int(report["n_seeded"]))
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+    path = bench_dir / f"bench_compare_{n_label}_{ts}.json"
+    path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def run_single_benchmark(
+    root: Path,
+    *,
+    n: int,
+    dim: int,
+    queries: int,
+    backend: str,
+) -> dict:
+    db = Path(root).resolve() / "db" / "main.sqlite3"
+    if not db.exists():
+        bootstrap_project(Path(root).resolve())
+
+    t0 = time.perf_counter()
+    seed_synthetic(db, n=n, dim=dim)
+    seed_s = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    idx = VectorIndex.build(db, target="memory", backend=backend)
+    build_s = time.perf_counter() - t0
+
+    client = MockEmbeddingClient(dim=dim)
+    qv = client.embed(["query"])[0]
+
+    t0 = time.perf_counter()
+    for _ in range(queries):
+        idx.query(qv, k=10)
+    q_total_s = time.perf_counter() - t0
+    return build_report(
+        backend=idx.backend,
+        n_seeded=n,
+        dim=dim,
+        seed_s=seed_s,
+        build_s=build_s,
+        index_size=idx.size(),
+        queries=queries,
+        query_total_s=q_total_s,
+    )
+
+
+def run_all_benchmarks(root: Path, *, n: int, dim: int, queries: int) -> dict:
+    reports: list[dict] = []
+    root = Path(root).resolve()
+    for backend in ("flat_python", "sqlite_vec", "faiss"):
+        with tempfile.TemporaryDirectory(prefix=f"wt_bench_{backend}_") as tmp:
+            tmp_root = Path(tmp)
+            bootstrap_project(tmp_root)
+            reports.append(
+                run_single_benchmark(
+                    tmp_root,
+                    n=n,
+                    dim=dim,
+                    queries=queries,
+                    backend=backend,
+                )
+            )
+    return build_compare_report(
+        n_seeded=n,
+        dim=dim,
+        queries=queries,
+        reports=reports,
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
@@ -113,40 +211,27 @@ def main() -> int:
     ap.add_argument("--archive-dir", default=None)
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
-    if not db.exists():
-        print(json.dumps({"error": "db not found"}))
-        return 1
-
-    t0 = time.perf_counter()
-    seed_synthetic(db, n=args.n, dim=args.dim)
-    seed_s = time.perf_counter() - t0
-
-    t0 = time.perf_counter()
-    idx = VectorIndex.build(db, target="memory", backend=args.backend)
-    build_s = time.perf_counter() - t0
-
-    client = MockEmbeddingClient(dim=args.dim)
-    qv = client.embed(["query"])[0]
-
-    t0 = time.perf_counter()
-    for _ in range(args.queries):
-        idx.query(qv, k=10)
-    q_total_s = time.perf_counter() - t0
-    report = build_report(
-        backend=idx.backend,
-        n_seeded=args.n,
-        dim=args.dim,
-        seed_s=seed_s,
-        build_s=build_s,
-        index_size=idx.size(),
-        queries=args.queries,
-        query_total_s=q_total_s,
-    )
+    root = Path(args.root).resolve()
+    if args.backend == "all":
+        report = run_all_benchmarks(root, n=args.n, dim=args.dim, queries=args.queries)
+    else:
+        db = root / "db" / "main.sqlite3"
+        if not db.exists():
+            print(json.dumps({"error": "db not found"}))
+            return 1
+        report = run_single_benchmark(
+            root,
+            n=args.n,
+            dim=args.dim,
+            queries=args.queries,
+            backend=args.backend,
+        )
     if args.archive:
-        bench_dir = Path(args.archive_dir) if args.archive_dir else (Path(args.root).resolve() / "benchmarks" / "scale")
-        path = archive_report(report, bench_dir)
-        root = Path(args.root).resolve()
+        bench_dir = Path(args.archive_dir) if args.archive_dir else (root / "benchmarks" / "scale")
+        if report.get("mode") == "compare":
+            path = archive_compare_report(report, bench_dir)
+        else:
+            path = archive_report(report, bench_dir)
         try:
             report["archived_to"] = str(path.relative_to(root))
         except ValueError:
