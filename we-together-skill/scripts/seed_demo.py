@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sqlite3
 import sys
 import uuid
@@ -24,6 +25,7 @@ from we_together.services.group_service import add_group_member, create_group
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
 from we_together.services.scene_service import add_scene_participant, create_scene
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def _now() -> str:
@@ -240,10 +242,16 @@ def seed_society_c(root: Path) -> dict:
     }
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = argparse.ArgumentParser(description="灌入 Society C demo 数据集")
     parser.add_argument("--root", default=str(ROOT))
+    parser.add_argument("--tenant-id", default=None)
     args = parser.parse_args()
-    summary = seed_society_c(Path(args.root))
-    import json
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    summary = seed_society_c(tenant_root)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

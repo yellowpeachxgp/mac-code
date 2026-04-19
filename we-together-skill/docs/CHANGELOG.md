@@ -23,6 +23,7 @@
 - `scripts/bench_scale.py`：新增 `--backend all` compare 模式，支持隔离 root 逐个 backend 真跑
 - `benchmarks/scale/`：新增 `bench_compare_100k_*.json` / `bench_compare_1m_*.json`
 - `docs/superpowers/state/2026-04-19-scale-bench-v2-report.md`：首次真 100k / 1M compare 报告
+- `bootstrap.py` / `seed_demo.py` / `federation_http_server.py`：新增 `--tenant-id`，把多租户路径路由接到脚本层
 
 ## v0.17.0 — 2026-04-19
 

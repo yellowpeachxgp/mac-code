@@ -84,6 +84,7 @@
 - `federation_http_server.py` 已支持显式开启的 `POST /federation/v1/memories`；联邦写路径走 event -> patch -> snapshot，不直接写业务 memory 表
 - `simulate_year.py` 已支持 provider-check、LLM usage summary、成本估算与月度 report artifact；夜间 smoke 已切到 `. [vector]` 并归档 native backend benchmark
 - `bench_scale.py` 已支持 `--backend all` compare 模式；仓库已归档 100k / 1M 三 backend compare 证据，当前 1M 默认推荐 `faiss`
+- `bootstrap.py` / `seed_demo.py` / `federation_http_server.py` 已支持 `--tenant-id`；tenant path routing 已从 helper 进入实际 CLI / server 路径
 - retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
 - 对话演化循环已闭合：dialogue_service.record_dialogue_event() 将对话写为 dialogue_event + snapshot
 - infer_dialogue_patches() 从对话内容推理 scene mood state 和多人共享 memory

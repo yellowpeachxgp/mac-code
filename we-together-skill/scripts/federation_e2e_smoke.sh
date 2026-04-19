@@ -43,18 +43,28 @@ WE_TOGETHER_FED_TOKENS="${TOKEN}" \
 SERVER_PID=$!
 sleep 1
 
-echo "[1/5] capabilities"
-curl -fsS "http://127.0.0.1:${PORT}/federation/v1/capabilities" | python3 -m json.tool >/dev/null
+echo "[1/7] capabilities"
+curl -fsS "http://127.0.0.1:${PORT}/federation/v1/capabilities" | \
+  python3 -c 'import json, sys; payload = json.load(sys.stdin); assert payload["write_enabled"] is True; assert payload["read_only"] is False' >/dev/null
 
-echo "[2/5] unauthorized persons -> 401"
+echo "[2/7] unauthorized persons -> 401"
 STATUS="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/federation/v1/persons?limit=2")"
 [[ "${STATUS}" == "401" ]]
 
-echo "[3/5] authorized persons -> 200"
+echo "[3/7] authorized persons -> 200"
 curl -fsS -H "Authorization: Bearer ${TOKEN}" \
   "http://127.0.0.1:${PORT}/federation/v1/persons?limit=2" | python3 -m json.tool >/dev/null
 
-echo "[4/5] create memory -> 201"
+echo "[4/7] invalid payload -> 422"
+STATUS="$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{"summary":"","owner_person_ids":[]}' \
+  "http://127.0.0.1:${PORT}/federation/v1/memories")"
+[[ "${STATUS}" == "422" ]]
+
+echo "[5/7] create memory -> 201"
 curl -fsS \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
@@ -62,7 +72,11 @@ curl -fsS \
   -d "{\"summary\":\"federation smoke memory\",\"owner_person_ids\":[\"${ALICE_ID}\"],\"source_skill_name\":\"smoke\"}" \
   "http://127.0.0.1:${PORT}/federation/v1/memories" | python3 -m json.tool >/dev/null
 
-echo "[5/5] list memories -> 200"
+echo "[6/7] get person -> 200"
+curl -fsS -H "Authorization: Bearer ${TOKEN}" \
+  "http://127.0.0.1:${PORT}/federation/v1/persons/${ALICE_ID}" | python3 -m json.tool >/dev/null
+
+echo "[7/7] list memories -> 200"
 curl -fsS -H "Authorization: Bearer ${TOKEN}" \
   "http://127.0.0.1:${PORT}/federation/v1/memories?owner_id=${ALICE_ID}&limit=5" | python3 -m json.tool >/dev/null
 

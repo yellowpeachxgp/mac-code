@@ -39,6 +39,7 @@ from we_together.services.federation_security import (
     sanitize_record,
     verify_token,
 )
+from we_together.services.tenant_router import resolve_tenant_root
 
 FEDERATION_PROTOCOL_VERSION = "1.1"
 
@@ -292,12 +293,13 @@ def make_handler(root: Path, *,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=7781)
     ap.add_argument("--disable-pii-mask", action="store_true")
     ap.add_argument("--enable-write", action="store_true")
     args = ap.parse_args()
-    root = Path(args.root).resolve()
+    root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
 
     raw_tokens = os.environ.get("WE_TOGETHER_FED_TOKENS", "").strip()
     allowed_hashes: list[str] = []

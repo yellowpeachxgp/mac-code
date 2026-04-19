@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sqlite3
 import sys
 import threading
 from http.server import HTTPServer
 from pathlib import Path
+from urllib import request
+from urllib.error import HTTPError
 
 import pytest
 
@@ -149,3 +152,113 @@ def test_capabilities_reflect_write_mode():
     assert ro["write_enabled"] is False
     assert rw["read_only"] is False
     assert rw["write_enabled"] is True
+
+
+def test_federation_post_memory_invalid_payload_422(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.federation_client import FederationClient
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    _seed_person(db, "p_fw_5", "Eve")
+
+    m = _load_server()
+    server = HTTPServer(
+        ("127.0.0.1", 0),
+        m.make_handler(temp_project_with_migrations, allow_writes=True),
+    )
+    port = server.server_address[1]
+    thr = threading.Thread(target=server.serve_forever, daemon=True)
+    thr.start()
+
+    try:
+        client = FederationClient(f"http://127.0.0.1:{port}")
+        with pytest.raises(RuntimeError, match="422"):
+            client.create_memory(summary="", owner_person_ids=["p_fw_5"])
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_federation_post_memory_unknown_owner_422_with_body(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.federation_client import FederationClient
+
+    bootstrap_project(temp_project_with_migrations)
+    m = _load_server()
+    server = HTTPServer(
+        ("127.0.0.1", 0),
+        m.make_handler(temp_project_with_migrations, allow_writes=True),
+    )
+    port = server.server_address[1]
+    thr = threading.Thread(target=server.serve_forever, daemon=True)
+    thr.start()
+
+    try:
+        client = FederationClient(f"http://127.0.0.1:{port}")
+        with pytest.raises(RuntimeError, match="unknown owner_person_ids"):
+            client.create_memory(summary="x", owner_person_ids=["p_missing"])
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_federation_post_invalid_json_returns_400(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+
+    bootstrap_project(temp_project_with_migrations)
+    m = _load_server()
+    server = HTTPServer(
+        ("127.0.0.1", 0),
+        m.make_handler(temp_project_with_migrations, allow_writes=True),
+    )
+    port = server.server_address[1]
+    thr = threading.Thread(target=server.serve_forever, daemon=True)
+    thr.start()
+
+    try:
+        req = request.Request(
+            f"http://127.0.0.1:{port}/federation/v1/memories",
+            data=b"{bad json",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with pytest.raises(HTTPError) as exc:
+            request.urlopen(req, timeout=3.0)
+        assert exc.value.code == 400
+        body = exc.value.read().decode("utf-8")
+        assert "invalid_json" in body
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_federation_post_rate_limit_returns_429(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.federation_client import FederationClient
+    from we_together.services.federation_security import RateLimiter
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    _seed_person(db, "p_fw_6", "Frank")
+
+    m = _load_server()
+    handler = m.make_handler(
+        temp_project_with_migrations,
+        rate_limiter=RateLimiter(max_per_minute=1, window_seconds=60),
+        allow_writes=True,
+    )
+    server = HTTPServer(("127.0.0.1", 0), handler)
+    port = server.server_address[1]
+    thr = threading.Thread(target=server.serve_forever, daemon=True)
+    thr.start()
+
+    try:
+        client = FederationClient(f"http://127.0.0.1:{port}")
+        result = client.create_memory(summary="first", owner_person_ids=["p_fw_6"])
+        assert result["owner_count"] == 1
+        with pytest.raises(RuntimeError, match="429"):
+            client.create_memory(summary="second", owner_person_ids=["p_fw_6"])
+    finally:
+        server.shutdown()
+        server.server_close()
