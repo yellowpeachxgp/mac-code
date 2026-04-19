@@ -28,6 +28,13 @@ class FederationClient:
     timeout: float = 5.0
     bearer_token: str | None = None
 
+    def _urlopen(self, req: urllib.request.Request):
+        host = urllib.parse.urlparse(req.full_url).hostname or ""
+        if host in {"127.0.0.1", "localhost"}:
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            return opener.open(req, timeout=self.timeout)
+        return urllib.request.urlopen(req, timeout=self.timeout)
+
     def _get(self, path: str, params: dict | None = None) -> dict:
         url = self.base_url.rstrip("/") + path
         if params:
@@ -42,7 +49,7 @@ class FederationClient:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
         req = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with self._urlopen(req) as resp:
                 body = resp.read().decode("utf-8")
                 return json.loads(body)
         except urllib.error.HTTPError as e:
@@ -65,7 +72,7 @@ class FederationClient:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with self._urlopen(req) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             try:

@@ -24,6 +24,8 @@
 - `benchmarks/scale/`：新增 `bench_compare_100k_*.json` / `bench_compare_1m_*.json`
 - `docs/superpowers/state/2026-04-19-scale-bench-v2-report.md`：首次真 100k / 1M compare 报告
 - `bootstrap.py` / `seed_demo.py` / `federation_http_server.py`：新增 `--tenant-id`，把多租户路径路由接到脚本层
+- `create_scene.py` / `import_narration.py` / `build_retrieval_package.py` / `graph_summary.py`：新增 `--tenant-id`，tenant 下最小 CLI 工作流已闭环
+- `FederationClient`：对 `127.0.0.1/localhost` 显式绕过代理，避免本地联邦 smoke 被环境代理污染
 
 ## v0.17.0 — 2026-04-19
 

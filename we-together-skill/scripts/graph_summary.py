@@ -9,6 +9,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from we_together.services.tenant_router import resolve_tenant_root
+
 
 def build_graph_summary(db_path: Path) -> dict:
     conn = sqlite3.connect(db_path)
@@ -66,10 +68,18 @@ def build_graph_summary(db_path: Path) -> dict:
     }
 
 
-if __name__ == "__main__":
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="Summarize graph contents from SQLite")
     parser.add_argument("--root", default=str(ROOT), help="Project root containing db/main.sqlite3")
+    parser.add_argument("--tenant-id", default=None)
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     print(json.dumps(build_graph_summary(db_path), ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

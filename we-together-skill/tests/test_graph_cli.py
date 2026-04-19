@@ -1,13 +1,14 @@
-from pathlib import Path
-import subprocess
 import json
 import sqlite3
+import subprocess
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from graph_summary import build_graph_summary
+
 from we_together.db.bootstrap import bootstrap_project
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
@@ -262,3 +263,70 @@ def test_graph_summary_includes_extended_counts(temp_project_with_migrations):
     assert summary["memory_count"] >= 1
     assert summary["state_count"] >= 1
     assert summary["patch_count"] >= 2
+
+
+def test_graph_summary_cli_supports_tenant_id(tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "tenant_graph"
+
+    subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "bootstrap.py"),
+            "--root",
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+
+    subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "seed_demo.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+
+    graph = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "graph_summary.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+    payload = json.loads(graph.stdout)
+    assert payload["person_count"] >= 8
+    assert "Alice" in payload["people"]
+
+    default_graph = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "graph_summary.py"),
+            "--root",
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert default_graph.returncode == 0, default_graph.stderr
+    default_payload = json.loads(default_graph.stdout)
+    assert default_payload["person_count"] == 0

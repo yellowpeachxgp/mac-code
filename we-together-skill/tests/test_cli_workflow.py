@@ -1,6 +1,6 @@
-from pathlib import Path
-import subprocess
 import json
+import subprocess
+from pathlib import Path
 
 
 def test_cli_workflow_bootstrap_create_scene_import_and_export(temp_project_with_migrations):
@@ -181,3 +181,105 @@ def test_build_retrieval_package_cli_accepts_input_hash_for_cache(temp_project_w
     )
     assert second_run.returncode == 0, second_run.stderr
     assert json.loads(first_run.stdout) == json.loads(second_run.stdout)
+
+
+def test_cli_workflow_supports_tenant_id(tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "tenant_proj"
+
+    subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "bootstrap.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+
+    create_scene = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "create_scene.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--scene-type",
+            "private_chat",
+            "--summary",
+            "tenant chat",
+            "--location-scope",
+            "remote",
+            "--channel-scope",
+            "private_dm",
+            "--visibility-scope",
+            "mutual_visible",
+            "--participant",
+            "person_alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+    scene_id = json.loads(create_scene.stdout)["scene_id"]
+
+    narration = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "import_narration.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--text",
+            "小王和小李以前是同事，现在还是朋友。",
+            "--source-name",
+            "tenant-note",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert narration.returncode == 0, narration.stderr
+
+    export_pkg = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "build_retrieval_package.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--scene-id",
+            scene_id,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert export_pkg.returncode == 0, export_pkg.stderr
+    package = json.loads(export_pkg.stdout)
+    assert package["scene_summary"]["scene_id"] == scene_id
+
+    default_pkg = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "build_retrieval_package.py"),
+            "--root",
+            str(root),
+            "--scene-id",
+            scene_id,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert default_pkg.returncode != 0

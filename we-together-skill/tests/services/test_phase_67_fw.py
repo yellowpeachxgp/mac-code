@@ -223,8 +223,9 @@ def test_federation_post_invalid_json_returns_400(temp_project_with_migrations):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
+        opener = request.build_opener(request.ProxyHandler({}))
         with pytest.raises(HTTPError) as exc:
-            request.urlopen(req, timeout=3.0)
+            opener.open(req, timeout=3.0)
         assert exc.value.code == 400
         body = exc.value.read().decode("utf-8")
         assert "invalid_json" in body

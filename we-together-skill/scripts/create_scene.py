@@ -9,10 +9,13 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from we_together.services.scene_service import add_scene_participant, create_scene
+from we_together.services.tenant_router import resolve_tenant_root
 
-if __name__ == "__main__":
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="Create a scene in the SQLite graph")
     parser.add_argument("--root", default=str(ROOT), help="Project root containing db/main.sqlite3")
+    parser.add_argument("--tenant-id", default=None)
     parser.add_argument("--scene-type", required=True)
     parser.add_argument("--summary", required=True)
     parser.add_argument("--location-scope", default=None)
@@ -22,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--participant", action="append", default=[])
     args = parser.parse_args()
 
-    root = Path(args.root)
+    root = resolve_tenant_root(Path(args.root), args.tenant_id)
     db_path = root / "db" / "main.sqlite3"
     environment = {
         "location_scope": args.location_scope,
@@ -47,3 +50,8 @@ if __name__ == "__main__":
         )
 
     print(json.dumps({"scene_id": scene_id}, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

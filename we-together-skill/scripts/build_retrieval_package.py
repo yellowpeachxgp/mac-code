@@ -10,10 +10,13 @@ if str(SRC) not in sys.path:
 
 from we_together.runtime.multi_scene_activation import build_multi_scene_activation
 from we_together.runtime.sqlite_retrieval import build_runtime_retrieval_package_from_db
+from we_together.services.tenant_router import resolve_tenant_root
 
-if __name__ == "__main__":
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="Build a runtime retrieval package from SQLite")
     parser.add_argument("--root", default=str(ROOT), help="Project root containing db/main.sqlite3")
+    parser.add_argument("--tenant-id", default=None)
     parser.add_argument("--scene-id", default=None, help="单场景 id（与 --scenes 二选一）")
     parser.add_argument("--scenes", default=None,
                         help="多场景 id 逗号分隔（开启多场景并发激活）")
@@ -24,7 +27,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-states", type=int, default=30, help="最大 state 条数")
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     if args.scenes:
         scene_ids = [s.strip() for s in args.scenes.split(",") if s.strip()]
         try:
@@ -39,11 +43,11 @@ if __name__ == "__main__":
             print(str(exc), file=sys.stderr)
             raise SystemExit(1) from exc
         print(json.dumps(package, ensure_ascii=False))
-        sys.exit(0)
+        return 0
 
     if not args.scene_id:
         print("必须提供 --scene-id 或 --scenes", file=sys.stderr)
-        sys.exit(2)
+        return 2
 
     try:
         package = build_runtime_retrieval_package_from_db(
@@ -60,3 +64,8 @@ if __name__ == "__main__":
         raise SystemExit(1) from exc
 
     print(json.dumps(package, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
