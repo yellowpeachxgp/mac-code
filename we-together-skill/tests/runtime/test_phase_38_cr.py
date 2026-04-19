@@ -36,8 +36,9 @@ def test_dashboard_script_importable():
 
 
 def test_dashboard_summary_works(temp_project_with_migrations):
-    from we_together.db.bootstrap import bootstrap_project
     import importlib.util
+
+    from we_together.db.bootstrap import bootstrap_project
     bootstrap_project(temp_project_with_migrations)
     p = REPO_ROOT / "scripts" / "dashboard.py"
     spec = importlib.util.spec_from_file_location("wt_dashboard2", p)
@@ -48,6 +49,33 @@ def test_dashboard_summary_works(temp_project_with_migrations):
     assert isinstance(s["persons"], int)
     t = m._recent_ticks(temp_project_with_migrations)
     assert "ticks" in t
+
+
+def test_dashboard_summary_works_for_tenant_root(tmp_path):
+    import importlib.util
+    import sqlite3
+
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.tenant_router import resolve_tenant_root
+
+    root = tmp_path / "proj"
+    tenant_root = resolve_tenant_root(root, "alpha")
+    bootstrap_project(tenant_root)
+
+    conn = sqlite3.connect(tenant_root / "db" / "main.sqlite3")
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_dash_t', 'Tenant Dash', 'active', 0.9, '{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    p = REPO_ROOT / "scripts" / "dashboard.py"
+    spec = importlib.util.spec_from_file_location("wt_dashboard_tenant", p)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    s = m._summary(tenant_root)
+    assert s["persons"] >= 1
 
 
 def test_skill_host_smoke_all_steps(tmp_path):
@@ -63,9 +91,27 @@ def test_skill_host_smoke_all_steps(tmp_path):
     assert steps.get("dashboard_summary") is True
 
 
+def test_skill_host_smoke_tenant_root(tmp_path):
+    import importlib.util
+
+    from we_together.services.tenant_router import resolve_tenant_root
+
+    p = REPO_ROOT / "scripts" / "skill_host_smoke.py"
+    spec = importlib.util.spec_from_file_location("wt_smoke_tenant", p)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    report = m.run_smoke(resolve_tenant_root(tmp_path, "alpha"))
+    steps = {r["step"]: r["ok"] for r in report["results"]}
+    assert steps.get("bootstrap") is True
+    assert steps.get("seed_society_c") is True
+    assert steps.get("dashboard_summary") is True
+
+
 def test_metrics_endpoint_prometheus_format():
     from we_together.observability.metrics import (
-        counter_inc, export_prometheus_text, reset,
+        counter_inc,
+        export_prometheus_text,
+        reset,
     )
     reset()
     counter_inc("we_together_tick_total", 1.0, {"phase": "test"})
@@ -77,7 +123,9 @@ def test_metrics_endpoint_prometheus_format():
 def test_mcp_adapter_tool_count_post_phase33():
     """Phase 38 验收：Phase 33 已把 tools 扩展到 6 个"""
     from we_together.runtime.adapters.mcp_adapter import (
-        build_mcp_tools, build_mcp_resources, build_mcp_prompts,
+        build_mcp_prompts,
+        build_mcp_resources,
+        build_mcp_tools,
     )
     # Phase 60 新增 3 个 self-introspection 工具 → 9
     assert len(build_mcp_tools()) >= 6

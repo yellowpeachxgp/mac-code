@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.observability.metrics import export_prometheus_text
-
+from we_together.services.tenant_router import resolve_tenant_root
 
 DASHBOARD_HTML = """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -149,10 +149,11 @@ def make_handler(root: Path):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--port", type=int, default=7780)
     ap.add_argument("--host", default="127.0.0.1")
     args = ap.parse_args()
-    root = Path(args.root).resolve()
+    root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
     HTTPServer((args.host, args.port), make_handler(root)).serve_forever()
     return 0
 

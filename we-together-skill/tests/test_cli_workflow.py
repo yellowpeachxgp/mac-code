@@ -283,3 +283,90 @@ def test_cli_workflow_supports_tenant_id(tmp_path):
         cwd=repo_root,
     )
     assert default_pkg.returncode != 0
+
+
+def test_dialogue_turn_cli_supports_tenant_id(tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "tenant_dialogue"
+
+    subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "seed_demo.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+
+    scene_id = "scene_missing"
+    # 从 tenant root 读取一个真实 scene
+    tenant_graph = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "graph_summary.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+    assert json.loads(tenant_graph.stdout)["scene_count"] >= 1
+
+    import sqlite3
+    tenant_db = root / "tenants" / "alpha" / "db" / "main.sqlite3"
+    conn = sqlite3.connect(tenant_db)
+    scene_id = conn.execute("SELECT scene_id FROM scenes LIMIT 1").fetchone()[0]
+    conn.close()
+
+    turn = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "dialogue_turn.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--scene-id",
+            scene_id,
+            "--user-input",
+            "tenant dialogue",
+            "--response-text",
+            "tenant reply",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+    payload = json.loads(turn.stdout)
+    assert payload["retrieval_package"]["scene_summary"]["scene_id"] == scene_id
+
+    default_turn = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "dialogue_turn.py"),
+            "--root",
+            str(root),
+            "--scene-id",
+            scene_id,
+            "--user-input",
+            "tenant dialogue",
+            "--response-text",
+            "tenant reply",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert default_turn.returncode != 0

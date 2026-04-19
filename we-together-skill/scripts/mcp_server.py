@@ -29,6 +29,7 @@ from we_together.runtime.adapters.mcp_adapter import (
 )
 from we_together.runtime.skill_runtime import SKILL_SCHEMA_VERSION
 from we_together.services.chat_service import run_turn
+from we_together.services.tenant_router import resolve_tenant_root
 
 SERVER_VERSION = "0.14.0"
 
@@ -246,8 +247,9 @@ def handle_request(
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     args = ap.parse_args()
-    root = Path(args.root).resolve()
+    root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
     tools = build_mcp_tools()
     resources = build_mcp_resources()
     prompts = build_mcp_prompts()

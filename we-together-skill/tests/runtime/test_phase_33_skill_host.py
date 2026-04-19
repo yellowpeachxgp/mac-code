@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import io
 import json
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 
 def test_skill_request_roundtrip():
-    from we_together.runtime.skill_runtime import SkillRequest, SKILL_SCHEMA_VERSION
+    from we_together.runtime.skill_runtime import SKILL_SCHEMA_VERSION, SkillRequest
     r = SkillRequest(
         system_prompt="sys", messages=[{"role": "user", "content": "hi"}],
         retrieval_package={"x": 1}, scene_id="s1", user_input="hi",
@@ -32,7 +33,7 @@ def test_skill_request_roundtrip():
 
 
 def test_skill_response_roundtrip():
-    from we_together.runtime.skill_runtime import SkillResponse, SKILL_SCHEMA_VERSION
+    from we_together.runtime.skill_runtime import SKILL_SCHEMA_VERSION, SkillResponse
     r = SkillResponse(text="hello", speaker_person_id="p1")
     d = r.to_dict()
     assert d["schema_version"] == SKILL_SCHEMA_VERSION
@@ -41,8 +42,9 @@ def test_skill_response_roundtrip():
 
 
 def test_skill_request_rejects_wrong_version():
-    from we_together.runtime.skill_runtime import SkillRequest
     import pytest
+
+    from we_together.runtime.skill_runtime import SkillRequest
     with pytest.raises(ValueError, match="schema_version"):
         SkillRequest.from_dict({
             "schema_version": "99",
@@ -166,6 +168,22 @@ def test_mcp_server_prompts_get(temp_project_with_migrations):
     msgs = resp["result"]["messages"]
     assert msgs[0]["role"] == "system"
     assert "scene s1" in msgs[0]["content"]
+
+
+def test_mcp_server_main_accepts_tenant_id(tmp_path, monkeypatch):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.tenant_router import resolve_tenant_root
+
+    tenant_root = resolve_tenant_root(tmp_path, "alpha")
+    bootstrap_project(tenant_root)
+    import mcp_server
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["mcp_server.py", "--root", str(tmp_path), "--tenant-id", "alpha"],
+    )
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    assert mcp_server.main() == 0
 
 
 def test_adapters_equivalent_payload_structure():

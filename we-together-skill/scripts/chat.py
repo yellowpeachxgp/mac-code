@@ -25,6 +25,7 @@ from we_together.runtime.sqlite_retrieval import (
     build_runtime_retrieval_package_from_db,
 )
 from we_together.services.chat_service import run_turn
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def _print_who(db_path: Path, scene_id: str):
@@ -49,12 +50,14 @@ def _print_pkg(db_path: Path, scene_id: str):
 def main():
     parser = argparse.ArgumentParser(description="多人共演 REPL")
     parser.add_argument("--root", default=str(ROOT))
+    parser.add_argument("--tenant-id", default=None)
     parser.add_argument("--scene-id", required=True)
     parser.add_argument("--provider", default=None, help="LLM provider: mock/anthropic/openai_compat")
     parser.add_argument("--adapter", default="claude", choices=["claude", "openai", "openai_compat"])
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     llm_client = get_llm_client(args.provider)
     scene_id = args.scene_id
     history: list[dict] = []

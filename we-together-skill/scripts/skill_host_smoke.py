@@ -15,6 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+from we_together.services.tenant_router import resolve_tenant_root
+
 
 def run_smoke(root: Path) -> dict:
     results: list[dict] = []
@@ -74,10 +76,11 @@ def run_smoke(root: Path) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True)
+    ap.add_argument("--tenant-id", default=None)
     args = ap.parse_args()
-    root = Path(args.root).resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    report = run_smoke(root)
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    tenant_root.mkdir(parents=True, exist_ok=True)
+    report = run_smoke(tenant_root)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["ok"] else 1
 
