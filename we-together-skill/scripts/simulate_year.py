@@ -28,11 +28,69 @@ def _month_index(day: int) -> int:
     return day // 30
 
 
+def _empty_usage_summary() -> dict:
+    return {
+        "total_calls": 0,
+        "total_tokens": 0,
+        "by_provider": {},
+    }
+
+
+def _clone_usage_summary(summary: dict) -> dict:
+    return json.loads(json.dumps(summary))
+
+
+def _usage_delta(before: dict, after: dict) -> dict:
+    out = _empty_usage_summary()
+    providers = set(before.get("by_provider", {})) | set(after.get("by_provider", {}))
+    for provider in providers:
+        b = before.get("by_provider", {}).get(provider, {})
+        a = after.get("by_provider", {}).get(provider, {})
+        calls = int(a.get("calls", 0)) - int(b.get("calls", 0))
+        prompt = int(a.get("prompt_tokens", 0)) - int(b.get("prompt_tokens", 0))
+        completion = int(a.get("completion_tokens", 0)) - int(b.get("completion_tokens", 0))
+        if calls or prompt or completion:
+            out["by_provider"][provider] = {
+                "calls": calls,
+                "prompt_tokens": prompt,
+                "completion_tokens": completion,
+            }
+            out["total_calls"] += calls
+            out["total_tokens"] += prompt + completion
+    return out
+
+
+def _merge_usage_summary(base: dict, delta: dict) -> dict:
+    merged = _clone_usage_summary(base)
+    merged["total_calls"] += int(delta.get("total_calls", 0))
+    merged["total_tokens"] += int(delta.get("total_tokens", 0))
+    for provider, values in delta.get("by_provider", {}).items():
+        bucket = merged["by_provider"].setdefault(
+            provider,
+            {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0},
+        )
+        bucket["calls"] += int(values.get("calls", 0))
+        bucket["prompt_tokens"] += int(values.get("prompt_tokens", 0))
+        bucket["completion_tokens"] += int(values.get("completion_tokens", 0))
+    return merged
+
+
+def archive_monthly_reports(monthly: list[dict], report_dir: Path) -> list[str]:
+    report_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[str] = []
+    for item in monthly:
+        path = report_dir / f"year_month_{int(item['month']):02d}.json"
+        path.write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+        paths.append(str(path))
+    return paths
+
+
 def run_year(
     db: Path, *,
     days: int, budget: int,
     do_self_activation: bool = False,
     archive_dir: Path | None = None,
+    monthly_report_dir: Path | None = None,
     provider: str | None = None,
     llm_client=None,
     prompt_price_per_1k: float = 0.0,
@@ -45,6 +103,7 @@ def run_year(
         audited_client = UsageAuditedLLMClient(llm_client)
     elif budget > 0 or do_self_activation or provider:
         audited_client = UsageAuditedLLMClient(get_llm_client(provider))
+    previous_usage = _empty_usage_summary()
 
     for day in range(days):
         try:
@@ -61,10 +120,29 @@ def run_year(
         month = _month_index(day)
         mon = monthly.setdefault(
             month,
-            {"month": month, "days": 0, "snapshots_added": 0},
+            {
+                "month": month,
+                "days": 0,
+                "snapshots_added": 0,
+                "llm_usage": _empty_usage_summary(),
+                "estimated_cost_usd": 0.0,
+            },
         )
         mon["days"] += 1
         mon["snapshots_added"] += len([s for s in r["snapshot_ids"] if s])
+        current_usage = (
+            audited_client.summary()
+            if audited_client is not None
+            else _empty_usage_summary()
+        )
+        delta = _usage_delta(previous_usage, current_usage)
+        mon["llm_usage"] = _merge_usage_summary(mon["llm_usage"], delta)
+        mon["estimated_cost_usd"] = estimate_cost_usd(
+            mon["llm_usage"],
+            prompt_price_per_1k=prompt_price_per_1k,
+            completion_price_per_1k=completion_price_per_1k,
+        )
+        previous_usage = _clone_usage_summary(current_usage)
 
     sanity = evaluate(db, ticks=days)
     integrity = full_audit(db)
@@ -105,6 +183,11 @@ def run_year(
         )
         final_report["archived_to"] = str(path)
 
+    if monthly_report_dir is not None:
+        paths = archive_monthly_reports(final_report["monthly"], monthly_report_dir)
+        final_report["monthly_report_dir"] = str(monthly_report_dir)
+        final_report["monthly_reports"] = paths
+
     return final_report
 
 
@@ -116,6 +199,7 @@ def main() -> int:
     ap.add_argument("--provider", default=None)
     ap.add_argument("--self-activation", action="store_true")
     ap.add_argument("--archive-monthly", action="store_true")
+    ap.add_argument("--monthly-report-dir", default=None)
     ap.add_argument("--dry-run-provider-check", action="store_true")
     ap.add_argument("--prompt-price-per-1k", type=float, default=0.0)
     ap.add_argument("--completion-price-per-1k", type=float, default=0.0)
@@ -149,11 +233,15 @@ def main() -> int:
     archive_dir = None
     if args.archive_monthly:
         archive_dir = root / "benchmarks" / "year_runs"
+    monthly_report_dir = Path(args.monthly_report_dir).resolve() if args.monthly_report_dir else None
+    if args.archive_monthly and monthly_report_dir is None:
+        monthly_report_dir = root / "benchmarks" / "year_runs" / "monthly"
 
     report = run_year(
         db, days=args.days, budget=args.budget,
         do_self_activation=args.self_activation,
         archive_dir=archive_dir,
+        monthly_report_dir=monthly_report_dir,
         provider=args.provider,
         prompt_price_per_1k=args.prompt_price_per_1k,
         completion_price_per_1k=args.completion_price_per_1k,

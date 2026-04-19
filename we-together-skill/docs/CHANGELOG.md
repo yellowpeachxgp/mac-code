@@ -17,6 +17,7 @@
 - `services/federation_write_service`：联邦写入走 event -> patch(create_memory) -> owners -> snapshot 闭环
 - `scripts/federation_e2e_smoke.sh`：curl 生产 smoke，覆盖 capabilities / bearer / POST / memories
 - `scripts/simulate_year.py`：新增 `--provider` / `--dry-run-provider-check` / usage summary / cost estimate
+- `scripts/simulate_year.py`：新增 `monthly_report_dir` / `monthly_reports`，可输出每月 usage/cost artifact
 - `llm/audited_client.py`：可审计 LLM wrapper，优先读原生 usage，无则回退估算
 - `.github/workflows/nightly.yml`：nightly 安装 `. [vector]` 并归档 `sqlite_vec` / `faiss` benchmark
 - `scripts/bench_scale.py`：新增 `--backend all` compare 模式，支持隔离 root 逐个 backend 真跑

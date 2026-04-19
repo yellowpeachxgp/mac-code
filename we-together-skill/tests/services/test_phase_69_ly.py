@@ -5,16 +5,16 @@ import json
 import sys
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
 from seed_demo import seed_society_c
 
 import we_together.services.proactive_agent as proactive_agent
 from we_together.llm import LLMMessage, LLMResponse
 from we_together.llm.audited_client import UsageAuditedLLMClient, estimate_cost_usd
 from we_together.llm.providers.mock import MockLLMClient
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "src"))
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 
 def _load_year_module():
@@ -121,3 +121,67 @@ def test_run_year_reports_llm_usage(temp_project_dir, monkeypatch):
     assert report["llm_provider"] == "mock"
     assert report["llm_usage"]["total_calls"] >= 1
     assert report["estimated_cost_usd"] >= 0.0
+
+
+def test_run_year_monthly_usage_breakdown(temp_project_dir, monkeypatch):
+    seed_society_c(temp_project_dir)
+    db = temp_project_dir / "db" / "main.sqlite3"
+
+    person_ids = list(seed_society_c(temp_project_dir)["persons"].values())
+    monkeypatch.setattr(
+        proactive_agent,
+        "scan_all_triggers",
+        lambda db_path: [
+            proactive_agent.Trigger(
+                name="silence",
+                target_person_id=person_ids[0],
+                reason="month-0",
+            ),
+            proactive_agent.Trigger(
+                name="silence",
+                target_person_id=person_ids[1],
+                reason="month-1",
+            ),
+        ],
+    )
+    monkeypatch.setattr(proactive_agent, "check_budget", lambda db_path, daily_budget=5: 2)
+
+    mod = _load_year_module()
+    llm = MockLLMClient(
+        default_json={"action": "check_in", "text": "你好", "confidence": 0.8}
+    )
+    report = mod.run_year(
+        db,
+        days=31,
+        budget=31,
+        llm_client=llm,
+        prompt_price_per_1k=0.01,
+        completion_price_per_1k=0.02,
+    )
+    assert report["total_months"] == 2
+    assert report["monthly"][0]["days"] == 30
+    assert report["monthly"][1]["days"] == 1
+    assert "llm_usage" in report["monthly"][0]
+    assert report["monthly"][0]["llm_usage"]["total_calls"] >= 1
+
+
+def test_run_year_monthly_report_dir_writes_files(temp_project_dir, monkeypatch):
+    seed_society_c(temp_project_dir)
+    db = temp_project_dir / "db" / "main.sqlite3"
+    monthly_dir = temp_project_dir / "benchmarks" / "year_runs" / "monthly"
+
+    monkeypatch.setattr(proactive_agent, "scan_all_triggers", lambda db_path: [])
+
+    mod = _load_year_module()
+    report = mod.run_year(
+        db,
+        days=31,
+        budget=0,
+        monthly_report_dir=monthly_dir,
+    )
+    assert report["monthly_report_dir"]
+    files = sorted(monthly_dir.glob("year_month_*.json"))
+    assert len(files) == 2
+    payload = json.loads(files[0].read_text(encoding="utf-8"))
+    assert "month" in payload
+    assert "llm_usage" in payload
