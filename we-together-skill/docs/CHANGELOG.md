@@ -8,7 +8,9 @@
 - `services/vector_index`：`faiss` backend 从 `*_fallback` 升级为真 `IndexFlatIP` 内存索引，保留现有 BLOB schema
 - `services/vector_index.hierarchical_query(..., backend=...)`：分 backend 走 filtered SQL / filtered FAISS / flat_python
 - `services/embedding_recall.associate_by_embedding(..., index_backend=...)`：允许显式选择索引 backend
+- `pyproject.toml`：新增 `vector` optional extra（`sqlite-vec` / `faiss-cpu` / `numpy`）
 - `scripts/bench_scale.py`：新增 `--backend` 参数，输出报告里显式带 `backend`
+- `scripts/bench_scale.py`：新增 `build_report()` / `archive_report()` / `--archive` / `--archive-dir`，归档文件名显式带 backend
 - `services/vector_similarity.decode_vec`：接受 `bytes | bytearray | memoryview`，对 SQLite BLOB 更稳健
 
 ## v0.17.0 — 2026-04-19

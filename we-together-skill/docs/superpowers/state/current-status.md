@@ -80,6 +80,7 @@
 - ingestion_service.py 和 email_ingestion_service.py 已调用共用 helper，消除重复代码
 - `VectorIndex(backend='sqlite_vec'|'faiss')` 已从 stub 升级为真 backend：前者走 sqlite-vec SQL 距离函数，后者走 FAISS `IndexFlatIP`
 - `embedding_recall.associate_by_embedding()` 已支持 `index_backend` 显式选择；`bench_scale.py` 已支持 `--backend`
+- `pyproject.toml` 已新增 `vector` optional extra；`bench_scale.py` 已支持 benchmark 归档并写入 backend/platform/python_version 元数据
 - retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
 - 对话演化循环已闭合：dialogue_service.record_dialogue_event() 将对话写为 dialogue_event + snapshot
 - infer_dialogue_patches() 从对话内容推理 scene mood state 和多人共享 memory
