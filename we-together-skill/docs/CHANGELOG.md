@@ -12,6 +12,13 @@
 - `scripts/bench_scale.py`：新增 `--backend` 参数，输出报告里显式带 `backend`
 - `scripts/bench_scale.py`：新增 `build_report()` / `archive_report()` / `--archive` / `--archive-dir`，归档文件名显式带 backend
 - `services/vector_similarity.decode_vec`：接受 `bytes | bytearray | memoryview`，对 SQLite BLOB 更稳健
+- `scripts/federation_http_server.py`：新增 `POST /federation/v1/memories`，默认关闭，`--enable-write` 显式开启
+- `services/federation_client.FederationClient.create_memory(...)`：联邦写入客户端入口
+- `services/federation_write_service`：联邦写入走 event -> patch(create_memory) -> owners -> snapshot 闭环
+- `scripts/federation_e2e_smoke.sh`：curl 生产 smoke，覆盖 capabilities / bearer / POST / memories
+- `scripts/simulate_year.py`：新增 `--provider` / `--dry-run-provider-check` / usage summary / cost estimate
+- `llm/audited_client.py`：可审计 LLM wrapper，优先读原生 usage，无则回退估算
+- `.github/workflows/nightly.yml`：nightly 安装 `. [vector]` 并归档 `sqlite_vec` / `faiss` benchmark
 
 ## v0.17.0 — 2026-04-19
 

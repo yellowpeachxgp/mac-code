@@ -53,6 +53,30 @@ class FederationClient:
     def capabilities(self) -> dict:
         return self._get("/federation/v1/capabilities")
 
+    def _post(self, path: str, payload: dict) -> dict:
+        url = self.base_url.rstrip("/") + path
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "we-together-federation-client/1",
+        }
+        if self.bearer_token:
+            headers["Authorization"] = f"Bearer {self.bearer_token}"
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            try:
+                body_text = e.read().decode("utf-8")
+            except Exception:
+                body_text = ""
+            detail = f" body={body_text[:200]}" if body_text else ""
+            raise RuntimeError(
+                f"federation POST {path} failed: {e.code} {e.reason}{detail}"
+            ) from e
+
     def list_persons(self, *, limit: int = 50) -> dict:
         return self._get("/federation/v1/persons", {"limit": limit})
 
@@ -70,4 +94,26 @@ class FederationClient:
         return self._get(
             "/federation/v1/memories",
             {"owner_id": owner_id, "limit": limit},
+        )
+
+    def create_memory(
+        self,
+        *,
+        summary: str,
+        owner_person_ids: list[str],
+        source_skill_name: str | None = None,
+        source_locator: str | None = None,
+        scene_id: str | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        return self._post(
+            "/federation/v1/memories",
+            {
+                "summary": summary,
+                "owner_person_ids": owner_person_ids,
+                "source_skill_name": source_skill_name,
+                "source_locator": source_locator,
+                "scene_id": scene_id,
+                "metadata": metadata or {},
+            },
         )

@@ -22,7 +22,7 @@ jobs:
       - name: Install
         run: |
           python -m venv .venv
-          .venv/bin/pip install -e .
+          .venv/bin/pip install -e .[vector]
       - name: Bootstrap
         run: .venv/bin/python scripts/bootstrap.py --root .
       - name: Seed 50-person society
@@ -33,10 +33,14 @@ jobs:
         run: .venv/bin/python scripts/dream_cycle.py --root . --lookback 30
       - name: Integrity audit
         run: .venv/bin/python scripts/fix_graph.py --root . --policy report_only
-      - name: Bench 100-scale
-        run: .venv/bin/python scripts/bench_scale.py --root . --n 1000 --dim 16 --queries 50
+      - name: Bench 100-scale sqlite_vec
+        run: .venv/bin/python scripts/bench_scale.py --root . --n 1000 --dim 16 --queries 50 --backend sqlite_vec --archive
+      - name: Bench 100-scale faiss
+        run: .venv/bin/python scripts/bench_scale.py --root . --n 1000 --dim 16 --queries 50 --backend faiss --archive
       - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
           name: nightly-bench-${{ github.run_id }}
-          path: benchmarks/tick_runs/
+          path: |
+            benchmarks/tick_runs/
+            benchmarks/scale/

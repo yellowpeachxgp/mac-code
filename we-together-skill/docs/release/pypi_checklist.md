@@ -5,10 +5,13 @@ v0.17.0 发布到 PyPI 前的检查清单（Phase 56 / ADR 0058）。
 ## 0. 前置条件
 
 - [ ] `v{NEW_VERSION}` git tag 已创建
-- [ ] 全量 pytest 绿（期望 650+ passed）
+- [ ] 全量 pytest 绿（期望当前基线全部通过）
 - [ ] wheel 本地隔离 venv 安装验证通过
 - [ ] CHANGELOG 含本版本条目
 - [ ] 至少一个 Core Maintainer 批准
+- [ ] `pip install -e .[vector]` 成功（native backend extras）
+- [ ] `bench_scale.py --backend sqlite_vec/faiss` smoke 通过
+- [ ] federation HTTP smoke 通过（含 bearer + POST `/federation/v1/memories` 若本版本启用写路径）
 
 ## 1. 准备包
 
@@ -20,6 +23,21 @@ rm -rf dist/ build/ *.egg-info
 期望产出：
 - `dist/we_together-{NEW_VERSION}-py3-none-any.whl`
 - `dist/we_together-{NEW_VERSION}.tar.gz`
+
+可选 native backend smoke：
+
+```bash
+.venv/bin/pip install -e .[vector]
+.venv/bin/python scripts/bootstrap.py --root /tmp/wt_release_check
+.venv/bin/python scripts/bench_scale.py --root /tmp/wt_release_check --n 100 --queries 3 --backend sqlite_vec
+.venv/bin/python scripts/bench_scale.py --root /tmp/wt_release_check --n 100 --queries 3 --backend faiss
+```
+
+HTTP smoke：
+
+```bash
+bash scripts/federation_e2e_smoke.sh
+```
 
 ## 2. 元数据自检
 

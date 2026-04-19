@@ -5,6 +5,7 @@
   GET /federation/v1/persons/{pid}    单个 person 详情
   GET /federation/v1/memories?owner_id=...  按 owner 列 memory（只返 is_shared=1）
   GET /federation/v1/capabilities     公告本 skill 提供的联邦能力
+  POST /federation/v1/memories        写入 shared memory（默认关闭；需显式开启）
 
 Phase 48 新增：
 - Bearer token 鉴权（WE_TOGETHER_FED_TOKENS env var 以逗号分隔 token hashes）
@@ -32,13 +33,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.runtime.skill_runtime import SKILL_SCHEMA_VERSION
 from we_together.services.federation_security import (
-    RateLimiter, hash_token, is_exportable, mask_pii, sanitize_record, verify_token,
+    RateLimiter,
+    hash_token,
+    is_exportable,
+    sanitize_record,
+    verify_token,
 )
 
 FEDERATION_PROTOCOL_VERSION = "1.1"
 
 
-def _capabilities() -> dict:
+def _capabilities(*, allow_writes: bool = False) -> dict:
     return {
         "federation_protocol_version": FEDERATION_PROTOCOL_VERSION,
         "skill_schema_version": SKILL_SCHEMA_VERSION,
@@ -48,7 +53,8 @@ def _capabilities() -> dict:
             "/federation/v1/memories",
             "/federation/v1/capabilities",
         ],
-        "read_only": True,
+        "read_only": not allow_writes,
+        "write_enabled": allow_writes,
         "auth": "bearer (optional)",
         "rate_limit_per_minute": 60,
         "pii_masking": True,
@@ -119,7 +125,8 @@ def _list_shared_memories(db: Path, *, owner_id: str | None = None, limit: int =
 def make_handler(root: Path, *,
                   allowed_token_hashes: list[str] | None = None,
                   rate_limiter: RateLimiter | None = None,
-                  mask_pii_on_export: bool = True):
+                  mask_pii_on_export: bool = True,
+                  allow_writes: bool = False):
     token_hashes = allowed_token_hashes or []
     limiter = rate_limiter
 
@@ -150,7 +157,7 @@ def make_handler(root: Path, *,
 
             # capabilities 不需要鉴权（需暴露支持信息）
             if path == "/federation/v1/capabilities":
-                self._write_json(200, _capabilities())
+                self._write_json(200, _capabilities(allow_writes=allow_writes))
                 return
 
             # Auth
@@ -205,6 +212,77 @@ def make_handler(root: Path, *,
 
             self._write_json(404, {"error": "not found", "path": path})
 
+        def do_POST(self):
+            parsed = urlparse(self.path)
+            path = parsed.path
+
+            allowed, token_key = self._check_auth()
+            if not allowed:
+                self._write_json(401, {"error": "unauthorized", "reason": token_key})
+                return
+
+            if limiter and not limiter.allow(token_key):
+                self._write_json(429, {
+                    "error": "rate_limited",
+                    "retry_after_seconds": int(limiter.window_seconds),
+                })
+                return
+
+            if path != "/federation/v1/memories":
+                self._write_json(404, {"error": "not found", "path": path})
+                return
+            if not allow_writes:
+                self._write_json(403, {"error": "write_disabled"})
+                return
+
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            raw_body = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception:
+                self._write_json(400, {"error": "invalid_json"})
+                return
+
+            summary = str(payload.get("summary", "")).strip()
+            owner_person_ids = payload.get("owner_person_ids") or []
+            if not summary or not isinstance(owner_person_ids, list) or not owner_person_ids:
+                self._write_json(
+                    422,
+                    {"error": "invalid_payload", "required": ["summary", "owner_person_ids"]},
+                )
+                return
+
+            db = root / "db" / "main.sqlite3"
+            if not db.exists():
+                self._write_json(503, {"error": "db not ready"})
+                return
+
+            try:
+                from we_together.services.federation_write_service import (
+                    create_shared_memory_from_federation,
+                )
+
+                result = create_shared_memory_from_federation(
+                    db,
+                    summary=summary,
+                    owner_person_ids=[str(x) for x in owner_person_ids],
+                    source_skill_name=payload.get("source_skill_name"),
+                    source_locator=payload.get("source_locator"),
+                    scene_id=payload.get("scene_id"),
+                    metadata=payload.get("metadata") or {},
+                )
+            except ValueError as exc:
+                self._write_json(422, {"error": "invalid_payload", "message": str(exc)})
+                return
+            except Exception as exc:
+                self._write_json(500, {"error": "write_failed", "message": str(exc)})
+                return
+
+            self._write_json(201, result)
+
         def log_message(self, *a, **kw):
             pass
 
@@ -217,6 +295,7 @@ def main() -> int:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=7781)
     ap.add_argument("--disable-pii-mask", action="store_true")
+    ap.add_argument("--enable-write", action="store_true")
     args = ap.parse_args()
     root = Path(args.root).resolve()
 
@@ -231,7 +310,9 @@ def main() -> int:
     limiter = RateLimiter(max_per_minute=60)
     handler = make_handler(
         root, allowed_token_hashes=allowed_hashes,
-        rate_limiter=limiter, mask_pii_on_export=not args.disable_pii_mask,
+        rate_limiter=limiter,
+        mask_pii_on_export=not args.disable_pii_mask,
+        allow_writes=args.enable_write,
     )
     HTTPServer((args.host, args.port), handler).serve_forever()
     return 0

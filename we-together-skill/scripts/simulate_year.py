@@ -16,10 +16,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from we_together.llm import get_llm_client
+from we_together.llm.audited_client import UsageAuditedLLMClient, estimate_cost_usd
 from we_together.services import graph_clock
-from we_together.services.time_simulator import simulate, TickBudget
-from we_together.services.tick_sanity import evaluate
 from we_together.services.integrity_audit import full_audit
+from we_together.services.tick_sanity import evaluate
+from we_together.services.time_simulator import TickBudget, simulate
 
 
 def _month_index(day: int) -> int:
@@ -31,17 +33,31 @@ def run_year(
     days: int, budget: int,
     do_self_activation: bool = False,
     archive_dir: Path | None = None,
+    provider: str | None = None,
+    llm_client=None,
+    prompt_price_per_1k: float = 0.0,
+    completion_price_per_1k: float = 0.0,
 ) -> dict:
     b = TickBudget(llm_calls=budget)
     monthly: dict[int, dict] = {}
+    audited_client = None
+    if llm_client is not None:
+        audited_client = UsageAuditedLLMClient(llm_client)
+    elif budget > 0 or do_self_activation or provider:
+        audited_client = UsageAuditedLLMClient(get_llm_client(provider))
 
     for day in range(days):
         try:
             graph_clock.advance(db, days=1)
         except Exception:
             pass
-        r = simulate(db, ticks=1, budget=b,
-                     do_self_activation=do_self_activation)
+        r = simulate(
+            db,
+            ticks=1,
+            budget=b,
+            llm_client=audited_client,
+            do_self_activation=do_self_activation,
+        )
         month = _month_index(day)
         mon = monthly.setdefault(
             month,
@@ -52,6 +68,11 @@ def run_year(
 
     sanity = evaluate(db, ticks=days)
     integrity = full_audit(db)
+    llm_usage = audited_client.summary() if audited_client is not None else {
+        "total_calls": 0,
+        "total_tokens": 0,
+        "by_provider": {},
+    }
 
     final_report = {
         "days": days, "budget_input": budget,
@@ -64,6 +85,13 @@ def run_year(
             "total_issues": integrity["total_issues"],
             "healthy": integrity["healthy"],
         },
+        "llm_provider": audited_client.provider if audited_client is not None else None,
+        "llm_usage": llm_usage,
+        "estimated_cost_usd": estimate_cost_usd(
+            llm_usage,
+            prompt_price_per_1k=prompt_price_per_1k,
+            completion_price_per_1k=completion_price_per_1k,
+        ),
         "generated_at": datetime.now(UTC).isoformat(),
     }
 
@@ -85,9 +113,32 @@ def main() -> int:
     ap.add_argument("--root", default=".")
     ap.add_argument("--days", type=int, default=365)
     ap.add_argument("--budget", type=int, default=50)
+    ap.add_argument("--provider", default=None)
     ap.add_argument("--self-activation", action="store_true")
     ap.add_argument("--archive-monthly", action="store_true")
+    ap.add_argument("--dry-run-provider-check", action="store_true")
+    ap.add_argument("--prompt-price-per-1k", type=float, default=0.0)
+    ap.add_argument("--completion-price-per-1k", type=float, default=0.0)
     args = ap.parse_args()
+
+    if args.dry_run_provider_check:
+        try:
+            client = get_llm_client(args.provider)
+        except Exception as exc:
+            print(json.dumps({"ready": False, "error": str(exc)}))
+            return 2
+        print(
+            json.dumps(
+                {
+                    "ready": True,
+                    "provider": client.provider,
+                    "model": getattr(client, "model", None),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
 
     root = Path(args.root).resolve()
     db = root / "db" / "main.sqlite3"
@@ -103,6 +154,9 @@ def main() -> int:
         db, days=args.days, budget=args.budget,
         do_self_activation=args.self_activation,
         archive_dir=archive_dir,
+        provider=args.provider,
+        prompt_price_per_1k=args.prompt_price_per_1k,
+        completion_price_per_1k=args.completion_price_per_1k,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
