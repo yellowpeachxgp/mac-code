@@ -28,6 +28,7 @@
 - `FederationClient`：对 `127.0.0.1/localhost` 显式绕过代理，避免本地联邦 smoke 被环境代理污染
 - `mcp_server.py` / `dashboard.py` / `record_dialogue.py` / `dialogue_turn.py` / `skill_host_smoke.py`：新增 `--tenant-id`，宿主与对话入口进入 tenant 路由
 - `simulate_week.py` / `simulate_year.py` / `dream_cycle.py` / `fix_graph.py`：新增 `--tenant-id`，tenant 下的演化/修复入口已接通
+- `create_group.py` / `import_text_chat.py` / `import_email_file.py` / `import_file_auto.py` / `import_directory.py` / `import_auto.py`：新增 `--tenant-id`，高频导入/建组入口进入 tenant 路由
 
 ## v0.17.0 — 2026-04-19
 

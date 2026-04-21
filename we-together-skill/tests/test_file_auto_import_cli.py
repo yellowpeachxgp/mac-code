@@ -1,6 +1,6 @@
-from pathlib import Path
 import json
 import subprocess
+from pathlib import Path
 
 
 def test_file_auto_import_cli_routes_eml_and_txt(temp_project_with_migrations, tmp_path):
@@ -91,3 +91,37 @@ def test_file_auto_import_cli_reports_missing_file_cleanly(temp_project_with_mig
     assert result.returncode != 0
     assert result.stdout == ""
     assert result.stderr.strip() == f"File not found: {missing_file}"
+
+
+def test_file_auto_import_cli_supports_tenant_id(tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "tenant_file_auto"
+
+    subprocess.run(
+        [python, str(repo_root / "scripts" / "bootstrap.py"), "--root", str(root), "--tenant-id", "alpha"],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+
+    txt = tmp_path / "tenant_sample.txt"
+    txt.write_text("小王和小李以前是同事，现在还是朋友。", encoding="utf-8")
+    txt_run = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "import_file_auto.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--file",
+            str(txt),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert txt_run.returncode == 0, txt_run.stderr
+    assert json.loads(txt_run.stdout)["mode"] == "text"
