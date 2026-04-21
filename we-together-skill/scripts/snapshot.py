@@ -9,10 +9,13 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from we_together.services.snapshot_service import list_snapshots, replay_patches_after_snapshot, rollback_to_snapshot
+from we_together.services.tenant_router import resolve_tenant_root
 
-if __name__ == "__main__":
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="List or rollback snapshots")
     parser.add_argument("--root", default=str(ROOT), help="Project root")
+    parser.add_argument("--tenant-id", default=None)
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("list", help="List all snapshots")
@@ -24,7 +27,8 @@ if __name__ == "__main__":
     rp.add_argument("--snapshot-id", required=True)
 
     args = parser.parse_args()
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
 
     if args.command == "list":
         snapshots = list_snapshots(db_path)
@@ -37,3 +41,8 @@ if __name__ == "__main__":
         print(json.dumps(result, ensure_ascii=False))
     else:
         parser.print_help()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

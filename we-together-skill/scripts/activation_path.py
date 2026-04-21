@@ -16,11 +16,13 @@ from we_together.services.activation_trace_service import (
     multi_hop_activation,
     query_path,
 )
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--from", dest="src", required=True)
     ap.add_argument("--to", dest="dst", default=None,
                     help="if omitted: show multi-hop activation map from src")
@@ -28,7 +30,8 @@ def main() -> int:
     ap.add_argument("--decay", type=float, default=0.5)
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = tenant_root / "db" / "main.sqlite3"
     if not db.exists():
         print(json.dumps({"error": "db not found"}))
         return 1

@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.services import world_service as ws
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
@@ -17,6 +18,7 @@ def main() -> int:
 
     ap_obj = sub.add_parser("register-object")
     ap_obj.add_argument("--root", default=".")
+    ap_obj.add_argument("--tenant-id", default=None)
     ap_obj.add_argument("--kind", required=True)
     ap_obj.add_argument("--name")
     ap_obj.add_argument("--owner-id")
@@ -24,22 +26,26 @@ def main() -> int:
 
     ap_place = sub.add_parser("register-place")
     ap_place.add_argument("--root", default=".")
+    ap_place.add_argument("--tenant-id", default=None)
     ap_place.add_argument("--name", required=True)
     ap_place.add_argument("--scope")
     ap_place.add_argument("--parent")
 
     ap_proj = sub.add_parser("register-project")
     ap_proj.add_argument("--root", default=".")
+    ap_proj.add_argument("--tenant-id", default=None)
     ap_proj.add_argument("--name", required=True)
     ap_proj.add_argument("--goal")
     ap_proj.add_argument("--participants", nargs="*")
 
     ap_w = sub.add_parser("active-world")
     ap_w.add_argument("--root", default=".")
+    ap_w.add_argument("--tenant-id", default=None)
     ap_w.add_argument("--scene", required=True)
 
     args = ap.parse_args()
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), getattr(args, "tenant_id", None))
+    db = tenant_root / "db" / "main.sqlite3"
 
     if args.cmd == "register-object":
         r = ws.register_object(db, kind=args.kind, name=args.name,

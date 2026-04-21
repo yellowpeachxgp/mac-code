@@ -19,9 +19,10 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from we_together.db.connection import connect  # noqa: E402
 from we_together.services.patch_applier import apply_patch_record  # noqa: E402
 from we_together.services.patch_service import build_patch  # noqa: E402
-from we_together.db.connection import connect  # noqa: E402
+from we_together.services.tenant_router import resolve_tenant_root  # noqa: E402
 
 
 def resolve_branch_manually(db_path: Path, branch_id: str, candidate_id: str) -> dict:
@@ -89,7 +90,8 @@ def _make_handler(db_path: Path, token: str | None):
 
         def do_GET(self):
             if not self._authorized():
-                self._send_json(401, {"error": "unauthorized"}); return
+                self._send_json(401, {"error": "unauthorized"})
+                return
             parsed = urlparse(self.path)
             if parsed.path == "/":
                 html = (
@@ -103,12 +105,14 @@ def _make_handler(db_path: Path, token: str | None):
                 self.wfile.write(html.encode("utf-8"))
                 return
             if parsed.path == "/branches":
-                self._send_json(200, list_open_branches(db_path)); return
+                self._send_json(200, list_open_branches(db_path))
+                return
             self._send_json(404, {"error": "not_found"})
 
         def do_POST(self):
             if not self._authorized():
-                self._send_json(401, {"error": "unauthorized"}); return
+                self._send_json(401, {"error": "unauthorized"})
+                return
             parsed = urlparse(self.path)
             if parsed.path == "/resolve":
                 q = parse_qs(parsed.query)
@@ -140,11 +144,13 @@ def serve(db_path: Path, host: str, port: int, token: str | None = None) -> HTTP
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--token", default=None)
     args = ap.parse_args()
-    db_path = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     srv = serve(db_path, args.host, args.port, args.token)
     print(f"branch_console serving http://{args.host}:{args.port} db={db_path}")
     try:
