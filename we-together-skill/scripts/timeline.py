@@ -10,17 +10,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.services.persona_history_service import query_history
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--person-id", required=True)
     ap.add_argument("--since", default=None, help="ISO 日期，只显示此后事件")
     ap.add_argument("--limit", type=int, default=20)
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = tenant_root / "db" / "main.sqlite3"
     conn = sqlite3.connect(db)
 
     events_sql = """

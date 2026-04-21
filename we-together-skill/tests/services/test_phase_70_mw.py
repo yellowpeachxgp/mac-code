@@ -428,3 +428,108 @@ def test_maintenance_and_agent_scripts_support_tenant_id(tmp_path):
             cwd=repo_root,
         )
         assert proc.returncode == 0, proc.stderr
+
+
+def test_timeline_and_embedding_scripts_support_tenant_id(tmp_path):
+    repo_root = REPO_ROOT
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "timeline_tenant"
+
+    seed = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "seed_demo.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+    seed_payload = json.loads(seed.stdout)
+    alice_id = seed_payload["persons"]["alice"]
+    relation_id = seed_payload["relations"]["alice_bob_colleague"]
+    scene_id = seed_payload["scenes"]["work"]
+
+    for args in [
+        [
+            str(repo_root / "scripts" / "embed_backfill.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--target",
+            "memory",
+            "--limit",
+            "5",
+        ],
+        [
+            str(repo_root / "scripts" / "timeline.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--person-id",
+            alice_id,
+        ],
+        [
+            str(repo_root / "scripts" / "relation_timeline.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--relation-id",
+            relation_id,
+        ],
+        [
+            str(repo_root / "scripts" / "self_activate.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--scene-id",
+            scene_id,
+            "--daily-budget",
+            "1",
+            "--per-run",
+            "1",
+            "--provider",
+            "mock",
+        ],
+        [
+            str(repo_root / "scripts" / "extract_facets.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--person-id",
+            alice_id,
+            "--provider",
+            "mock",
+            "--max-events",
+            "5",
+        ],
+        [
+            str(repo_root / "scripts" / "rollback_tick.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--snapshot",
+            "snap_missing",
+        ],
+    ]:
+        proc = subprocess.run(
+            [python, *args],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+        if args[0].endswith("rollback_tick.py"):
+            assert proc.returncode != 0
+            assert "error" in proc.stdout
+        else:
+            assert proc.returncode == 0, proc.stderr

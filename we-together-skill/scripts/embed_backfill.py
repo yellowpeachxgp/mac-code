@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.db.connection import connect
 from we_together.llm.providers.embedding import MockEmbeddingClient
+from we_together.services.tenant_router import resolve_tenant_root
 from we_together.services.vector_similarity import encode_vec
 
 
@@ -83,7 +84,7 @@ def backfill_embeddings(
         vectors = embedding_client.embed(texts)
         conn = connect(db_path)
         now = _now()
-        for row, vec in zip(chunk, vectors):
+        for row, vec in zip(chunk, vectors, strict=False):
             conn.execute(
                 f"INSERT OR REPLACE INTO {cfg['table']}({cfg['id_col']}, "
                 f"model_name, dim, vec, created_at) VALUES(?, ?, ?, ?, ?)",
@@ -100,13 +101,15 @@ def backfill_embeddings(
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--target", choices=list(TARGET_CONFIG), required=True)
     ap.add_argument("--batch", type=int, default=50)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--provider", default="mock")
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = tenant_root / "db" / "main.sqlite3"
     if args.provider == "mock":
         client = MockEmbeddingClient()
     elif args.provider == "openai":

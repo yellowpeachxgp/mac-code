@@ -10,7 +10,6 @@ import sqlite3
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -18,6 +17,7 @@ if str(SRC) not in sys.path:
 
 from we_together.llm import get_llm_client
 from we_together.services.facet_extraction_service import extract_facets_for_person
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def _list_active_persons(db_path: Path, limit: int) -> list[str]:
@@ -30,9 +30,10 @@ def _list_active_persons(db_path: Path, limit: int) -> list[str]:
     return [row[0] for row in rows]
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = argparse.ArgumentParser(description="LLM 驱动的 facet 抽取")
     parser.add_argument("--root", default=str(ROOT))
+    parser.add_argument("--tenant-id", default=None)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--person-id", help="针对单个 person_id")
     group.add_argument("--all", action="store_true", help="遍历全图 active persons")
@@ -41,7 +42,8 @@ if __name__ == "__main__":
     parser.add_argument("--provider", default=None)
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     client = get_llm_client(args.provider)
 
     if args.person_id:
@@ -61,3 +63,8 @@ if __name__ == "__main__":
             out.append({"person_id": pid, "error": str(exc)})
 
     print(json.dumps(out, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

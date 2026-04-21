@@ -14,16 +14,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from we_together.services.tenant_router import resolve_tenant_root
 from we_together.services.time_simulator import rollback_to_tick
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--snapshot", required=True)
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = tenant_root / "db" / "main.sqlite3"
     if not db.exists():
         print(json.dumps({"error": "db not found"}))
         return 1

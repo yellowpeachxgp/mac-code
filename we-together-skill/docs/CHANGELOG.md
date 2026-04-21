@@ -32,6 +32,7 @@
 - `snapshot.py` / `branch_console.py` / `world_cli.py` / `activation_path.py` / `auto_resolve_branches.py` / `merge_duplicates.py`：新增 `--tenant-id`，tenant 下的管理/诊断入口已接通
 - `daily_maintenance.py` / `scenario_runner.py` / `agent_chat.py` / `multi_agent_chat.py`：新增 `--tenant-id`，tenant 下的维护/agent/scenario 入口已接通
 - `tenant_router`：新增 `normalize_tenant_id()`，tenant id 现已做路径安全校验；补充了 invalid tenant / cross-tenant 负向测试
+- `timeline.py` / `relation_timeline.py` / `rollback_tick.py` / `self_activate.py` / `extract_facets.py` / `embed_backfill.py`：新增 `--tenant-id`，tenant 下的时间线/向量维护/自激活入口已接通
 
 ## v0.17.0 — 2026-04-19
 

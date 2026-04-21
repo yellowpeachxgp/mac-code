@@ -12,17 +12,20 @@ from we_together.services.relation_history_service import (
     get_relation_strength_series,
     list_relations_with_changes,
 )
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--relation-id", default=None)
     ap.add_argument("--bucket", choices=["day", "week", "month"], default="week")
     ap.add_argument("--top", type=int, default=10)
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = tenant_root / "db" / "main.sqlite3"
     if args.relation_id:
         series = get_relation_strength_series(db, args.relation_id, bucket=args.bucket)
         print(json.dumps({
