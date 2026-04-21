@@ -332,3 +332,78 @@ def test_management_scripts_support_tenant_id(tmp_path, monkeypatch):
     assert path_result["count"] >= 1
     assert resolve_result["resolved_count"] == 1
     assert merge_result["merged_count"] >= 1
+
+
+def test_maintenance_and_agent_scripts_support_tenant_id(tmp_path):
+    repo_root = REPO_ROOT
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "agent_tenant"
+
+    seed = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "seed_demo.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+    seed_payload = json.loads(seed.stdout)
+    scene_id = seed_payload["scenes"]["work"]
+
+    for args in [
+        [
+            str(repo_root / "scripts" / "daily_maintenance.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--skip-llm",
+            "--skip-warm",
+        ],
+        [
+            str(repo_root / "scripts" / "agent_chat.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--scene-id",
+            scene_id,
+            "--input",
+            "tenant hello",
+            "--max-iters",
+            "1",
+        ],
+        [
+            str(repo_root / "scripts" / "multi_agent_chat.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--scene",
+            scene_id,
+            "--turns",
+            "1",
+        ],
+        [
+            str(repo_root / "scripts" / "scenario_runner.py"),
+            "--root",
+            str(root / "scenario_base"),
+            "--tenant-id",
+            "alpha",
+            "--scenario",
+            "family",
+        ],
+    ]:
+        proc = subprocess.run(
+            [python, *args],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+        assert proc.returncode == 0, proc.stderr

@@ -16,7 +16,6 @@ import json
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -30,11 +29,13 @@ from we_together.services.memory_recall_service import recall_anniversary_memori
 from we_together.services.persona_drift_service import drift_personas
 from we_together.services.relation_drift_service import drift_relations
 from we_together.services.state_decay_service import decay_states
+from we_together.services.tenant_router import resolve_tenant_root
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = argparse.ArgumentParser(description="每日维护编排")
     parser.add_argument("--root", default=str(ROOT))
+    parser.add_argument("--tenant-id", default=None)
     parser.add_argument("--drift-window-days", type=int, default=30)
     parser.add_argument("--decay-threshold", type=float, default=0.1)
     parser.add_argument("--branch-threshold", type=float, default=0.8)
@@ -44,7 +45,8 @@ if __name__ == "__main__":
     parser.add_argument("--skip-warm", action="store_true", help="跳过 retrieval cache 预热")
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     report = {
         "drift": drift_relations(db_path, window_days=args.drift_window_days),
         "decay": decay_states(db_path, threshold=args.decay_threshold),
@@ -76,3 +78,8 @@ if __name__ == "__main__":
         except Exception as exc:
             report["cache_warmup"] = {"error": str(exc)}
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -29,6 +29,7 @@ from we_together.services.multi_agent_dialogue import (
     orchestrate_dialogue,
     record_transcript_as_event,
 )
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def _load_scene_agents(db: Path, scene_id: str, *, llm) -> list[PersonAgent]:
@@ -64,6 +65,7 @@ def _activation_map_for(db: Path, scene_id: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--scene", required=True)
     ap.add_argument("--turns", type=int, default=5)
     ap.add_argument("--interrupt-threshold", type=float, default=0.85)
@@ -72,7 +74,8 @@ def main() -> int:
                     help="save transcript as dialogue_event")
     args = ap.parse_args()
 
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = tenant_root / "db" / "main.sqlite3"
     if not db.exists():
         print(json.dumps({"error": "db not found"}))
         return 1

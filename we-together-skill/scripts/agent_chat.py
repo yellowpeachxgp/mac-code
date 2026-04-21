@@ -19,17 +19,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from we_together.llm import get_llm_client
 from we_together.runtime.sqlite_retrieval import build_runtime_retrieval_package_from_db
 from we_together.services.agent_loop_service import run_turn_agent
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--scene-id", required=True)
     ap.add_argument("--input", required=True)
     ap.add_argument("--max-iters", type=int, default=3)
     args = ap.parse_args()
 
-    db_path = Path(args.root).resolve() / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     if not db_path.exists():
         print(f"db not found: {db_path}", file=sys.stderr)
         sys.exit(2)

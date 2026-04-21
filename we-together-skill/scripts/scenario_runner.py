@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.db.bootstrap import bootstrap_project
-
+from we_together.services.tenant_router import resolve_tenant_root
 
 SCENARIOS = {
     "family": {
@@ -196,6 +196,7 @@ def main() -> int:
     ap.add_argument("--scenario", default="family",
                     choices=list(SCENARIOS.keys()) + ["all"])
     ap.add_argument("--root", default=None)
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--archive", action="store_true")
     args = ap.parse_args()
 
@@ -206,6 +207,7 @@ def main() -> int:
             Path(args.root).resolve() if args.root
             else Path(f"/tmp/wt_scenario_{name}").resolve()
         )
+        root = resolve_tenant_root(root, args.tenant_id)
         # 清空（幂等）
         import shutil
         if root.exists():
