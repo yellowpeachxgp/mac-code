@@ -92,6 +92,7 @@
 - `create_group.py` / `import_text_chat.py` / `import_email_file.py` / `import_file_auto.py` / `import_directory.py` / `import_auto.py` 已支持 `--tenant-id`；tenant 下的高频导入/建组入口已可运行
 - `snapshot.py` / `branch_console.py` / `world_cli.py` / `activation_path.py` / `auto_resolve_branches.py` / `merge_duplicates.py` 已支持 `--tenant-id`；tenant 下的管理/诊断入口已可运行
 - `daily_maintenance.py` / `scenario_runner.py` / `agent_chat.py` / `multi_agent_chat.py` 已支持 `--tenant-id`；tenant 下的维护/agent/scenario 入口已可运行
+- `tenant_router` 已新增 `normalize_tenant_id()` 与非法 tenant 拒绝；cross-tenant 负向测试已覆盖 default vs alpha 基本隔离
 - retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
 - 对话演化循环已闭合：dialogue_service.record_dialogue_event() 将对话写为 dialogue_event + snapshot
 - infer_dialogue_patches() 从对话内容推理 scene mood state 和多人共享 memory

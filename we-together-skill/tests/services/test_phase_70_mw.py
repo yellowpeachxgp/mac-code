@@ -57,6 +57,27 @@ def test_bootstrap_script_supports_tenant_id(tmp_path, monkeypatch):
     assert (root / "tenants" / "alpha" / "db" / "main.sqlite3").exists()
 
 
+def test_bootstrap_script_rejects_invalid_tenant_id(tmp_path):
+    repo_root = REPO_ROOT
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "proj"
+    proc = subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "bootstrap.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "../evil",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    assert proc.returncode != 0
+    assert "invalid tenant_id" in proc.stderr
+
+
 def test_seed_demo_supports_tenant_id(tmp_path, monkeypatch):
     mod = _load_seed_demo_script()
     root = tmp_path / "proj"

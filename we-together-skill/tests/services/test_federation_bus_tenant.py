@@ -14,10 +14,10 @@ from we_together.services.federation_service import (
 )
 from we_together.services.tenant_router import (
     DEFAULT_TENANT_ID,
+    normalize_tenant_id,
     resolve_tenant_db_path,
     resolve_tenant_root,
 )
-
 
 # --- Federation ---
 
@@ -86,3 +86,20 @@ def test_tenant_router_named(tmp_path):
     assert db == tmp_path / "tenants" / "alpha" / "db" / "main.sqlite3"
     root = resolve_tenant_root(tmp_path, "alpha")
     assert root == tmp_path / "tenants" / "alpha"
+
+
+def test_tenant_router_normalizes_default_like_values(tmp_path):
+    assert normalize_tenant_id(None) == DEFAULT_TENANT_ID
+    assert normalize_tenant_id("") == DEFAULT_TENANT_ID
+    assert normalize_tenant_id("   ") == DEFAULT_TENANT_ID
+    assert resolve_tenant_root(tmp_path, " default ".strip()) == tmp_path
+
+
+def test_tenant_router_rejects_invalid_ids(tmp_path):
+    import pytest
+
+    for bad in ("..", ".", "../evil", "alpha/beta", "alpha\\beta", "alpha beta", "a*b"):
+        with pytest.raises(ValueError, match="invalid tenant_id"):
+            resolve_tenant_root(tmp_path, bad)
+        with pytest.raises(ValueError, match="invalid tenant_id"):
+            resolve_tenant_db_path(tmp_path, bad)
