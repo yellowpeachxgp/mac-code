@@ -17,8 +17,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.llm import get_llm_client
-from we_together.services.time_simulator import simulate, TickBudget
+from we_together.services.tenant_router import resolve_tenant_root
 from we_together.services.tick_sanity import evaluate
+from we_together.services.time_simulator import TickBudget, simulate
 
 
 def build_report(db: Path, *, ticks: int, budget: int,
@@ -51,6 +52,7 @@ def archive(report: dict, bench_dir: Path) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--ticks", type=int, default=7)
     ap.add_argument("--budget", type=int, default=30,
                     help="total LLM calls across all ticks")
@@ -59,7 +61,7 @@ def main() -> int:
                     help="write report to benchmarks/tick_runs/<ts>.json")
     args = ap.parse_args()
 
-    root = Path(args.root).resolve()
+    root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
     db = root / "db" / "main.sqlite3"
     if not db.exists():
         print(json.dumps({"error": "db not found", "path": str(db)}))

@@ -88,6 +88,7 @@
 - `create_scene.py` / `import_narration.py` / `build_retrieval_package.py` / `graph_summary.py` 已支持 `--tenant-id`；tenant 下的导入 -> scene -> retrieval -> summary 最小工作流已可运行
 - `FederationClient` 已对 localhost 显式禁用代理，tenant 联邦 smoke 在本机更稳定
 - `mcp_server.py` / `dashboard.py` / `record_dialogue.py` / `dialogue_turn.py` / `skill_host_smoke.py` 已支持 `--tenant-id`；tenant 下的宿主与对话入口已可运行
+- `simulate_week.py` / `simulate_year.py` / `dream_cycle.py` / `fix_graph.py` 已支持 `--tenant-id`；tenant 下的长期演化与修复入口已可运行
 - retrieval package 的 participants 已丰富 persona_summary / style_summary / boundary_summary 人物摘要
 - 对话演化循环已闭合：dialogue_service.record_dialogue_event() 将对话写为 dialogue_event + snapshot
 - infer_dialogue_patches() 从对话内容推理 scene mood state 和多人共享 memory

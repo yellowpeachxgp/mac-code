@@ -20,6 +20,7 @@ from we_together.llm import get_llm_client
 from we_together.llm.audited_client import UsageAuditedLLMClient, estimate_cost_usd
 from we_together.services import graph_clock
 from we_together.services.integrity_audit import full_audit
+from we_together.services.tenant_router import resolve_tenant_root
 from we_together.services.tick_sanity import evaluate
 from we_together.services.time_simulator import TickBudget, simulate
 
@@ -194,6 +195,7 @@ def run_year(
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--days", type=int, default=365)
     ap.add_argument("--budget", type=int, default=50)
     ap.add_argument("--provider", default=None)
@@ -224,7 +226,7 @@ def main() -> int:
         )
         return 0
 
-    root = Path(args.root).resolve()
+    root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
     db = root / "db" / "main.sqlite3"
     if not db.exists():
         print(json.dumps({"error": "db not found"}))

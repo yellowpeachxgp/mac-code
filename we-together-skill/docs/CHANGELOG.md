@@ -27,6 +27,7 @@
 - `create_scene.py` / `import_narration.py` / `build_retrieval_package.py` / `graph_summary.py`：新增 `--tenant-id`，tenant 下最小 CLI 工作流已闭环
 - `FederationClient`：对 `127.0.0.1/localhost` 显式绕过代理，避免本地联邦 smoke 被环境代理污染
 - `mcp_server.py` / `dashboard.py` / `record_dialogue.py` / `dialogue_turn.py` / `skill_host_smoke.py`：新增 `--tenant-id`，宿主与对话入口进入 tenant 路由
+- `simulate_week.py` / `simulate_year.py` / `dream_cycle.py` / `fix_graph.py`：新增 `--tenant-id`，tenant 下的演化/修复入口已接通
 
 ## v0.17.0 — 2026-04-19
 

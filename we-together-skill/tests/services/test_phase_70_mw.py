@@ -108,3 +108,76 @@ def test_federation_server_reads_tenant_db(tmp_path):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_operational_scripts_support_tenant_id(tmp_path):
+    import subprocess
+
+    repo_root = REPO_ROOT
+    python = str(repo_root / ".venv" / "bin" / "python")
+    root = tmp_path / "ops_tenant"
+
+    subprocess.run(
+        [
+            python,
+            str(repo_root / "scripts" / "seed_demo.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        check=True,
+    )
+
+    for script_args in [
+        [
+            str(repo_root / "scripts" / "simulate_week.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--ticks",
+            "1",
+            "--budget",
+            "0",
+        ],
+        [
+            str(repo_root / "scripts" / "simulate_year.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--days",
+            "1",
+            "--budget",
+            "0",
+        ],
+        [
+            str(repo_root / "scripts" / "dream_cycle.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--lookback",
+            "7",
+        ],
+        [
+            str(repo_root / "scripts" / "fix_graph.py"),
+            "--root",
+            str(root),
+            "--tenant-id",
+            "alpha",
+            "--policy",
+            "report_only",
+        ],
+    ]:
+        proc = subprocess.run(
+            [python, *script_args],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+        assert proc.returncode == 0, proc.stderr
