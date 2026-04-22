@@ -29,6 +29,24 @@
 
 > 当前仓库已完成 **设计基线 + Phase 1 基础骨架实现**，但完整运行时、多平台导入器和多人共演能力仍未全部完成。
 
+### 代码事实更新（2026-04-22）
+
+> 以下为比正文更可靠的**代码事实快照**：
+>
+> - 本地测试基线：**761 passed, 4 skipped**
+> - ADR：**73**
+> - 不变式：**28**（代码注册表）
+> - Migrations：**21**
+> - 向量后端：`flat_python` + **真 `sqlite_vec`** + **真 `faiss`**
+> - 联邦：读路径 + **显式开启的写路径** + `curl` 生产 smoke
+> - 年运行：`simulate_year` 已有 usage / cost / monthly artifact 审计骨架
+> - 多租户：tenant routing 已接入绝大多数高价值 CLI / 宿主 / 运维入口
+>
+> 当前仓库已经远超“Phase 1 基础骨架”阶段。若需最新全貌，请优先阅读：
+> [`docs/superpowers/state/current-status.md`](docs/superpowers/state/current-status.md)
+> [`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](docs/superpowers/decisions/0073-phase-65-70-synthesis.md)
+> [`docs/superpowers/state/2026-04-22-phase-65-70-progress.md`](docs/superpowers/state/2026-04-22-phase-65-70-progress.md)
+
 当前已经完成：
 
 - 明确项目定位为 **Skill-first 的社会图谱系统**
