@@ -1,7 +1,7 @@
 # Phase 65-70 Progress Snapshot
 
 **Date**: 2026-04-22  
-**Status**: Phase 65-70 mostly delivered; Phase 71 EPIC pending  
+**Status**: Phase 65-70 delivered locally; Phase 71 EPIC in progress  
 **Current test baseline**: `761 passed, 4 skipped`
 
 ## 完成情况
@@ -43,12 +43,17 @@
 - tenant introspection in summary surfaces
 - ADR 0070 / 0071 / 0072
 
-## 仍待完成
+## 本地已完成
+
+- release notes v0.19.0
+- README / HANDOFF / current-status 第一轮收口
+- version bump / wheel / local tag
+
+## 仍待外部条件
 
 - real provider 7-day / 30-day / 365-day runs
-- release notes v0.19.0
-- README / HANDOFF EPIC 收口
-- version bump / wheel / tag
+- PyPI 正式发布
+- remote push / GitHub Release
 
 ## 仍有意不做
 

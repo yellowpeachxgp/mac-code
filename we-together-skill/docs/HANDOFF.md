@@ -2,7 +2,7 @@
 
 > **对象**：Codex（或任一继任 AI assistant）
 > **目标**：读完本文档 + [`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md) 后 **5 分钟**内回到工作状态。
-> **当前版本**：**v0.19.0（draft）** — 尚未打 tag；当前工作已推进到可收口状态。
+> **当前版本**：**v0.19.0（local）** — 本地 tag `v0.19.0` 已打；wheel/build/check 已通过。
 > **代码事实补丁（2026-04-22）**：当前代码自审为 **73 ADR / 28 条不变式 / 21 migrations / 83 services**，本地测试基线为 **761 passed, 4 skipped**；`sqlite_vec/faiss` 已从 stub 升级为真 backend，tenant CLI 覆盖面已大幅扩展。
 
 ---
@@ -19,11 +19,11 @@
 
 ---
 
-## 1. 项目当前状态（v0.18.0 发布后）
+## 1. 项目当前状态（v0.19.0 本地收口后）
 
 | 项 | 值 |
 |---|---|
-| git tag | `v0.19.0`（pending） |
+| git tag | `v0.19.0`（local） |
 | pyproject version | `0.19.0` |
 | cli VERSION | `0.19.0` |
 | pytest 基线 | **761 passed + 4 skipped**，~37s 本机 |
@@ -330,7 +330,7 @@ we-together-skill/
 cd /Users/yellowpeachmac/mac-code/mac-code/we-together-skill
 git status                                     # clean
 git log --oneline | head -5                    # 看最近 5 commits
-git tag -l | tail -5                           # 确认 v0.18.0 已 tag
+git tag -l | tail -5                           # 确认 v0.19.0 已 tag
 
 # 2. 确认测试绿
 .venv/bin/python -m pytest -q                  # 期望 690 passed, 2 skipped
@@ -484,9 +484,9 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 ## 13. Codex 继任时的具体下一步建议
 
 ### 如果用户只说"继续推进" → 你需要：
-1. 跑 `pytest -q` 确认 690 passed 基线保持
-2. 读 `docs/superpowers/decisions/0066-phase-58-64-synthesis.md` 的 **"下一阶段候选"**
-3. 从方向 1 的下一步（100k / 1M 压测 + 真实 backend 性能归档）开始，这是最有技术纵深的
+1. 跑 `pytest -q` 确认 **761 passed / 4 skipped** 基线保持
+2. 读 [`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](superpowers/decisions/0073-phase-65-70-synthesis.md)
+3. 优先收 `Phase 71`：README/HANDOFF/current-status/release 流程/候选 v0.20
 
 ### 如果用户说"新的启发性规划" → 你需要：
 1. 重读 product-mandate（不变！）
@@ -495,10 +495,10 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 4. 提 5 个方向（按优先级） + Phase 65-71 草图 + 不变式 31-33 候选
 5. 等用户拍板
 
-### 如果用户说"无人值守连续推进到 v0.19.0" → 你需要：
-1. 创建 100-120 task（7 phase × 15-20 slice + 1 EPIC）
+### 如果用户说"无人值守连续推进到 v0.20.0" → 你需要：
+1. 基于当前 v0.19.0 本地收口状态重新拆 Phase 72+
 2. 按 phase 交付（每个 phase commit + ADR）
-3. 最后 EPIC：bump VERSION 0.18.0 → 0.19.0 + wheel verify + `git tag v0.19.0`
+3. 最后 EPIC：bump VERSION 0.19.0 → 0.20.0 + wheel verify + `git tag v0.20.0`
 4. 批量结清 task
 
 ---

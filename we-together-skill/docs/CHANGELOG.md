@@ -2,7 +2,7 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
-## v0.19.0 (Draft)
+## v0.19.0 — 2026-04-22 (local)
 
 - `services/vector_index`：`sqlite_vec` backend 从 `*_fallback` 升级为真 SQL 查询路径，使用 `vec_distance_cosine(...)` 直接在现有 embedding 表上做 KNN
 - `services/vector_index`：`faiss` backend 从 `*_fallback` 升级为真 `IndexFlatIP` 内存索引，保留现有 BLOB schema
