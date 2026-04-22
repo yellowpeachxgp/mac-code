@@ -522,6 +522,111 @@ def test_resolve_local_branch_applies_selected_candidate_effect(temp_project_wit
     assert json.loads(state_row[0])["mood"] == "happy"
 
 
+def test_resolve_local_branch_keeps_branch_open_when_effect_patch_fails(
+    temp_project_with_migrations,
+):
+    """effect_patches 失败时，resolve_local_branch 不应先把 branch 标 resolved。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    create_patch = build_patch(
+        source_event_id="evt_branch_effect_fail",
+        target_type="local_branch",
+        target_id="branch_effect_fail_1",
+        operation="create_local_branch",
+        payload={
+            "branch_id": "branch_effect_fail_1",
+            "scope_type": "person",
+            "scope_id": "person_effect_fail",
+            "status": "open",
+            "reason": "test effect failure",
+            "created_from_event_id": "evt_branch_effect_fail",
+            "branch_candidates": [
+                {
+                    "candidate_id": "cand_effect_fail_a",
+                    "label": "应用失败 effect",
+                    "payload_json": {
+                        "effect_patches": [
+                            {
+                                "target_type": "person",
+                                "target_id": "p_effect_fail_src",
+                                "operation": "unmerge_person",
+                                "payload": {
+                                    "source_person_id": "p_effect_fail_src",
+                                    "reviewer": "effect_fail_test",
+                                    "reason": "should fail because source is not merged",
+                                },
+                                "confidence": 0.9,
+                                "reason": "effect from candidate should fail",
+                            }
+                        ]
+                    },
+                    "confidence": 0.8,
+                    "status": "open",
+                },
+                {
+                    "candidate_id": "cand_effect_fail_b",
+                    "label": "不应用",
+                    "payload_json": {"variant": "b"},
+                    "confidence": 0.5,
+                    "status": "open",
+                },
+            ],
+        },
+        confidence=0.7,
+        reason="branch with failing effect",
+    )
+    apply_patch_record(db_path=db_path, patch=create_patch)
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_effect_fail_src','src','active',0.5,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    resolve_patch = build_patch(
+        source_event_id="evt_resolve_effect_fail",
+        target_type="local_branch",
+        target_id="branch_effect_fail_1",
+        operation="resolve_local_branch",
+        payload={
+            "branch_id": "branch_effect_fail_1",
+            "status": "resolved",
+            "reason": "selected candidate with failing effect",
+            "selected_candidate_id": "cand_effect_fail_a",
+        },
+        confidence=0.9,
+        reason="resolve with failing effect",
+    )
+
+    with pytest.raises(ValueError, match="not in merged state"):
+        apply_patch_record(db_path=db_path, patch=resolve_patch)
+
+    conn = sqlite3.connect(db_path)
+    branch_row = conn.execute(
+        "SELECT status FROM local_branches WHERE branch_id = ?",
+        ("branch_effect_fail_1",),
+    ).fetchone()
+    candidate_rows = conn.execute(
+        "SELECT candidate_id, status FROM branch_candidates WHERE branch_id = ? ORDER BY candidate_id",
+        ("branch_effect_fail_1",),
+    ).fetchall()
+    parent_patch_row = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?",
+        (resolve_patch["patch_id"],),
+    ).fetchone()
+    conn.close()
+
+    assert branch_row[0] == "open"
+    assert candidate_rows == [
+        ("cand_effect_fail_a", "open"),
+        ("cand_effect_fail_b", "open"),
+    ]
+    assert parent_patch_row[0] == "failed"
+
+
 def test_resolve_local_branch_without_effect_payload_still_works(temp_project_with_migrations):
     """没有 effect_patches 的 candidate 解决后不报错。"""
     bootstrap_project(temp_project_with_migrations)

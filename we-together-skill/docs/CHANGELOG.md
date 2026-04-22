@@ -13,6 +13,7 @@
 - `tests/services/test_phase_72_operator_gate.py`：补 `--tenant-id` CLI 回归，确认 unmerge gate 分支写入 tenant DB
 - `services/entity_unmerge_service` / `services/unmerge_gate_service`：`merged_into` target 现在还必须是 `active`；非 active target 会拒绝开 branch / 执行 unmerge
 - `scripts/unmerge_gate.py`：非 active target 会走明确失败出口（return code `2` + JSON error）
+- `services/patch_applier.resolve_local_branch`：带 `effect_patches` 的 branch 现在先跑子 effect，全部成功后才回写 parent branch；子 effect 失败时 parent branch 维持 `open`
 
 ## v0.19.0 — 2026-04-22 (local)
 
