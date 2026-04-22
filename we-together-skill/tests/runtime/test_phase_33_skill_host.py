@@ -188,6 +188,25 @@ def test_mcp_server_main_accepts_tenant_id(tmp_path, monkeypatch):
     assert mcp_server.main() == 0
 
 
+def test_mcp_server_main_supports_content_length_framing(tmp_path, monkeypatch):
+    import mcp_server
+
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    framed = f"Content-Length: {len(body)}\r\n\r\n{body}"
+    stdin = io.StringIO(framed)
+    stdout = io.StringIO()
+
+    monkeypatch.setattr("sys.argv", ["mcp_server.py", "--root", str(tmp_path)])
+    monkeypatch.setattr("sys.stdin", stdin)
+    monkeypatch.setattr("sys.stdout", stdout)
+
+    assert mcp_server.main() == 0
+
+    output = stdout.getvalue()
+    assert "Content-Length:" in output
+    assert '"serverInfo": {"name": "we-together"' in output
+
+
 def test_adapters_equivalent_payload_structure():
     """Claude + OpenAI 两个 adapter 接相同 SkillRequest 产的 payload 都包含 system + messages"""
     from we_together.runtime.adapters.claude_adapter import ClaudeSkillAdapter

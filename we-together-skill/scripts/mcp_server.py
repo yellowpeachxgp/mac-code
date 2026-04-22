@@ -245,6 +245,44 @@ def handle_request(
              "error": {"code": -32601, "message": f"unknown method: {method}"}}
 
 
+def _read_stdio_message(stream) -> tuple[dict, str] | tuple[None, None]:
+    while True:
+        first_line = stream.readline()
+        if first_line == "":
+            return None, None
+        if first_line.strip():
+            break
+
+    if first_line.lower().startswith("content-length:"):
+        try:
+            length = int(first_line.split(":", 1)[1].strip())
+        except ValueError:
+            return None, None
+
+        while True:
+            line = stream.readline()
+            if line == "":
+                return None, None
+            if line in {"\n", "\r\n"}:
+                break
+
+        body = stream.read(length)
+        if not body:
+            return None, None
+        return json.loads(body), "framed"
+
+    return json.loads(first_line.strip()), "line"
+
+
+def _write_stdio_message(stream, payload: dict, mode: str) -> None:
+    body = json.dumps(payload, ensure_ascii=False)
+    if mode == "framed":
+        stream.write(f"Content-Length: {len(body.encode('utf-8'))}\r\n\r\n{body}")
+    else:
+        stream.write(body + "\n")
+    stream.flush()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
@@ -256,20 +294,18 @@ def main() -> int:
     prompts = build_mcp_prompts()
     dispatcher = _make_dispatcher(root)
 
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
+    while True:
         try:
-            req = json.loads(line)
+            req, mode = _read_stdio_message(sys.stdin)
         except json.JSONDecodeError:
             continue
+        if req is None:
+            break
         resp = handle_request(
             req, dispatcher=dispatcher, tools=tools,
             resources=resources, prompts=prompts, root=root,
         )
-        sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
-        sys.stdout.flush()
+        _write_stdio_message(sys.stdout, resp, mode)
     return 0
 
 
