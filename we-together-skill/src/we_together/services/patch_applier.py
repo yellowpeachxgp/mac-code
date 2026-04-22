@@ -158,6 +158,26 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 ],
             )
     elif patch["operation"] == "resolve_local_branch":
+        selected_candidate_id = payload.get("selected_candidate_id")
+        candidate_row = None
+        if selected_candidate_id is not None:
+            candidate_row = conn.execute(
+                """
+                SELECT payload_json
+                FROM branch_candidates
+                WHERE candidate_id = ? AND branch_id = ?
+                """,
+                (selected_candidate_id, payload["branch_id"]),
+            ).fetchone()
+            if candidate_row is None:
+                conn.execute(
+                    "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
+                    ("failed", now, patch["patch_id"]),
+                )
+                conn.commit()
+                conn.close()
+                raise ValueError("selected candidate does not belong to branch")
+
         conn.execute(
             """
             UPDATE local_branches
@@ -171,7 +191,6 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 payload["branch_id"],
             ),
         )
-        selected_candidate_id = payload.get("selected_candidate_id")
         if selected_candidate_id is not None:
             conn.execute(
                 """
@@ -184,10 +203,6 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
                 """,
                 (selected_candidate_id, payload["branch_id"]),
             )
-            candidate_row = conn.execute(
-                "SELECT payload_json FROM branch_candidates WHERE candidate_id = ?",
-                (selected_candidate_id,),
-            ).fetchone()
             if candidate_row is not None:
                 candidate_payload = json.loads(candidate_row[0])
                 effect_patches = candidate_payload.get("effect_patches")
@@ -337,6 +352,49 @@ def apply_patch_record(db_path: Path, patch: dict) -> None:
             "UPDATE persons SET status = 'merged', metadata_json = ?, updated_at = ? WHERE person_id = ?",
             (json.dumps(meta, ensure_ascii=False), now, source_pid),
         )
+    elif patch["operation"] == "unmerge_person":
+        conn.commit()
+        conn.close()
+        from we_together.services.entity_unmerge_service import unmerge_person
+
+        try:
+            unmerge_person(
+                db_path,
+                payload["source_person_id"],
+                reviewer=payload.get("reviewer", "operator_gate"),
+                reason=payload.get("reason", patch["reason"]),
+            )
+        except Exception:
+            conn = connect(db_path)
+            try:
+                conn.execute(
+                    "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
+                    ("failed", now, patch["patch_id"]),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+            raise
+
+        conn = connect(db_path)
+        try:
+            conn.execute(
+                "UPDATE patches SET status = ?, applied_at = ? WHERE patch_id = ?",
+                ("applied", now, patch["patch_id"]),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        invalidate_runtime_retrieval_cache(db_path=db_path)
+        try:
+            from we_together.observability.metrics import counter_inc
+            counter_inc(
+                "patches_applied",
+                labels={"operation": patch.get("operation", "unknown")},
+            )
+        except Exception:
+            pass
+        return
     elif patch["operation"] == "upsert_facet":
         facet_id = payload.get("facet_id") or f"facet_{patch['patch_id'][-16:]}"
         value_json = payload.get("facet_value_json")

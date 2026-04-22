@@ -1,14 +1,24 @@
 # 当前状态
 
-日期：2026-04-22
+日期：2026-04-23
 
 > 代码事实快照：
-> - 本地测试基线：**761 passed, 4 skipped**
+> - 本地测试基线：**768 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
 > - 参考综合：[`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](../decisions/0073-phase-65-70-synthesis.md)
 > - 参考进度：[`docs/superpowers/state/2026-04-22-phase-65-70-progress.md`](2026-04-22-phase-65-70-progress.md)
+> - 参考排序：[`docs/superpowers/state/2026-04-23-v0-20-candidate-ordering.md`](2026-04-23-v0-20-candidate-ordering.md)
+
+## 2026-04-23 本地切片 — Phase 72 矛盾复核 / operator-gated unmerge（进行中）
+
+- `contradiction_detector` 与 `derive_unmerge_candidates_from_contradictions()` 仍然是 **只读不写**
+- 新增 `unmerge_gate_service.open_unmerge_branch_for_merged_person(...)`，把 merged person 打开为 `local_branch`
+- 候选固定为 `keep_merged / unmerge_person`；只有 `resolve_local_branch` 选中 unmerge candidate 才真正改图
+- `scripts/unmerge_gate.py` 提供 CLI 入口，并已支持 `--tenant-id`
+- `auto_resolve_branches` 现在会跳过 operator-gated branch，保持“人工复核后才生效”
+- `patch_applier` 额外补了两层 guardrail：`unmerge_person` 失败会记 `failed`；`selected_candidate_id` 必须属于目标 branch
 
 当前已完成：
 
@@ -619,9 +629,6 @@
 
 下一步建议：
 
-- 接真实平台 importer 的生产级版本（飞书/Slack/iMessage/邮件 MBOX 批处理）
-- 图片/截图 OCR 抽取链路
-- LLM 驱动的 facet 增量更新（目前 upsert_facet 走规则）
-- 神经单元网格式：多 scene 并发自激活 + 人物间的自发交互事件
-- 多图谱联邦（一个 skill 引用另一个 skill 的 person/relation）
-- 宿主适配层扩展（Coze / LangChain / 飞书机器人）
+- 当前主路线以 [`2026-04-22-phase-65-70-progress.md`](2026-04-22-phase-65-70-progress.md) + [`2026-04-23-v0-20-candidate-ordering.md`](2026-04-23-v0-20-candidate-ordering.md) 为准
+- 已起步的本地 Phase 72 是 `contradiction/unmerge operator gate`；继续推进时优先补强其剩余 guardrail，而不是把它说成“自动修复错误 merge”
+- 若继续向后推进，优先进入 tenant/world isolation contract，其次是真 provider evidence、协作式 task decomposition、再到外部发布

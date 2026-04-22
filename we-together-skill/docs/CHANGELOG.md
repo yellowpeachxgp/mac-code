@@ -2,6 +2,14 @@
 
 本 CHANGELOG 记录 we-together-skill 的阶段性里程碑。
 
+## 2026-04-23 — post-v0.19 local slice
+
+- `services/unmerge_gate_service`：为 merged person 打开 **operator-gated local_branch**，候选固定为 `keep_merged / unmerge_person`
+- `scripts/unmerge_gate.py`：新增人工复核入口，支持 `--tenant-id`
+- `services/patch_applier`：新增 `unmerge_person` patch operation；unmerge 失败时 patch 会记为 `failed`，不再误记 `applied`
+- `services/patch_applier.resolve_local_branch`：新增 `selected_candidate_id` 归属校验，错误 candidate 不再把 branch 提前标成 `resolved`
+- `services/branch_resolver_service`：auto resolve 现在会跳过 operator-gated branch，确保 contradiction/unmerge 仍是人工复核后才生效
+
 ## v0.19.0 — 2026-04-22 (local)
 
 - `services/vector_index`：`sqlite_vec` backend 从 `*_fallback` 升级为真 SQL 查询路径，使用 `vec_distance_cosine(...)` 直接在现有 embedding 表上做 KNN

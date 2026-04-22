@@ -46,7 +46,8 @@ def test_forget_score_curve():
 def test_archive_stale_memories_dry_run(temp_project_with_migrations):
     from we_together.db.bootstrap import bootstrap_project
     from we_together.services.forgetting_service import (
-        archive_stale_memories, ForgetParams,
+        ForgetParams,
+        archive_stale_memories,
     )
 
     bootstrap_project(temp_project_with_migrations)
@@ -71,7 +72,8 @@ def test_archive_stale_memories_dry_run(temp_project_with_migrations):
 def test_archive_stale_memories_real(temp_project_with_migrations):
     from we_together.db.bootstrap import bootstrap_project
     from we_together.services.forgetting_service import (
-        archive_stale_memories, ForgetParams,
+        ForgetParams,
+        archive_stale_memories,
     )
     bootstrap_project(temp_project_with_migrations)
     db = temp_project_with_migrations / "db" / "main.sqlite3"
@@ -92,7 +94,9 @@ def test_reactivate_memory_symmetric(temp_project_with_migrations):
     """不变式 #22: archive 可撤销"""
     from we_together.db.bootstrap import bootstrap_project
     from we_together.services.forgetting_service import (
-        archive_stale_memories, ForgetParams, reactivate_memory,
+        ForgetParams,
+        archive_stale_memories,
+        reactivate_memory,
     )
     bootstrap_project(temp_project_with_migrations)
     db = temp_project_with_migrations / "db" / "main.sqlite3"
@@ -176,9 +180,10 @@ def test_unmerge_person_roundtrip(temp_project_with_migrations):
 
 
 def test_unmerge_rejects_non_merged(temp_project_with_migrations):
+    import pytest
+
     from we_together.db.bootstrap import bootstrap_project
     from we_together.services.entity_unmerge_service import unmerge_person
-    import pytest
     bootstrap_project(temp_project_with_migrations)
     db = temp_project_with_migrations / "db" / "main.sqlite3"
 
@@ -218,7 +223,8 @@ def test_derive_unmerge_from_contradictions_only_candidates(temp_project_with_mi
     """不变式 #18 + #22：contradiction → unmerge candidate 仅是 suggestion，不自动改图"""
     from we_together.db.bootstrap import bootstrap_project
     from we_together.services.entity_unmerge_service import (
-        derive_unmerge_candidates_from_contradictions, list_merged_candidates,
+        derive_unmerge_candidates_from_contradictions,
+        list_merged_candidates,
     )
     bootstrap_project(temp_project_with_migrations)
     db = temp_project_with_migrations / "db" / "main.sqlite3"
@@ -240,3 +246,112 @@ def test_derive_unmerge_from_contradictions_only_candidates(temp_project_with_mi
     assert before == after == 1
     assert len(cands) == 1
     assert "needs human gate" in cands[0]["note"]
+
+
+def test_open_unmerge_branch_for_merged_person(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.entity_unmerge_service import list_merged_candidates
+    from we_together.services.unmerge_gate_service import open_unmerge_branch_for_merged_person
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_src','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_gate_tgt"}),),
+    )
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_tgt','tgt','active',0.8,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    before = len(list_merged_candidates(db))
+    result = open_unmerge_branch_for_merged_person(
+        db,
+        source_pid="p_gate_src",
+        confidence=0.92,
+        reason="contradiction-derived operator gate",
+        note="memory mismatch",
+    )
+    after = len(list_merged_candidates(db))
+
+    assert result["branch_id"].startswith("branch_unmerge_")
+    assert result["source_pid"] == "p_gate_src"
+    assert result["target_pid"] == "p_gate_tgt"
+    assert before == after == 1
+
+    conn = sqlite3.connect(db)
+    branch = conn.execute(
+        "SELECT status, reason FROM local_branches WHERE branch_id = ?",
+        (result["branch_id"],),
+    ).fetchone()
+    cand_count = conn.execute(
+        "SELECT COUNT(*) FROM branch_candidates WHERE branch_id = ?",
+        (result["branch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert branch[0] == "open"
+    assert "operator gate" in branch[1]
+    assert cand_count == 2
+
+
+def test_operator_gate_branch_can_apply_unmerge_effect(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.patch_applier import apply_patch_record
+    from we_together.services.patch_service import build_patch
+    from we_together.services.unmerge_gate_service import open_unmerge_branch_for_merged_person
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate2_src','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_gate2_tgt"}),),
+    )
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate2_tgt','tgt','active',0.8,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    proposal = open_unmerge_branch_for_merged_person(
+        db,
+        source_pid="p_gate2_src",
+        confidence=0.88,
+        reason="contradiction gate",
+    )
+
+    resolve_patch = build_patch(
+        source_event_id="evt_gate_resolve",
+        target_type="local_branch",
+        target_id=proposal["branch_id"],
+        operation="resolve_local_branch",
+        payload={
+            "branch_id": proposal["branch_id"],
+            "status": "resolved",
+            "reason": "operator approved unmerge",
+            "selected_candidate_id": proposal["unmerge_candidate_id"],
+        },
+        confidence=1.0,
+        reason="operator approved unmerge",
+    )
+    apply_patch_record(db_path=db, patch=resolve_patch)
+
+    conn = sqlite3.connect(db)
+    status = conn.execute(
+        "SELECT status FROM persons WHERE person_id = 'p_gate2_src'"
+    ).fetchone()[0]
+    branch_status = conn.execute(
+        "SELECT status FROM local_branches WHERE branch_id = ?",
+        (proposal["branch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert status == "active"
+    assert branch_status == "resolved"

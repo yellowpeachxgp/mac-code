@@ -3,7 +3,7 @@
 > **对象**：Codex（或任一继任 AI assistant）
 > **目标**：读完本文档 + [`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md) 后 **5 分钟**内回到工作状态。
 > **当前版本**：**v0.19.0（local）** — 本地 tag `v0.19.0` 已打；wheel/build/check 已通过。
-> **代码事实补丁（2026-04-22）**：当前代码自审为 **73 ADR / 28 条不变式 / 21 migrations / 83 services**，本地测试基线为 **761 passed, 4 skipped**；`sqlite_vec/faiss` 已从 stub 升级为真 backend，tenant CLI 覆盖面已大幅扩展。
+> **代码事实补丁（2026-04-23）**：当前代码自审为 **73 ADR / 28 条不变式 / 21 migrations / 84 services / 69 scripts**，本地测试基线为 **768 passed, 4 skipped**；本地已起步 **Phase 72：矛盾复核 / operator-gated unmerge**，`sqlite_vec/faiss` 已从 stub 升级为真 backend，tenant CLI 覆盖面已大幅扩展。
 
 ---
 
@@ -26,7 +26,7 @@
 | git tag | `v0.19.0`（local） |
 | pyproject version | `0.19.0` |
 | cli VERSION | `0.19.0` |
-| pytest 基线 | **761 passed + 4 skipped**，~37s 本机 |
+| pytest 基线 | **768 passed + 4 skipped**，~35s 本机 |
 | ADR 总数 | 73（`docs/superpowers/decisions/0001-0073`）|
 | 不变式 | **28 条**（`src/we_together/invariants.py`）|
 | Migrations | **21 条**（`db/migrations/0001..0021`）|
@@ -36,7 +36,7 @@
 **快速自检**：
 ```bash
 cd we-together-skill
-.venv/bin/python -m pytest -q         # 期望 761 passed, 4 skipped
+.venv/bin/python -m pytest -q         # 期望 768 passed, 4 skipped
 .venv/bin/python scripts/self_audit.py        # 整体自描述
 .venv/bin/python scripts/invariants_check.py summary  # 28 条不变式 100% 覆盖
 .venv/bin/we-together version         # we-together 0.19.0
@@ -170,12 +170,12 @@ we-together-skill/
 | Vector | `vector_index` / `vector_similarity` / `embedding_cache` | flat_python + sqlite_vec/faiss 真 backend（`auto` 仍保持 flat_python） |
 | 演化 | `state_decay_service` / `relation_drift_service` / `self_activation_service` / `time_simulator` / `tick_sanity` | tick 闭环 |
 | 主动 | `proactive_agent` / `proactive_prefs` | v0.13（#18）|
-| 元认知 | `contradiction_detector` | v0.13（只读不写） |
+| 元认知 | `contradiction_detector` | v0.13（只读不写，判定层） |
 | 媒体 | `media_asset_service` / `ocr_service` | v0.14 |
 | 多 Agent | `multi_agent_dialogue` | v0.16（互听+打断+私聊） |
 | 世界建模 | `world_service` | v0.17（object/place/project） |
 | Agent 元能力 | `autonomous_agent` / `dream_cycle` | v0.17（#27） |
-| 遗忘 | `forgetting_service` / `entity_unmerge_service` | v0.15（#22） |
+| 遗忘/拆分门控 | `forgetting_service` / `entity_unmerge_service` / `unmerge_gate_service` | v0.15 + post-v0.19 local slice（candidate + operator gate，不自动改图） |
 | 激活痕迹 | `activation_trace_service` | v0.15（#21） |
 | 联邦 | `federation_service` / `federation_client` / `federation_security` | v0.15-0.16 |
 | 短时记忆 | `working_memory` | v0.17（#28 派生可重建） |
@@ -295,32 +295,30 @@ we-together-skill/
 
 ### 留给 v0.20 的候选（按优先级）
 
-**方向 1 ★★★★★ — 真接入外部 lib**
-- 已完成：真 sqlite-vec 接入
-- 已完成：真 FAISS 接入
-- 下一步：100k / 1M 规模压测 + 报告归档
+**方向 1 ★★★★★ — 矛盾复核 / operator-gated unmerge**
+- `contradiction_detector` 保持只读不写
+- merged person 走 `local_branch` 人工 gate
+- `keep_merged / unmerge_person` 二选一
 
-**方向 2 ★★★★★ — 真 LLM 端到端**（需要 key）
-- 真跑 `simulate_year --budget 30` 用 Anthropic/OpenAI
-- 成本采样 + 月度报告
-- dream_cycle 真生成 insight（由 LLM 而非关键词）
+**方向 2 ★★★★★ — tenant / world 隔离语义**
+- tenant namespace / world namespace contract
+- cross-tenant negative tests 系统化
+- world-aware 边界补强
 
-**方向 3 ★★★★☆ — 真部署**（需要外部动作）
-- mkdocs 真建站 + GitHub Pages 部署
-- Claude Skills marketplace 提交
-- PyPI 正式发布（twine upload）
-- 3-5 个真用户试用 + case study
+**方向 3 ★★★★☆ — 真 LLM 端到端**（需要 key）
+- 真跑 `simulate_year --budget 30`
+- usage/cost 月报真实样本
+- dream_cycle 真 insight
 
-**方向 4 ★★★★☆ — 深化差异化**
-- ADR 互引图（谁 superseded 谁）
-- autonomous_agent LLM-based drive 检测（替换关键词启发式）
+**方向 4 ★★★★☆ — 协作式 autonomy / decomposition**
 - task decomposition（多 agent 协作完成 goal）
-- narrative_v2 深度升级
+- autonomous_agent 更强 goal completion
+- narrative / planning / execution 闭环增强
 
-**方向 5 ★★★☆☆ — 多 world / 多租户**
-- tenant_router 真实装
-- world namespace 隔离
-- 跨 world 迁移
+**方向 5 ★★★☆☆ — 外部发布**
+- GitHub Release / PyPI / 文档站点
+- 真实试用 / case study
+- 发布流程真实演练
 
 ---
 
@@ -334,7 +332,7 @@ git log --oneline | head -5                    # 看最近 5 commits
 git tag -l | tail -5                           # 确认 v0.19.0 已 tag
 
 # 2. 确认测试绿
-.venv/bin/python -m pytest -q                  # 期望 761 passed, 4 skipped
+.venv/bin/python -m pytest -q                  # 期望 768 passed, 4 skipped
 
 # 3. 自描述（反身能力的使用）
 .venv/bin/python scripts/self_audit.py
@@ -486,9 +484,9 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 ## 13. Codex 继任时的具体下一步建议
 
 ### 如果用户只说"继续推进" → 你需要：
-1. 跑 `pytest -q` 确认 **761 passed / 4 skipped** 基线保持
+1. 跑 `pytest -q` 确认 **768 passed / 4 skipped** 基线保持
 2. 读 [`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](superpowers/decisions/0073-phase-65-70-synthesis.md)
-3. 优先收 `Phase 71`：README/HANDOFF/current-status/release 流程/候选 v0.20
+3. 优先沿当前本地 `Phase 72` 推进：矛盾复核 / operator-gated unmerge → 再进入 tenant/world isolation
 
 ### 如果用户说"新的启发性规划" → 你需要：
 1. 重读 product-mandate（不变！）
@@ -498,7 +496,7 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 5. 等用户拍板
 
 ### 如果用户说"无人值守连续推进到 v0.20.0" → 你需要：
-1. 基于当前 v0.19.0 本地收口状态重新拆 Phase 72+
+1. 基于当前已起步的 `Phase 72` 本地切片继续往后拆 Phase 73+
 2. 按 phase 交付（每个 phase commit + ADR）
 3. 最后 EPIC：bump VERSION 0.19.0 → 0.20.0 + wheel verify + `git tag v0.20.0`
 4. 批量结清 task

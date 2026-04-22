@@ -4,6 +4,7 @@
 与次优 candidate 的差 ≥ margin）时，自动生成 resolve_local_branch patch 选中它。
 
 保留"人类可覆盖"：auto resolve 的 reason 字段会标注 'auto:...'，便于审计和撤销。
+显式 operator-gated branch 不参与 auto resolve。
 """
 from __future__ import annotations
 
@@ -14,6 +15,20 @@ from pathlib import Path
 from we_together.db.connection import connect
 from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
+
+
+def _is_operator_gated_branch(branch_reason: str | None, candidates: list[sqlite3.Row]) -> bool:
+    if (branch_reason or "").startswith("operator gate:"):
+        return True
+
+    for cand in candidates:
+        payload_json = cand["payload_json"]
+        if not payload_json:
+            continue
+        payload = json.loads(payload_json)
+        if payload.get("requires_operator_gate"):
+            return True
+    return False
 
 
 def auto_resolve_branches(
@@ -27,7 +42,7 @@ def auto_resolve_branches(
     conn.row_factory = sqlite3.Row
     branches = conn.execute(
         """
-        SELECT branch_id, scope_type, scope_id
+        SELECT branch_id, scope_type, scope_id, reason
         FROM local_branches
         WHERE status = 'open'
         """
@@ -37,7 +52,7 @@ def auto_resolve_branches(
     for br in branches:
         cands = conn.execute(
             """
-            SELECT candidate_id, confidence
+            SELECT candidate_id, confidence, payload_json
             FROM branch_candidates
             WHERE branch_id = ? AND status = 'open'
             ORDER BY confidence DESC
@@ -45,6 +60,8 @@ def auto_resolve_branches(
             (br["branch_id"],),
         ).fetchall()
         if not cands:
+            continue
+        if _is_operator_gated_branch(br["reason"], cands):
             continue
 
         top_conf = cands[0]["confidence"] or 0.0

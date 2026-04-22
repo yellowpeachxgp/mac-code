@@ -24,7 +24,7 @@ v0.19 本地收口后阶段开放给新贡献者的"入门任务"清单。难度
 12. **federation 写路径扩展**: 补 `422/429` 之外的更多 curl smoke
 13. **i18n 扩展**: 加法语 / 西语 / 韩语 prompt variant
 14. **persona_drift learning**: agent_drives + persona_facets 真联动
-15. **contradiction → unmerge workflow**: 带人工 gate（Phase 41 FO-9 进阶）
+15. **unmerge gate follow-up**: 补 target validation / tenant CLI 测试 / operator UX（post-v0.19 local slice）
 
 ## ⚫ 多天级（大）
 

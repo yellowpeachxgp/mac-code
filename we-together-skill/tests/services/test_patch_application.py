@@ -1,5 +1,6 @@
 import json
 import sqlite3
+
 import pytest
 
 from we_together.db.bootstrap import bootstrap_project
@@ -582,6 +583,172 @@ def test_resolve_local_branch_without_effect_payload_still_works(temp_project_wi
 
     assert branch_row[0] == "resolved"
     assert candidate_row[0] == "selected"
+
+
+def test_resolve_local_branch_rejects_candidate_outside_branch(
+    temp_project_with_migrations,
+):
+    """selected_candidate_id 必须属于目标 branch。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    create_patch = build_patch(
+        source_event_id="evt_invalid_branch_candidate_open",
+        target_type="local_branch",
+        target_id="branch_invalid_candidate",
+        operation="create_local_branch",
+        payload={
+            "branch_id": "branch_invalid_candidate",
+            "scope_type": "person",
+            "scope_id": "person_invalid_candidate",
+            "status": "open",
+            "reason": "identity ambiguity",
+            "created_from_event_id": "evt_invalid_branch_candidate_open",
+            "branch_candidates": [
+                {
+                    "candidate_id": "cand_invalid_keep",
+                    "label": "keep",
+                    "payload_json": {"mode": "keep"},
+                    "confidence": 0.4,
+                    "status": "open",
+                },
+                {
+                    "candidate_id": "cand_invalid_merge",
+                    "label": "merge",
+                    "payload_json": {"mode": "merge"},
+                    "confidence": 0.9,
+                    "status": "open",
+                },
+            ],
+        },
+        confidence=0.7,
+        reason="open invalid candidate branch",
+    )
+    apply_patch_record(db_path=db_path, patch=create_patch)
+
+    resolve_patch = build_patch(
+        source_event_id="evt_invalid_branch_candidate_resolve",
+        target_type="local_branch",
+        target_id="branch_invalid_candidate",
+        operation="resolve_local_branch",
+        payload={
+            "branch_id": "branch_invalid_candidate",
+            "status": "resolved",
+            "reason": "invalid candidate selection",
+            "selected_candidate_id": "cand_not_in_branch",
+        },
+        confidence=0.9,
+        reason="invalid candidate selection",
+    )
+
+    with pytest.raises(ValueError, match="selected candidate does not belong to branch"):
+        apply_patch_record(db_path=db_path, patch=resolve_patch)
+
+    conn = sqlite3.connect(db_path)
+    branch_status = conn.execute(
+        "SELECT status FROM local_branches WHERE branch_id = 'branch_invalid_candidate'"
+    ).fetchone()[0]
+    candidate_statuses = conn.execute(
+        "SELECT status FROM branch_candidates WHERE branch_id = 'branch_invalid_candidate' ORDER BY candidate_id"
+    ).fetchall()
+    patch_status = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?",
+        (resolve_patch["patch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert branch_status == "open"
+    assert [row[0] for row in candidate_statuses] == ["open", "open"]
+    assert patch_status == "failed"
+
+
+def test_apply_patch_record_can_unmerge_person(temp_project_with_migrations):
+    """unmerge_person patch 应调用 entity_unmerge_service，把 merged person 恢复 active。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_unmerge_src','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_unmerge_tgt"}),),
+    )
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_unmerge_tgt','tgt','active',0.8,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    patch = build_patch(
+        source_event_id="evt_unmerge_patch",
+        target_type="person",
+        target_id="p_unmerge_src",
+        operation="unmerge_person",
+        payload={
+            "source_person_id": "p_unmerge_src",
+            "reviewer": "patch_test",
+            "reason": "direct patch unmerge",
+        },
+        confidence=0.9,
+        reason="direct patch unmerge",
+    )
+    apply_patch_record(db_path=db_path, patch=patch)
+
+    conn = sqlite3.connect(db_path)
+    status = conn.execute(
+        "SELECT status FROM persons WHERE person_id = 'p_unmerge_src'"
+    ).fetchone()[0]
+    patch_status = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?",
+        (patch["patch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert status == "active"
+    assert patch_status == "applied"
+
+
+def test_apply_patch_record_marks_unmerge_failed_when_service_raises(
+    temp_project_with_migrations,
+):
+    """unmerge_person 失败时，patch 不应被误记为 applied。"""
+    bootstrap_project(temp_project_with_migrations)
+    db_path = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_unmerge_bad','bad','active',0.5,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    patch = build_patch(
+        source_event_id="evt_unmerge_patch_fail",
+        target_type="person",
+        target_id="p_unmerge_bad",
+        operation="unmerge_person",
+        payload={
+            "source_person_id": "p_unmerge_bad",
+            "reviewer": "patch_test",
+            "reason": "direct patch unmerge should fail",
+        },
+        confidence=0.9,
+        reason="direct patch unmerge should fail",
+    )
+
+    with pytest.raises(ValueError, match="not in merged state"):
+        apply_patch_record(db_path=db_path, patch=patch)
+
+    conn = sqlite3.connect(db_path)
+    patch_status = conn.execute(
+        "SELECT status FROM patches WHERE patch_id = ?",
+        (patch["patch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert patch_status == "failed"
 
 
 def test_apply_patch_record_can_update_person_entity(temp_project_with_migrations):
