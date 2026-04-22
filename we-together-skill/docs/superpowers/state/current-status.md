@@ -3,7 +3,7 @@
 日期：2026-04-23
 
 > 代码事实快照：
-> - 本地测试基线：**777 passed, 4 skipped**
+> - 本地测试基线：**779 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
@@ -23,6 +23,8 @@
 - `unmerge_gate.py --tenant-id` 已有回归测试；非 active target 会走明确失败出口
 - `resolve_local_branch` 对带 `effect_patches` 的 candidate 现在先跑子 effect，再回写 parent branch；子 effect 失败时 branch 保持 `open`
 - `unmerge_gate_service` 现在会把输入 `confidence` clamp 到 `[0,1]`，避免异常值把 operator gate 的候选排序带偏
+- `package_skill.py pack` 不传版本参数时，现已自动推导当前 `skill_version=0.19.0` 与 `schema_version=0021`
+- `we_together.__version__` 现已与 CLI `VERSION` 对齐
 
 当前已完成：
 

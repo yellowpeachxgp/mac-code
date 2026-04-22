@@ -15,6 +15,8 @@
 from __future__ import annotations
 
 import json
+import re
+import tomllib
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,6 +30,9 @@ DEFAULT_INCLUDE_GLOBS = [
     "scripts/*.py",
     "src/we_together/**/*.py",
 ]
+
+VERSION_RE = re.compile(r'^VERSION\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
+DUnder_VERSION_RE = re.compile(r'^__version__\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 
 
 def _collect_files(root: Path, globs: list[str]) -> list[Path]:
@@ -44,15 +49,48 @@ def _collect_files(root: Path, globs: list[str]) -> list[Path]:
     return out
 
 
+def _infer_skill_version(root: Path) -> str:
+    pyproject = root / "pyproject.toml"
+    if pyproject.exists():
+        data = tomllib.loads(pyproject.read_text("utf-8"))
+        version = data.get("project", {}).get("version")
+        if version:
+            return str(version)
+
+    cli_py = root / "src" / "we_together" / "cli.py"
+    if cli_py.exists():
+        match = VERSION_RE.search(cli_py.read_text("utf-8"))
+        if match:
+            return match.group(1)
+
+    init_py = root / "src" / "we_together" / "__init__.py"
+    if init_py.exists():
+        match = DUnder_VERSION_RE.search(init_py.read_text("utf-8"))
+        if match:
+            return match.group(1)
+
+    return "0.8.0"
+
+
+def _infer_schema_version(root: Path) -> str:
+    migrations = sorted((root / "db" / "migrations").glob("*.sql"))
+    prefixes = [p.name[:4] for p in migrations if len(p.name) >= 4 and p.name[:4].isdigit()]
+    if prefixes:
+        return max(prefixes)
+    return "0007"
+
+
 def pack_skill(
     root: Path,
     output_path: Path,
     *,
-    skill_version: str = "0.8.0",
-    schema_version: str = "0007",
+    skill_version: str | None = None,
+    schema_version: str | None = None,
     include_globs: list[str] | None = None,
 ) -> dict:
     include_globs = include_globs or DEFAULT_INCLUDE_GLOBS
+    skill_version = skill_version or _infer_skill_version(root)
+    schema_version = schema_version or _infer_schema_version(root)
     files = _collect_files(root, include_globs)
     manifest = {
         "format_version": 1,

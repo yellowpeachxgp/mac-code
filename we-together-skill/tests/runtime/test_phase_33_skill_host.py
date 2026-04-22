@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -227,3 +228,40 @@ def test_package_skill_pack_unpack_roundtrip(tmp_path):
     r2 = unpack_skill(pkg, target)
     assert r2["manifest"]["skill_version"] == "0.14.0"
     assert (target / "SKILL.md").read_text(encoding="utf-8") == "# test"
+
+
+def test_package_skill_cli_pack_infers_version_and_schema_defaults(tmp_path, monkeypatch):
+    import package_skill
+
+    src = tmp_path / "src"
+    (src / "db" / "migrations").mkdir(parents=True)
+    (src / "src" / "we_together").mkdir(parents=True)
+    (src / "SKILL.md").write_text("# test", encoding="utf-8")
+    (src / "db" / "migrations" / "0001.sql").write_text("SELECT 1;", encoding="utf-8")
+    (src / "db" / "migrations" / "0015.sql").write_text("SELECT 15;", encoding="utf-8")
+    (src / "pyproject.toml").write_text(
+        "[project]\nname = 'fake-skill'\nversion = '9.9.9'\n",
+        encoding="utf-8",
+    )
+    (src / "src" / "we_together" / "cli.py").write_text(
+        'VERSION = "9.9.9"\n',
+        encoding="utf-8",
+    )
+    (src / "src" / "we_together" / "__init__.py").write_text(
+        '__version__ = "9.9.9"\n',
+        encoding="utf-8",
+    )
+
+    pkg = tmp_path / "auto.weskill.zip"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["package_skill.py", "pack", "--root", str(src), "--output", str(pkg)],
+    )
+
+    package_skill.main()
+
+    with zipfile.ZipFile(pkg, "r") as zf:
+        manifest = json.loads(zf.read("manifest.json"))
+
+    assert manifest["skill_version"] == "9.9.9"
+    assert manifest["schema_version"] == "0015"

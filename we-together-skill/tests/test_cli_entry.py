@@ -1,3 +1,4 @@
+from we_together import __version__
 from we_together.cli import VERSION, main
 
 
@@ -23,3 +24,7 @@ def test_unknown_subcommand_errors(capsys):
     captured = capsys.readouterr()
     assert code == 2
     assert "unknown subcommand" in captured.err
+
+
+def test_exported_version_matches_cli_version():
+    assert __version__ == VERSION

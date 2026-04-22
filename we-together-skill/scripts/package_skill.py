@@ -18,8 +18,8 @@ def main() -> None:
     p_pack = sub.add_parser("pack")
     p_pack.add_argument("--root", default=".")
     p_pack.add_argument("--output", required=True)
-    p_pack.add_argument("--skill-version", default="0.8.0")
-    p_pack.add_argument("--schema-version", default="0007")
+    p_pack.add_argument("--skill-version", default=None)
+    p_pack.add_argument("--schema-version", default=None)
 
     p_unp = sub.add_parser("unpack")
     p_unp.add_argument("package", type=str)

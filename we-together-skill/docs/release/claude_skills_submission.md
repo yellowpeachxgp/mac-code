@@ -1,6 +1,6 @@
 # Claude Skills 提交材料
 
-v0.17.0 申请 Claude Skills marketplace 上架的准备材料（Phase 56 / ADR 0058）。
+v0.19.0 本地基线下的 Claude Skills marketplace 上架准备材料（Phase 56 / ADR 0058）。
 
 **注意**：是否真提交由 Core Maintainer 决定；本文件只是**准备**。
 
@@ -19,7 +19,7 @@ v0.17.0 申请 Claude Skills marketplace 上架的准备材料（Phase 56 / ADR 
 {
   "name": "we-together",
   "description": "Skill-first 社会 + 世界图谱运行时。给 AI 一个可演化的数字社会：人、关系、记忆、事件、物、地点、项目统一在一个 SQLite 图谱内核中。",
-  "version": "0.17.0",
+  "version": "0.19.0",
   "author": "we-together maintainers",
   "license": "MIT",
   "repo": "https://github.com/example/we-together",
@@ -63,8 +63,8 @@ MIT（见 LICENSE）
 
 ## 提交流程
 
-1. 打包：`python scripts/package_skill.py pack --root . --output dist/we-together-0.17.0.weskill.zip --skill-version 0.17.0 --schema-version 0022`
-2. 验证：`python scripts/verify_skill_package.py --package dist/we-together-0.17.0.weskill.zip`
+1. 打包：`python scripts/package_skill.py pack --root . --output dist/we-together-0.19.0.weskill.zip`
+2. 验证：`python scripts/verify_skill_package.py --package dist/we-together-0.19.0.weskill.zip`
 3. 提交到 Claude Skills 官方渠道（按当前 marketplace 要求；此文档无绑定具体 URL）
 4. 等审批
 
