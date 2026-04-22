@@ -129,6 +129,38 @@ def test_mcp_server_tools_list_and_call(temp_project_with_migrations):
     assert payload["tenant_id"] == "default"
 
 
+def test_mcp_server_self_introspection_tools_call(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    bootstrap_project(temp_project_with_migrations)
+    import mcp_server
+    tools = mcp_server.build_mcp_tools()
+    resources = mcp_server.build_mcp_resources()
+    prompts = mcp_server.build_mcp_prompts()
+    dispatcher = mcp_server._make_dispatcher(temp_project_with_migrations)
+
+    for tool_name, arguments in [
+        ("we_together_self_describe", {}),
+        ("we_together_list_invariants", {}),
+        ("we_together_check_invariant", {"invariant_id": 1}),
+    ]:
+        req = {
+            "jsonrpc": "2.0",
+            "id": tool_name,
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": arguments},
+        }
+        resp = mcp_server.handle_request(
+            req,
+            dispatcher=dispatcher,
+            tools=tools,
+            resources=resources,
+            prompts=prompts,
+            root=temp_project_with_migrations,
+        )
+        assert "result" in resp, tool_name
+        assert resp["result"]["isError"] is False, tool_name
+
+
 def test_mcp_server_resources_read(temp_project_with_migrations):
     from we_together.db.bootstrap import bootstrap_project
     bootstrap_project(temp_project_with_migrations)
@@ -233,6 +265,56 @@ def test_mcp_server_main_ignores_initialized_notification(tmp_path, monkeypatch)
     output = stdout.getvalue()
     assert output.count("Content-Length:") == 1
     assert "notifications/initialized" not in output
+
+
+def test_mcp_server_main_handles_framed_unicode_tool_call(
+    temp_project_with_migrations, monkeypatch,
+):
+    from we_together.db.bootstrap import bootstrap_project
+    bootstrap_project(temp_project_with_migrations)
+    import mcp_server
+
+    tool_body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "we_together_graph_summary",
+                "arguments": {"scene_id": "你好"},
+            },
+        },
+        ensure_ascii=False,
+    ).encode("utf-8")
+    resource_body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "resources/read",
+            "params": {"uri": "we-together://schema/version"},
+        },
+        ensure_ascii=False,
+    ).encode("utf-8")
+    framed = (
+        b"Content-Length: " + str(len(tool_body)).encode("ascii") + b"\r\n\r\n" + tool_body
+        + b"Content-Length: " + str(len(resource_body)).encode("ascii") + b"\r\n\r\n" + resource_body
+    )
+    stdin_bytes = io.BytesIO(framed)
+    stdin = io.TextIOWrapper(stdin_bytes, encoding="utf-8")
+    stdout_bytes = io.BytesIO()
+    stdout = io.TextIOWrapper(stdout_bytes, encoding="utf-8")
+
+    monkeypatch.setattr("sys.argv", ["mcp_server.py", "--root", str(temp_project_with_migrations)])
+    monkeypatch.setattr("sys.stdin", stdin)
+    monkeypatch.setattr("sys.stdout", stdout)
+
+    assert mcp_server.main() == 0
+
+    stdout.flush()
+    output = stdout_bytes.getvalue().decode("utf-8")
+    assert output.count("Content-Length:") == 2
+    assert '"id": 1' in output
+    assert '"id": 2' in output
 
 
 def test_adapters_equivalent_payload_structure():

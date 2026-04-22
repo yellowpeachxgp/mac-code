@@ -14,6 +14,7 @@ Claude Code 接入:
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import sqlite3
 import sys
@@ -98,6 +99,12 @@ def _proactive_scan(root: Path, daily_budget: int = 3) -> dict:
 
 
 def _make_dispatcher(root: Path):
+    from we_together.services.self_introspection import (
+        check_invariant,
+        list_invariants,
+        self_describe,
+    )
+
     def we_together_graph_summary(args: dict) -> dict:
         return _graph_summary(root)
 
@@ -139,6 +146,15 @@ def _make_dispatcher(root: Path):
     def we_together_proactive_scan(args: dict) -> dict:
         return _proactive_scan(root, daily_budget=int(args.get("daily_budget", 3)))
 
+    def we_together_self_describe(args: dict) -> dict:
+        return self_describe()
+
+    def we_together_list_invariants(args: dict) -> dict:
+        return {"invariants": list_invariants()}
+
+    def we_together_check_invariant(args: dict) -> dict:
+        return check_invariant(int(args.get("invariant_id")))
+
     return {
         "we_together_graph_summary": we_together_graph_summary,
         "we_together_run_turn": we_together_run_turn,
@@ -146,6 +162,9 @@ def _make_dispatcher(root: Path):
         "we_together_snapshot_list": we_together_snapshot_list,
         "we_together_import_narration": we_together_import_narration,
         "we_together_proactive_scan": we_together_proactive_scan,
+        "we_together_self_describe": we_together_self_describe,
+        "we_together_list_invariants": we_together_list_invariants,
+        "we_together_check_invariant": we_together_check_invariant,
     }
 
 
@@ -257,38 +276,67 @@ def handle_request(
 def _read_stdio_message(stream) -> tuple[dict, str] | tuple[None, None]:
     while True:
         first_line = stream.readline()
-        if first_line == "":
+        if first_line in {"", b""}:
             return None, None
-        if first_line.strip():
+        first_line_text = (
+            first_line.decode("utf-8", errors="replace")
+            if isinstance(first_line, bytes)
+            else first_line
+        )
+        if first_line_text.strip():
             break
 
-    if first_line.lower().startswith("content-length:"):
+    if first_line_text.lower().startswith("content-length:"):
+        length = None
         try:
-            length = int(first_line.split(":", 1)[1].strip())
+            length = int(first_line_text.split(":", 1)[1].strip())
         except ValueError:
             return None, None
 
         while True:
             line = stream.readline()
-            if line == "":
+            if line in {"", b""}:
                 return None, None
-            if line in {"\n", "\r\n"}:
+            line_text = (
+                line.decode("utf-8", errors="replace")
+                if isinstance(line, bytes)
+                else line
+            )
+            if line_text in {"\n", "\r\n"}:
                 break
+            if line_text.lower().startswith("content-length:"):
+                try:
+                    length = int(line_text.split(":", 1)[1].strip())
+                except ValueError:
+                    return None, None
 
         body = stream.read(length)
         if not body:
             return None, None
-        return json.loads(body), "framed"
+        body_text = (
+            body.decode("utf-8", errors="replace")
+            if isinstance(body, bytes)
+            else body
+        )
+        return json.loads(body_text), "framed"
 
-    return json.loads(first_line.strip()), "line"
+    return json.loads(first_line_text.strip()), "line"
 
 
 def _write_stdio_message(stream, payload: dict, mode: str) -> None:
     body = json.dumps(payload, ensure_ascii=False)
+    body_bytes = body.encode("utf-8")
     if mode == "framed":
-        stream.write(f"Content-Length: {len(body.encode('utf-8'))}\r\n\r\n{body}")
+        framed = f"Content-Length: {len(body_bytes)}\r\n\r\n".encode() + body_bytes
+        if isinstance(stream, io.TextIOBase):
+            stream.write(framed.decode("utf-8"))
+        else:
+            stream.write(framed)
     else:
-        stream.write(body + "\n")
+        if isinstance(stream, io.TextIOBase):
+            stream.write(body + "\n")
+        else:
+            stream.write(body_bytes + b"\n")
     stream.flush()
 
 
@@ -303,9 +351,12 @@ def main() -> int:
     prompts = build_mcp_prompts()
     dispatcher = _make_dispatcher(root)
 
+    stdin_stream = getattr(sys.stdin, "buffer", sys.stdin)
+    stdout_stream = getattr(sys.stdout, "buffer", sys.stdout)
+
     while True:
         try:
-            req, mode = _read_stdio_message(sys.stdin)
+            req, mode = _read_stdio_message(stdin_stream)
         except json.JSONDecodeError:
             continue
         if req is None:
@@ -315,7 +366,7 @@ def main() -> int:
             resources=resources, prompts=prompts, root=root,
         )
         if resp is not None:
-            _write_stdio_message(sys.stdout, resp, mode)
+            _write_stdio_message(stdout_stream, resp, mode)
     return 0
 
 
