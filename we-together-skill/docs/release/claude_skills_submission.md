@@ -8,8 +8,23 @@ v0.19.0 本地基线下的 Claude Skills marketplace 上架准备材料（Phase 
 
 - [ ] Skill 在本地可以被 Claude Desktop MCP 成功调用（见 `docs/hosts/claude-desktop.md`）
 - [ ] Skill 在 Claude Code 可以被 `claude mcp add` 识别（见 `docs/hosts/claude-code.md`）
-- [ ] `.weskill.zip` 打包通过 `scripts/verify_skill_package.py` 验证
-- [ ] 所有 tool / resource / prompt 已被真实调用过至少 1 次
+- [x] `.weskill.zip` 打包通过 `scripts/verify_skill_package.py` 验证
+- [x] 所有 tool / resource / prompt 已被真实调用过至少 1 次（见 `tests/runtime/test_phase_33_skill_host.py`）
+
+## 2026-04-23 本地证据
+
+- `scripts/release_prep.py --version 0.19.0`：`ok: true`
+- `scripts/skill_host_smoke.py --root <tmp>`：通过
+- `scripts/skill_host_smoke.py --root <tmp> --tenant-id alpha`：通过
+- `python -m twine check dist/we_together-0.19.0-py3-none-any.whl`：通过
+- `scripts/package_skill.py pack --root . --output dist/we-together-0.19.0.weskill.zip`：默认产物元数据为 `skill_version=0.19.0` / `schema_version=0021`
+- `scripts/verify_skill_package.py --package dist/we-together-0.19.0.weskill.zip`：通过
+
+## 当前仍待外部验证
+
+- Claude Desktop 手工接线 / 真 MCP 调用
+- Claude Code `claude mcp add` 真接线验证
+- marketplace 实际提交流程与审批
 
 ## 申请材料
 
