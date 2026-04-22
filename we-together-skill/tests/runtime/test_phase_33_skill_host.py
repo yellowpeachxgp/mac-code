@@ -168,8 +168,11 @@ def test_mcp_server_prompts_get(temp_project_with_migrations):
         resources=resources, prompts=prompts, root=temp_project_with_migrations,
     )
     msgs = resp["result"]["messages"]
-    assert msgs[0]["role"] == "system"
-    assert "scene s1" in msgs[0]["content"]
+    assert msgs[0]["role"] == "assistant"
+    assert msgs[0]["content"]["type"] == "text"
+    assert "scene s1" in msgs[0]["content"]["text"]
+    assert msgs[1]["role"] == "user"
+    assert msgs[1]["content"] == {"type": "text", "text": "hi"}
 
 
 def test_mcp_server_main_accepts_tenant_id(tmp_path, monkeypatch):
@@ -205,6 +208,31 @@ def test_mcp_server_main_supports_content_length_framing(tmp_path, monkeypatch):
     output = stdout.getvalue()
     assert "Content-Length:" in output
     assert '"serverInfo": {"name": "we-together"' in output
+
+
+def test_mcp_server_main_ignores_initialized_notification(tmp_path, monkeypatch):
+    import mcp_server
+
+    init_body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    notif_body = json.dumps(
+        {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}
+    )
+    framed = (
+        f"Content-Length: {len(init_body)}\r\n\r\n{init_body}"
+        f"Content-Length: {len(notif_body)}\r\n\r\n{notif_body}"
+    )
+    stdin = io.StringIO(framed)
+    stdout = io.StringIO()
+
+    monkeypatch.setattr("sys.argv", ["mcp_server.py", "--root", str(tmp_path)])
+    monkeypatch.setattr("sys.stdin", stdin)
+    monkeypatch.setattr("sys.stdout", stdout)
+
+    assert mcp_server.main() == 0
+
+    output = stdout.getvalue()
+    assert output.count("Content-Length:") == 1
+    assert "notifications/initialized" not in output
 
 
 def test_adapters_equivalent_payload_structure():

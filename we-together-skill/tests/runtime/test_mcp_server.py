@@ -64,3 +64,11 @@ def test_unknown_method():
         dispatcher={}, tools=[],
     )
     assert "error" in r
+
+
+def test_initialized_notification_returns_no_response():
+    r = handle_request(
+        {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        dispatcher={}, tools=[],
+    )
+    assert r is None

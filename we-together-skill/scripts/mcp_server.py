@@ -165,11 +165,17 @@ def _get_prompt(name: str, args: dict) -> dict:
         return {
             "description": "Scene-grounded reply",
             "messages": [
-                {"role": "system", "content": (
-                    "You are an agent inside a we-together social graph. "
-                    f"Reply in scene {scene_id}, grounded in retrieval package."
-                )},
-                {"role": "user", "content": user_input},
+                {
+                    "role": "assistant",
+                    "content": {
+                        "type": "text",
+                        "text": (
+                            "You are an agent inside a we-together social graph. "
+                            f"Reply in scene {scene_id}, grounded in retrieval package."
+                        ),
+                    },
+                },
+                {"role": "user", "content": {"type": "text", "text": user_input}},
             ],
         }
     raise ValueError(f"unknown prompt: {name}")
@@ -179,12 +185,15 @@ def handle_request(
     req: dict, *, dispatcher: dict, tools: list[dict],
     resources: list[dict] | None = None, prompts: list[dict] | None = None,
     root: Path | None = None,
-) -> dict:
+) -> dict | None:
     resources = resources if resources is not None else []
     prompts = prompts if prompts is not None else []
     method = req.get("method")
     req_id = req.get("id")
     params = req.get("params") or {}
+
+    if req_id is None and method and method.startswith("notifications/"):
+        return None
 
     if method == "initialize":
         return {
@@ -305,7 +314,8 @@ def main() -> int:
             req, dispatcher=dispatcher, tools=tools,
             resources=resources, prompts=prompts, root=root,
         )
-        _write_stdio_message(sys.stdout, resp, mode)
+        if resp is not None:
+            _write_stdio_message(sys.stdout, resp, mode)
     return 0
 
 

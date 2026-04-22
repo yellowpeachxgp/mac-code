@@ -3,7 +3,7 @@
 日期：2026-04-23
 
 > 代码事实快照：
-> - 本地测试基线：**780 passed, 4 skipped**
+> - 本地测试基线：**782 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
@@ -25,6 +25,7 @@
 - `unmerge_gate_service` 现在会把输入 `confidence` clamp 到 `[0,1]`，避免异常值把 operator gate 的候选排序带偏
 - `package_skill.py pack` 不传版本参数时，现已自动推导当前 `skill_version=0.19.0` 与 `schema_version=0021`
 - `we_together.__version__` 现已与 CLI `VERSION` 对齐
+- `codex mcp add/list/get` 已验证当前 `scripts/mcp_server.py` 可被 Codex 配置接线；`codex exec` 仍被本机 Codex `401 Unauthorized` 阻塞，端到端 Codex 手工验证待外部认证恢复后再完成
 
 当前已完成：
 
