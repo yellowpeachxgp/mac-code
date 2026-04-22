@@ -47,6 +47,7 @@ def test_dashboard_summary_works(temp_project_with_migrations):
     s = m._summary(temp_project_with_migrations)
     assert "persons" in s
     assert isinstance(s["persons"], int)
+    assert s["tenant_id"] == "default"
     t = m._recent_ticks(temp_project_with_migrations)
     assert "ticks" in t
 
@@ -76,6 +77,7 @@ def test_dashboard_summary_works_for_tenant_root(tmp_path):
     spec.loader.exec_module(m)
     s = m._summary(tenant_root)
     assert s["persons"] >= 1
+    assert s["tenant_id"] == "alpha"
 
 
 def test_skill_host_smoke_all_steps(tmp_path):

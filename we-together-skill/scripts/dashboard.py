@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.observability.metrics import export_prometheus_text
-from we_together.services.tenant_router import resolve_tenant_root
+from we_together.services.tenant_router import infer_tenant_id_from_root, resolve_tenant_root
 
 DASHBOARD_HTML = """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -81,6 +81,7 @@ def _summary(root: Path) -> dict:
     finally:
         conn.close()
     return {
+        "tenant_id": infer_tenant_id_from_root(root),
         "persons": row[0], "relations": row[1], "scenes": row[2],
         "events": row[3], "memories": row[4], "snapshots": row[5],
     }

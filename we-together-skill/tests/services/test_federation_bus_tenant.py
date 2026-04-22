@@ -14,6 +14,8 @@ from we_together.services.federation_service import (
 )
 from we_together.services.tenant_router import (
     DEFAULT_TENANT_ID,
+    infer_tenant_id_from_db_path,
+    infer_tenant_id_from_root,
     normalize_tenant_id,
     resolve_tenant_db_path,
     resolve_tenant_root,
@@ -103,3 +105,10 @@ def test_tenant_router_rejects_invalid_ids(tmp_path):
             resolve_tenant_root(tmp_path, bad)
         with pytest.raises(ValueError, match="invalid tenant_id"):
             resolve_tenant_db_path(tmp_path, bad)
+
+
+def test_tenant_router_infers_ids(tmp_path):
+    assert infer_tenant_id_from_root(tmp_path) == DEFAULT_TENANT_ID
+    tenant_root = resolve_tenant_root(tmp_path, "alpha")
+    assert infer_tenant_id_from_root(tenant_root) == "alpha"
+    assert infer_tenant_id_from_db_path(tenant_root / "db" / "main.sqlite3") == "alpha"

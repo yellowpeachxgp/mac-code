@@ -54,6 +54,7 @@ def test_graph_summary_cli_shows_people_and_relations(temp_project_with_migratio
     )
     assert graph.returncode == 0, graph.stderr
     payload = json.loads(graph.stdout)
+    assert payload["tenant_id"] == "default"
     assert payload["person_count"] >= 2
     assert payload["identity_count"] >= 2
     assert payload["relation_count"] >= 1
@@ -210,6 +211,7 @@ def test_graph_summary_includes_candidate_status_distribution(temp_project_with_
     )
 
     summary = build_graph_summary(db_path)
+    assert summary["tenant_id"] == "default"
     dist = summary["candidate_status_distribution"]
     assert dist["selected"] == 1
     assert dist["rejected"] == 1
@@ -313,6 +315,7 @@ def test_graph_summary_cli_supports_tenant_id(tmp_path):
         check=True,
     )
     payload = json.loads(graph.stdout)
+    assert payload["tenant_id"] == "alpha"
     assert payload["person_count"] >= 8
     assert "Alice" in payload["people"]
 

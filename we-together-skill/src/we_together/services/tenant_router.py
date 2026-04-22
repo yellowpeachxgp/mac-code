@@ -39,3 +39,18 @@ def resolve_tenant_root(root: Path, tenant_id: str | None = None) -> Path:
     if tenant_id == DEFAULT_TENANT_ID:
         return root
     return root / "tenants" / tenant_id
+
+
+def infer_tenant_id_from_root(root: Path) -> str:
+    root = Path(root).resolve()
+    parts = root.parts
+    if "tenants" in parts:
+        idx = parts.index("tenants")
+        if idx + 1 < len(parts):
+            return normalize_tenant_id(parts[idx + 1])
+    return DEFAULT_TENANT_ID
+
+
+def infer_tenant_id_from_db_path(db_path: Path) -> str:
+    db_path = Path(db_path).resolve()
+    return infer_tenant_id_from_root(db_path.parent.parent)

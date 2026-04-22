@@ -9,10 +9,14 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from we_together.services.tenant_router import resolve_tenant_root
+from we_together.services.tenant_router import (
+    infer_tenant_id_from_db_path,
+    resolve_tenant_root,
+)
 
 
 def build_graph_summary(db_path: Path) -> dict:
+    tenant_id = infer_tenant_id_from_db_path(db_path)
     conn = sqlite3.connect(db_path)
     person_count = conn.execute("SELECT COUNT(*) FROM persons").fetchone()[0]
     identity_count = conn.execute("SELECT COUNT(*) FROM identity_links").fetchone()[0]
@@ -48,6 +52,8 @@ def build_graph_summary(db_path: Path) -> dict:
     people = [row[0] for row in conn.execute("SELECT primary_name FROM persons ORDER BY primary_name").fetchall()]
     conn.close()
     return {
+        "tenant_id": tenant_id,
+        "db_path": str(db_path),
         "person_count": person_count,
         "identity_count": identity_count,
         "relation_count": relation_count,

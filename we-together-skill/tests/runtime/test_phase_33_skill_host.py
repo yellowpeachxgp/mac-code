@@ -125,6 +125,7 @@ def test_mcp_server_tools_list_and_call(temp_project_with_migrations):
     assert content["type"] == "text"
     payload = json.loads(content["text"])
     assert "person_count" in payload
+    assert payload["tenant_id"] == "default"
 
 
 def test_mcp_server_resources_read(temp_project_with_migrations):

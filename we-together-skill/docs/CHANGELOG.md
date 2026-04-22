@@ -34,6 +34,7 @@
 - `tenant_router`：新增 `normalize_tenant_id()`，tenant id 现已做路径安全校验；补充了 invalid tenant / cross-tenant 负向测试
 - `timeline.py` / `relation_timeline.py` / `rollback_tick.py` / `self_activate.py` / `extract_facets.py` / `embed_backfill.py`：新增 `--tenant-id`，tenant 下的时间线/向量维护/自激活入口已接通
 - `analyze.py` / `eval_relation.py` / `bench_large.py` / `import_image.py` / `import_llm.py` / `import_wechat.py` / `simulate.py` / `what_if.py` / `narrate.py` / `graph_io.py` / `onboard.py` / `seed_society_m.py` / `seed_society_l.py`：新增 `--tenant-id`，tenant CLI 覆盖面进一步扩展
+- `tenant_router`：新增 tenant introspection helper；`graph_summary.py` / `dashboard.py` / `mcp_server.py` 输出现在会显式带 `tenant_id`
 
 ## v0.17.0 — 2026-04-19
 

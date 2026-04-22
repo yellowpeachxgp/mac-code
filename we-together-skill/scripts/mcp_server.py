@@ -29,7 +29,7 @@ from we_together.runtime.adapters.mcp_adapter import (
 )
 from we_together.runtime.skill_runtime import SKILL_SCHEMA_VERSION
 from we_together.services.chat_service import run_turn
-from we_together.services.tenant_router import resolve_tenant_root
+from we_together.services.tenant_router import infer_tenant_id_from_root, resolve_tenant_root
 
 SERVER_VERSION = "0.14.0"
 
@@ -48,6 +48,7 @@ def _graph_summary(root: Path) -> dict:
     ).fetchone()
     conn.close()
     return {
+        "tenant_id": infer_tenant_id_from_root(root),
         "person_count": row[0], "relation_count": row[1], "scene_count": row[2],
         "event_count": row[3], "memory_count": row[4],
     }
