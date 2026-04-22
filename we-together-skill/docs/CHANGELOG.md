@@ -9,6 +9,8 @@
 - `services/patch_applier`：新增 `unmerge_person` patch operation；unmerge 失败时 patch 会记为 `failed`，不再误记 `applied`
 - `services/patch_applier.resolve_local_branch`：新增 `selected_candidate_id` 归属校验，错误 candidate 不再把 branch 提前标成 `resolved`
 - `services/branch_resolver_service`：auto resolve 现在会跳过 operator-gated branch，确保 contradiction/unmerge 仍是人工复核后才生效
+- `services/entity_unmerge_service` / `services/unmerge_gate_service`：新增 `merged_into` target existence 校验，避免 stale merge metadata 打开或执行错误 unmerge
+- `tests/services/test_phase_72_operator_gate.py`：补 `--tenant-id` CLI 回归，确认 unmerge gate 分支写入 tenant DB
 
 ## v0.19.0 — 2026-04-22 (local)
 

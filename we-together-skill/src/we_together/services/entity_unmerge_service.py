@@ -41,6 +41,14 @@ def unmerge_person(
         target_pid = meta.get("merged_into")
         if not target_pid:
             raise ValueError(f"person {source_pid} has no merged_into record")
+        target_row = conn.execute(
+            "SELECT person_id FROM persons WHERE person_id=?",
+            (target_pid,),
+        ).fetchone()
+        if not target_row:
+            raise ValueError(
+                f"person {source_pid} merged_into target not found: {target_pid}"
+            )
 
         # 找 target 中可能来自 source 的 identity_links（合并时被迁移）
         # 根据 identity_links 里 confidence 与时间戳辅助；但可靠的只有 metadata_json

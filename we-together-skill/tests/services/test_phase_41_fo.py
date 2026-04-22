@@ -200,6 +200,27 @@ def test_unmerge_rejects_non_merged(temp_project_with_migrations):
         unmerge_person(db, "pA")
 
 
+def test_unmerge_rejects_missing_target(temp_project_with_migrations):
+    import pytest
+
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.entity_unmerge_service import unmerge_person
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_missing_target','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_target_gone"}),),
+    )
+    conn.commit()
+    conn.close()
+
+    with pytest.raises(ValueError, match="merged_into target not found"):
+        unmerge_person(db, "p_missing_target")
+
+
 def test_list_merged_candidates(temp_project_with_migrations):
     from we_together.db.bootstrap import bootstrap_project
     from we_together.services.entity_unmerge_service import list_merged_candidates
@@ -297,6 +318,32 @@ def test_open_unmerge_branch_for_merged_person(temp_project_with_migrations):
     assert branch[0] == "open"
     assert "operator gate" in branch[1]
     assert cand_count == 2
+
+
+def test_open_unmerge_branch_rejects_missing_target(temp_project_with_migrations):
+    import pytest
+
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.unmerge_gate_service import open_unmerge_branch_for_merged_person
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_missing_src','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_gate_missing_tgt"}),),
+    )
+    conn.commit()
+    conn.close()
+
+    with pytest.raises(ValueError, match="merged_into target not found"):
+        open_unmerge_branch_for_merged_person(
+            db,
+            source_pid="p_gate_missing_src",
+            confidence=0.9,
+            reason="contradiction-derived operator gate",
+        )
 
 
 def test_operator_gate_branch_can_apply_unmerge_effect(temp_project_with_migrations):
