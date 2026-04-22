@@ -3,7 +3,7 @@
 日期：2026-04-23
 
 > 代码事实快照：
-> - 本地测试基线：**775 passed, 4 skipped**
+> - 本地测试基线：**777 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
@@ -22,6 +22,7 @@
 - `entity_unmerge_service` / `unmerge_gate_service` 现在会校验 `merged_into` target 必须真实存在且 `status=active`
 - `unmerge_gate.py --tenant-id` 已有回归测试；非 active target 会走明确失败出口
 - `resolve_local_branch` 对带 `effect_patches` 的 candidate 现在先跑子 effect，再回写 parent branch；子 effect 失败时 branch 保持 `open`
+- `unmerge_gate_service` 现在会把输入 `confidence` clamp 到 `[0,1]`，避免异常值把 operator gate 的候选排序带偏
 
 当前已完成：
 

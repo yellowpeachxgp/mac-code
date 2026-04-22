@@ -345,6 +345,98 @@ def test_open_unmerge_branch_for_merged_person(temp_project_with_migrations):
     assert cand_count == 2
 
 
+def test_open_unmerge_branch_clamps_confidence_upper_bound(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.unmerge_gate_service import open_unmerge_branch_for_merged_person
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_high_src','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_gate_high_tgt"}),),
+    )
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_high_tgt','tgt','active',0.8,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    result = open_unmerge_branch_for_merged_person(
+        db,
+        source_pid="p_gate_high_src",
+        confidence=1.7,
+        reason="confidence should clamp high",
+    )
+
+    conn = sqlite3.connect(db)
+    keep_conf = conn.execute(
+        "SELECT confidence FROM branch_candidates WHERE candidate_id = ?",
+        (result["keep_candidate_id"],),
+    ).fetchone()[0]
+    unmerge_conf = conn.execute(
+        "SELECT confidence FROM branch_candidates WHERE candidate_id = ?",
+        (result["unmerge_candidate_id"],),
+    ).fetchone()[0]
+    patch_conf = conn.execute(
+        "SELECT confidence FROM patches WHERE target_id = ? AND operation = 'create_local_branch'",
+        (result["branch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert keep_conf == 0.0
+    assert unmerge_conf == 1.0
+    assert patch_conf == 1.0
+
+
+def test_open_unmerge_branch_clamps_confidence_lower_bound(temp_project_with_migrations):
+    from we_together.db.bootstrap import bootstrap_project
+    from we_together.services.unmerge_gate_service import open_unmerge_branch_for_merged_person
+
+    bootstrap_project(temp_project_with_migrations)
+    db = temp_project_with_migrations / "db" / "main.sqlite3"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_low_src','src','merged',0.5, ?, datetime('now'), datetime('now'))",
+        (json.dumps({"merged_into": "p_gate_low_tgt"}),),
+    )
+    conn.execute(
+        "INSERT INTO persons(person_id, primary_name, status, confidence, metadata_json, created_at, updated_at) "
+        "VALUES('p_gate_low_tgt','tgt','active',0.8,'{}', datetime('now'), datetime('now'))"
+    )
+    conn.commit()
+    conn.close()
+
+    result = open_unmerge_branch_for_merged_person(
+        db,
+        source_pid="p_gate_low_src",
+        confidence=-0.3,
+        reason="confidence should clamp low",
+    )
+
+    conn = sqlite3.connect(db)
+    keep_conf = conn.execute(
+        "SELECT confidence FROM branch_candidates WHERE candidate_id = ?",
+        (result["keep_candidate_id"],),
+    ).fetchone()[0]
+    unmerge_conf = conn.execute(
+        "SELECT confidence FROM branch_candidates WHERE candidate_id = ?",
+        (result["unmerge_candidate_id"],),
+    ).fetchone()[0]
+    patch_conf = conn.execute(
+        "SELECT confidence FROM patches WHERE target_id = ? AND operation = 'create_local_branch'",
+        (result["branch_id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    assert keep_conf == 1.0
+    assert unmerge_conf == 0.0
+    assert patch_conf == 0.0
+
+
 def test_open_unmerge_branch_rejects_missing_target(temp_project_with_migrations):
     import pytest
 

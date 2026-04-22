@@ -11,6 +11,10 @@ from we_together.services.patch_applier import apply_patch_record
 from we_together.services.patch_service import build_patch
 
 
+def _clamp_confidence(confidence: float) -> float:
+    return max(0.0, min(1.0, confidence))
+
+
 def _get_merged_target(db_path: Path, source_pid: str) -> str:
     conn = connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -54,6 +58,7 @@ def open_unmerge_branch_for_merged_person(
     note: str | None = None,
     reviewer: str = "operator_gate",
 ) -> dict:
+    confidence = _clamp_confidence(confidence)
     target_pid = _get_merged_target(db_path, source_pid)
     branch_id = f"branch_unmerge_{uuid.uuid4().hex[:12]}"
     keep_candidate_id = f"cand_keep_{uuid.uuid4().hex[:8]}"
@@ -105,7 +110,7 @@ def open_unmerge_branch_for_merged_person(
                     "candidate_id": keep_candidate_id,
                     "label": "保留 merged 状态",
                     "payload_json": keep_payload,
-                    "confidence": max(0.0, 1.0 - confidence),
+                    "confidence": 1.0 - confidence,
                     "status": "open",
                 },
                 {
