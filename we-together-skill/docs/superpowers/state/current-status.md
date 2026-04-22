@@ -1,6 +1,14 @@
 # 当前状态
 
-日期：2026-04-19
+日期：2026-04-22
+
+> 代码事实快照：
+> - 本地测试基线：**761 passed, 4 skipped**
+> - ADR：**73**
+> - 不变式：**28**
+> - Migrations：**21**
+> - 参考综合：[`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](../decisions/0073-phase-65-70-synthesis.md)
+> - 参考进度：[`docs/superpowers/state/2026-04-22-phase-65-70-progress.md`](2026-04-22-phase-65-70-progress.md)
 
 当前已完成：
 

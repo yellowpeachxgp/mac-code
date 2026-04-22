@@ -2,8 +2,8 @@
 
 > **对象**：Codex（或任一继任 AI assistant）
 > **目标**：读完本文档 + [`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md) 后 **5 分钟**内回到工作状态。
-> **当前版本**：**v0.18.0** — tag 已打 — 690 passed + 2 skipped — 本地 main 分支已包含所有已提交内容。
-> **代码事实补丁**：当前代码自审为 **28 条不变式**（以 `src/we_together/invariants.py` 为准），且 `sqlite_vec/faiss` 已从 stub 升级为真 backend。
+> **当前版本**：**v0.18.0** — tag 已打；后续未发版工作继续在本地 `main` 上推进。
+> **代码事实补丁（2026-04-22）**：当前代码自审为 **73 ADR / 28 条不变式 / 21 migrations / 83 services**，本地测试基线为 **761 passed, 4 skipped**；`sqlite_vec/faiss` 已从 stub 升级为真 backend，tenant CLI 覆盖面已大幅扩展。
 
 ---
 
@@ -26,8 +26,8 @@
 | git tag | `v0.18.0` |
 | pyproject version | `0.18.0` |
 | cli VERSION | `0.18.0` |
-| pytest 基线 | **690 passed + 2 skipped**，~26s 本机 |
-| ADR 总数 | 66（`docs/superpowers/decisions/0001-0066`）|
+| pytest 基线 | **761 passed + 4 skipped**，~37s 本机 |
+| ADR 总数 | 73（`docs/superpowers/decisions/0001-0073`）|
 | 不变式 | **28 条**（`src/we_together/invariants.py`）|
 | Migrations | **21 条**（`db/migrations/0001..0021`）|
 | Benchmarks | 10（含 `year_runs/` `scale/` `tick_runs/`）|
@@ -36,7 +36,7 @@
 **快速自检**：
 ```bash
 cd we-together-skill
-.venv/bin/python -m pytest -q         # 期望 690 passed, 2 skipped
+.venv/bin/python -m pytest -q         # 期望 761 passed, 4 skipped
 .venv/bin/python scripts/self_audit.py        # 整体自描述
 .venv/bin/python scripts/invariants_check.py summary  # 28 条不变式 100% 覆盖
 .venv/bin/we-together version         # we-together 0.18.0
