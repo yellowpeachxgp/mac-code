@@ -11,26 +11,44 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from we_together.services.tenant_router import resolve_tenant_root
+
+ROOT_HELP = (
+    "Project root containing db/main.sqlite3 "
+    "or tenants/<tenant-id>/db/main.sqlite3"
+)
+TENANT_HELP = "Optional tenant id for a tenant-scoped project root"
+
+
+def _add_project_root_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--root", default=".", help=ROOT_HELP)
+    parser.add_argument("--tenant-id", default=None, help=TENANT_HELP)
+
+
+def _resolve_db_path(root: str, tenant_id: str | None) -> Path:
+    tenant_root = resolve_tenant_root(Path(root).resolve(), tenant_id)
+    return tenant_root / "db" / "main.sqlite3"
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p1 = sub.add_parser("aggregate", help="LLM 聚合 narrative arcs")
-    p1.add_argument("--root", default=".")
+    _add_project_root_args(p1)
     p1.add_argument("--scene-id", default=None)
     p1.add_argument("--limit", type=int, default=20)
 
     p2 = sub.add_parser("list", help="列出已有 arcs")
-    p2.add_argument("--root", default=".")
+    _add_project_root_args(p2)
     p2.add_argument("--scene-id", default=None)
 
     p3 = sub.add_parser("playback", help="把 arcs 串成故事文本")
-    p3.add_argument("--root", default=".")
+    _add_project_root_args(p3)
     p3.add_argument("--scene-id", default=None)
 
     args = ap.parse_args()
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    db = _resolve_db_path(args.root, args.tenant_id)
     if args.cmd == "aggregate":
         from we_together.services.narrative_service import aggregate_narrative_arcs
         r = aggregate_narrative_arcs(db, scene_id=args.scene_id, limit=args.limit)

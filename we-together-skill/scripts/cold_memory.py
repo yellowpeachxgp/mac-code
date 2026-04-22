@@ -13,11 +13,13 @@ from we_together.services.memory_archive_service import (
     list_cold_memories,
     restore_cold_memory,
 )
+from we_together.services.tenant_router import resolve_tenant_root
 
 
-def main() -> None:
+def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default=".")
+    ap.add_argument("--root", default=".", help="db-backed project root")
+    ap.add_argument("--tenant-id", default=None)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p_arch = sub.add_parser("archive")
@@ -30,7 +32,8 @@ def main() -> None:
     p_rest.add_argument("memory_id")
 
     args = ap.parse_args()
-    db_path = Path(args.root).resolve() / "db" / "main.sqlite3"
+    project_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db_path = project_root / "db" / "main.sqlite3"
     if not db_path.exists():
         print(f"db not found: {db_path}", file=sys.stderr)
         sys.exit(2)
@@ -44,7 +47,8 @@ def main() -> None:
     elif args.cmd == "restore":
         ok = restore_cold_memory(db_path, args.memory_id)
         print(json.dumps({"restored": ok, "memory_id": args.memory_id}, ensure_ascii=False))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

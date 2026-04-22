@@ -10,11 +10,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.eval.regression import detect_regression, load_baseline, save_baseline
 from we_together.eval.relation_inference import evaluate_relation_inference
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--benchmark", default="society_c")
     ap.add_argument("--baseline", type=Path, default=None,
                     help="baseline.json 用于回归比较")
@@ -22,8 +24,8 @@ def main() -> int:
                     help="保存当前结果为 baseline")
     args = ap.parse_args()
 
-    root = Path(args.root).resolve()
-    db_path = root / "db" / "main.sqlite3"
+    project_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db_path = project_root / "db" / "main.sqlite3"
     gt_path = Path(__file__).resolve().parents[1] / "benchmarks" / \
         f"{args.benchmark}_groundtruth.json"
 

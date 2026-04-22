@@ -17,13 +17,17 @@ from we_together.services.onboarding_flow import (
     OnboardingState,
     next_step,
 )
+from we_together.services.tenant_router import DEFAULT_TENANT_ID, normalize_tenant_id
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    tenant_id = normalize_tenant_id(args.tenant_id)
+    tenant_flag = "" if tenant_id == DEFAULT_TENANT_ID else f" --tenant-id {tenant_id}"
 
     state = OnboardingState()
     while state.step != "DONE":
@@ -41,13 +45,13 @@ def main() -> int:
     print()
     print("建议接下来执行的命令：")
     if state.data.get("import_mode") == "narration":
-        print(f"  we-together bootstrap --root {args.root}")
-        print(f"  we-together ingest narration --root {args.root} --text '...'")
+        print(f"  we-together bootstrap --root {args.root}{tenant_flag}")
+        print(f"  we-together ingest narration --root {args.root}{tenant_flag} --text '...'")
     elif state.data.get("import_mode") != "skip":
-        print(f"  we-together bootstrap --root {args.root}")
+        print(f"  we-together bootstrap --root {args.root}{tenant_flag}")
         print(f"  # 按 {state.data['import_mode']} 格式导入")
-    print(f"  we-together create-scene --root {args.root} --type work_discussion --summary '{state.data.get('scene_name')}'")
-    print(f"  we-together graph-summary --root {args.root}")
+    print(f"  we-together create-scene --root {args.root}{tenant_flag} --type work_discussion --summary '{state.data.get('scene_name')}'")
+    print(f"  we-together graph-summary --root {args.root}{tenant_flag}")
     return 0
 
 

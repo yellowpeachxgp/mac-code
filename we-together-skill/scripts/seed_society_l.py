@@ -7,17 +7,22 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from seed_society_m import seed
+
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--n", type=int, default=500)
     ap.add_argument("--seed-value", type=int, default=2026)
     args = ap.parse_args()
-    r = seed(Path(args.root).resolve(), n=args.n, seed_value=args.seed_value)
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    r = seed(tenant_root, n=args.n, seed_value=args.seed_value)
     print(json.dumps(r, ensure_ascii=False, indent=2))
     return 0
 

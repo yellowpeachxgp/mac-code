@@ -27,6 +27,7 @@ from we_together.services.scene_service import (  # noqa: E402
     add_scene_participant,
     create_scene,
 )
+from we_together.services.tenant_router import resolve_tenant_root  # noqa: E402
 
 
 def _insert_persons(db_path: Path, count: int) -> float:
@@ -73,13 +74,14 @@ def _bench_retrieval(db_path: Path, scene_id: str, reps: int) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--persons", type=int, default=10_000)
     ap.add_argument("--reps", type=int, default=20)
     args = ap.parse_args()
 
-    root = Path(args.root).resolve()
-    bootstrap_project(root)
-    db_path = root / "db" / "main.sqlite3"
+    project_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    bootstrap_project(project_root)
+    db_path = project_root / "db" / "main.sqlite3"
 
     bulk_secs = _insert_persons(db_path, args.persons)
 

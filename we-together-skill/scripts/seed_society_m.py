@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from we_together.db.bootstrap import bootstrap_project
-
+from we_together.services.tenant_router import resolve_tenant_root
 
 NAMES = [
     "Alice", "Bob", "Carol", "David", "Eve", "Frank", "Grace", "Henry",
@@ -180,10 +180,12 @@ def seed(root: Path, *, n: int = 50, seed_value: int = 42) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--seed-value", type=int, default=42)
     args = ap.parse_args()
-    r = seed(Path(args.root).resolve(), n=args.n, seed_value=args.seed_value)
+    tenant_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    r = seed(tenant_root, n=args.n, seed_value=args.seed_value)
     print(json.dumps(r, ensure_ascii=False, indent=2))
     return 0
 

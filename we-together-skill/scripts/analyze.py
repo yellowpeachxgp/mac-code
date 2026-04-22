@@ -14,16 +14,19 @@ from we_together.services.graph_analytics import (
     full_report,
     identify_isolated_persons,
 )
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--mode", choices=["degree", "density", "isolated", "all"],
                     default="all")
     ap.add_argument("--window-days", type=int, default=30)
     args = ap.parse_args()
-    db = Path(args.root).resolve() / "db" / "main.sqlite3"
+    project_root = resolve_tenant_root(Path(args.root).resolve(), args.tenant_id)
+    db = project_root / "db" / "main.sqlite3"
 
     if args.mode == "degree":
         r = compute_degree_centrality(db)

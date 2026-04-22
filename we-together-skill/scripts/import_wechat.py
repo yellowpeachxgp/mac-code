@@ -3,14 +3,13 @@
 读取 (time, sender, content) 列的 CSV → candidate 层 → 可选 fuse_all。
 
 用法:
-  .venv/bin/python scripts/import_wechat.py --root . --file ./wx.csv [--chat-name "群名"] [--fuse]
+  .venv/bin/python scripts/import_wechat.py --root . --tenant-id alpha --file ./wx.csv [--chat-name "群名"] [--fuse]
 """
 import argparse
 import json
 import sys
 import uuid
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -19,18 +18,21 @@ if str(SRC) not in sys.path:
 
 from we_together.importers.wechat_text_importer import import_wechat_text
 from we_together.services.fusion_service import fuse_all
+from we_together.services.tenant_router import resolve_tenant_root
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = argparse.ArgumentParser(description="微信 CSV 导入")
-    parser.add_argument("--root", default=str(ROOT))
+    parser.add_argument("--root", default=str(ROOT), help="Project root containing db/main.sqlite3")
+    parser.add_argument("--tenant-id", default=None)
     parser.add_argument("--file", required=True, help="CSV 文件路径")
     parser.add_argument("--chat-name", default=None, help="聊天名称（含'群'/'group'触发 group_clue）")
     parser.add_argument("--fuse", action="store_true",
                         help="导入后自动跑 fusion 落主图")
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     csv_path = Path(args.file)
     if not csv_path.exists():
         print(f"file not found: {csv_path}", file=sys.stderr)
@@ -65,3 +67,8 @@ if __name__ == "__main__":
         "import": result,
         "fusion": fuse_result,
     }, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

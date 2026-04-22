@@ -1,7 +1,7 @@
 """scripts/import_image.py — 把一张图走 OCR → 写 media_asset + memory。
 
 用法:
-  python scripts/import_image.py --root . --image path/to.jpg \\
+  python scripts/import_image.py --root . --tenant-id alpha --image path/to.jpg \\
       --owner person_alice --scene scene_x --visibility shared
 """
 from __future__ import annotations
@@ -11,15 +11,20 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from we_together.llm.providers.vision import MockVisionLLMClient
 from we_together.services.ocr_service import ocr_to_memory
+from we_together.services.tenant_router import resolve_tenant_root
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default=".")
+    ap = argparse.ArgumentParser(description="Import an image into the SQLite graph via OCR")
+    ap.add_argument("--root", default=str(ROOT), help="Project root containing db/main.sqlite3")
+    ap.add_argument("--tenant-id", default=None)
     ap.add_argument("--image", required=True)
     ap.add_argument("--owner", required=True)
     ap.add_argument("--scene", default=None)
@@ -27,8 +32,8 @@ def main() -> int:
                     choices=["private", "shared", "group"])
     args = ap.parse_args()
 
-    root = Path(args.root).resolve()
-    db = root / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id).resolve()
+    db = tenant_root / "db" / "main.sqlite3"
     img = Path(args.image).resolve()
     if not img.exists():
         print(json.dumps({"error": "image not found"}))

@@ -4,14 +4,13 @@
 
 用法:
   WE_TOGETHER_LLM_PROVIDER=mock .venv/bin/python scripts/import_llm.py \
-    --root . --text "小王和小李是朋友" --source-name manual --fuse
+    --root . --tenant-id alpha --text "小王和小李是朋友" --source-name manual --fuse
 """
 import argparse
 import json
 import sys
 import uuid
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -21,18 +20,21 @@ if str(SRC) not in sys.path:
 from we_together.llm import get_llm_client
 from we_together.services.fusion_service import fuse_all
 from we_together.services.llm_extraction_service import extract_candidates_from_text
+from we_together.services.tenant_router import resolve_tenant_root
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = argparse.ArgumentParser(description="LLM 驱动的 narration 导入")
-    parser.add_argument("--root", default=str(ROOT))
+    parser.add_argument("--root", default=str(ROOT), help="Project root containing db/main.sqlite3")
+    parser.add_argument("--tenant-id", default=None)
     parser.add_argument("--text", required=True)
     parser.add_argument("--source-name", required=True)
     parser.add_argument("--provider", default=None)
     parser.add_argument("--fuse", action="store_true")
     args = parser.parse_args()
 
-    db_path = Path(args.root) / "db" / "main.sqlite3"
+    tenant_root = resolve_tenant_root(Path(args.root), args.tenant_id)
+    db_path = tenant_root / "db" / "main.sqlite3"
     client = get_llm_client(args.provider)
 
     extract_result = extract_candidates_from_text(
@@ -65,3 +67,8 @@ if __name__ == "__main__":
         "extract": extract_result,
         "fusion": fuse_result,
     }, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
