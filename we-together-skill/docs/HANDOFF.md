@@ -11,7 +11,7 @@
 
 - **项目**：`we-together-skill` —— 一个 Skill-first 的**社会 + 世界图谱运行时**。不是给 LLM 加一层 memory，是给 LLM 一个**可演化的数字社会**。
 - **三支柱**：
-  - **A 严格工程化** 9.95/10（66 ADR + 30 不变式 + 690 测试 + 反身能力）
+  - **A 严格工程化** 9.95/10（73 ADR + 28 不变式 + 761/4 测试 + 反身能力）
   - **B 通用型 Skill** 9.8/10（Claude Skills / OpenAI Assistants / MCP 三路宿主 + plugin 扩展点）
   - **C 数字赛博生态圈** 9.7/10（tick + 神经网格 + 世界建模 + Agent 自主 + 年度真跑证据）
 - **工作模式**：用户每次说**"继续推进任务"** / **"进入无人值守连续推进模式"** / **"至少小一百个 task"** → Codex 进入**大批量 TaskCreate → 按 phase 交付 → commit → ADR → bump → tag** 的长工作流。
@@ -100,8 +100,8 @@ cd we-together-skill
 we-together-skill/
 ├── src/we_together/
 │   ├── __init__.py
-│   ├── cli.py                  # VERSION = "0.18.0"，CLI 入口
-│   ├── invariants.py           # 30 条不变式注册表（v0.18 新增）
+│   ├── cli.py                  # VERSION = "0.19.0"，CLI 入口
+│   ├── invariants.py           # 28 条不变式注册表（以代码为准）
 │   ├── agents/                 # PersonAgent + turn_taking（v0.13）
 │   ├── db/
 │   │   ├── bootstrap.py        # 初始化入口
@@ -152,7 +152,7 @@ we-together-skill/
     ├── plugins/
     ├── release/
     └── superpowers/
-        ├── decisions/          # 66 ADR（0001-0066）
+        ├── decisions/          # 73 ADR（0001-0073）
         ├── plans/              # 10 份 mega-plan
         ├── specs/              # 核心设计稿
         ├── state/              # current-status + 各期 diff 报告
@@ -233,8 +233,9 @@ we-together-skill/
 | P44-50 | 0046-0052 | Plugin / 图谱时间 / 多 Agent / 规模 / i18n（v0.16 — #23/#24/#25） |
 | P51-57 | 0053-0059 | 世界建模 / Agent 元能力 / 质量 / 社区 / 发布（v0.17 — #26/#27/#28） |
 | P58-64 | 0060-0066 | **不变式强制 / 年度真跑 / 反身 / 压测 / 证据**（v0.18 — #29/#30） |
+| P65-70 | 0067-0073 | **向量生产化 / 联邦写路径 / 年运行审计 / 多租户基线**（v0.19 local） |
 
-**每个 phase 综合都有 synthesis ADR**：0033 / 0039 / 0045 / 0052 / 0059 / 0066
+**每个阶段综合都应参考 synthesis ADR**：0033 / 0039 / 0045 / 0052 / 0059 / 0066 / 0073
 
 ---
 
@@ -290,9 +291,9 @@ we-together-skill/
 
 ---
 
-## 7. 下一轮（v0.19）候选方向（来自 ADR 0066 + 用户未触发领域）
+## 7. 下一轮（v0.20）候选方向（基于 ADR 0073 + 当前未完成项）
 
-### 留给 v0.19 的候选（按优先级）
+### 留给 v0.20 的候选（按优先级）
 
 **方向 1 ★★★★★ — 真接入外部 lib**
 - 已完成：真 sqlite-vec 接入
@@ -333,11 +334,11 @@ git log --oneline | head -5                    # 看最近 5 commits
 git tag -l | tail -5                           # 确认 v0.19.0 已 tag
 
 # 2. 确认测试绿
-.venv/bin/python -m pytest -q                  # 期望 690 passed, 2 skipped
+.venv/bin/python -m pytest -q                  # 期望 761 passed, 4 skipped
 
 # 3. 自描述（反身能力的使用）
 .venv/bin/python scripts/self_audit.py
-# 输出：ADR=66, invariants=28, services=60+, migrations=21
+# 输出：ADR=73, invariants=28, services=80+, migrations=21
 
 # 4. 不变式覆盖
 .venv/bin/python scripts/invariants_check.py summary
@@ -364,7 +365,7 @@ seed_society_c(Path('/tmp/wt_year_test'))"
 1. **[`docs/superpowers/vision/2026-04-05-product-mandate.md`](superpowers/vision/2026-04-05-product-mandate.md)** — 最高约束
 2. **[`docs/superpowers/specs/2026-04-05-we-together-core-design.md`](superpowers/specs/2026-04-05-we-together-core-design.md)** — 核心设计
 3. **[`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md)** — 实时状态（长文档，扫读即可）
-4. **[`docs/superpowers/decisions/0066-phase-58-64-synthesis.md`](superpowers/decisions/0066-phase-58-64-synthesis.md)** — 最新综合 ADR
+4. **[`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](superpowers/decisions/0073-phase-65-70-synthesis.md)** — 最新综合 ADR
 5. **[`docs/superpowers/state/2026-04-19-invariants-coverage.md`](superpowers/state/2026-04-19-invariants-coverage.md)** — 30 条不变式覆盖
 6. **[`src/we_together/invariants.py`](../src/we_together/invariants.py)** — 不变式源代码（必看）
 7. **[`CLAUDE.md`](../CLAUDE.md)** — 项目根 CLAUDE.md（规则）
@@ -397,7 +398,7 @@ seed_society_c(Path('/tmp/wt_year_test'))"
 | 自修复 | `scripts/fix_graph.py --policy propose` |
 | 审计 integrity | `scripts/fix_graph.py --policy report_only` |
 | Rollback tick | `scripts/rollback_tick.py --snapshot snap_tick_N_...` |
-| Release 自检 | `scripts/release_prep.py --version 0.18.0` |
+| Release 自检 | `scripts/release_prep.py --version 0.19.0` |
 
 ---
 
@@ -478,6 +479,7 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 | v0.16.0 | 594 | Plugin + 图谱时间 + 多 Agent + 规模 + i18n |
 | v0.17.0 | 638 | 世界建模 + Agent 元能力 + 质量 + 社区 + 发布 |
 | **v0.18.0** | **690** | **不变式强制 + 年度真跑 + 反身 + 压测 + 证据** |
+| **v0.19.0** | **761** | **真向量后端 + 联邦写路径 + 年运行审计 + 多租户基线** |
 
 ---
 
@@ -520,4 +522,4 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 **最重要的一句话**：
 > 一个 memory 框架不会记住自己有哪些 ADR。**we-together 记得**。这是我们的独特差异化。v0.19 继续守住这条线。
 
-——`Claude Opus 4.7 (1M context)`，v0.18.0 交接时刻，2026-04-19
+——`Claude Opus 4.7 (1M context)`，v0.19.0 本地收口后备注，2026-04-22
