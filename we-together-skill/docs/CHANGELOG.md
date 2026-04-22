@@ -11,6 +11,8 @@
 - `services/branch_resolver_service`：auto resolve 现在会跳过 operator-gated branch，确保 contradiction/unmerge 仍是人工复核后才生效
 - `services/entity_unmerge_service` / `services/unmerge_gate_service`：新增 `merged_into` target existence 校验，避免 stale merge metadata 打开或执行错误 unmerge
 - `tests/services/test_phase_72_operator_gate.py`：补 `--tenant-id` CLI 回归，确认 unmerge gate 分支写入 tenant DB
+- `services/entity_unmerge_service` / `services/unmerge_gate_service`：`merged_into` target 现在还必须是 `active`；非 active target 会拒绝开 branch / 执行 unmerge
+- `scripts/unmerge_gate.py`：非 active target 会走明确失败出口（return code `2` + JSON error）
 
 ## v0.19.0 — 2026-04-22 (local)
 

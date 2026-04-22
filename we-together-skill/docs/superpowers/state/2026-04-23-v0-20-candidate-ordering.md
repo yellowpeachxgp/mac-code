@@ -1,7 +1,7 @@
 # v0.20 Candidate Ordering
 
 **Date**: 2026-04-23  
-**Basis**: local `v0.19.0` state, `771 passed / 4 skipped`, ADR 0073, release-prep green
+**Basis**: local `v0.19.0` state, `774 passed / 4 skipped`, ADR 0073, release-prep green
 
 ## 判断前提
 

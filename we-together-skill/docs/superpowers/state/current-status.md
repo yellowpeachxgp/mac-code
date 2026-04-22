@@ -3,7 +3,7 @@
 日期：2026-04-23
 
 > 代码事实快照：
-> - 本地测试基线：**771 passed, 4 skipped**
+> - 本地测试基线：**774 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
@@ -19,7 +19,8 @@
 - `scripts/unmerge_gate.py` 提供 CLI 入口，并已支持 `--tenant-id`
 - `auto_resolve_branches` 现在会跳过 operator-gated branch，保持“人工复核后才生效”
 - `patch_applier` 额外补了两层 guardrail：`unmerge_person` 失败会记 `failed`；`selected_candidate_id` 必须属于目标 branch
-- `entity_unmerge_service` / `unmerge_gate_service` 现在会校验 `merged_into` target 必须真实存在；`unmerge_gate.py --tenant-id` 已有回归测试
+- `entity_unmerge_service` / `unmerge_gate_service` 现在会校验 `merged_into` target 必须真实存在且 `status=active`
+- `unmerge_gate.py --tenant-id` 已有回归测试；非 active target 会走明确失败出口
 
 当前已完成：
 

@@ -33,13 +33,15 @@ def _get_merged_target(db_path: Path, source_pid: str) -> str:
     conn.row_factory = sqlite3.Row
     try:
         target_row = conn.execute(
-            "SELECT person_id FROM persons WHERE person_id = ?",
+            "SELECT person_id, status FROM persons WHERE person_id = ?",
             (target_pid,),
         ).fetchone()
     finally:
         conn.close()
     if not target_row:
         raise ValueError(f"person {source_pid} merged_into target not found: {target_pid}")
+    if target_row["status"] != "active":
+        raise ValueError(f"person {source_pid} merged_into target is not active: {target_pid}")
     return target_pid
 
 
