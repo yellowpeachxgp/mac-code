@@ -1,9 +1,9 @@
 # 当前状态
 
-日期：2026-04-23
+日期：2026-04-24
 
 > 代码事实快照：
-> - 本地测试基线：**782 passed, 4 skipped**
+> - 本地测试基线：**794 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
@@ -11,7 +11,7 @@
 > - 参考进度：[`docs/superpowers/state/2026-04-22-phase-65-70-progress.md`](2026-04-22-phase-65-70-progress.md)
 > - 参考排序：[`docs/superpowers/state/2026-04-23-v0-20-candidate-ordering.md`](2026-04-23-v0-20-candidate-ordering.md)
 
-## 2026-04-23 本地切片 — Phase 72 矛盾复核 / operator-gated unmerge（进行中）
+## 2026-04-24 本地切片 — Phase 72 + Codex native skill（进行中）
 
 - `contradiction_detector` 与 `derive_unmerge_candidates_from_contradictions()` 仍然是 **只读不写**
 - 新增 `unmerge_gate_service.open_unmerge_branch_for_merged_person(...)`，把 merged person 打开为 `local_branch`
@@ -25,7 +25,11 @@
 - `unmerge_gate_service` 现在会把输入 `confidence` clamp 到 `[0,1]`，避免异常值把 operator gate 的候选排序带偏
 - `package_skill.py pack` 不传版本参数时，现已自动推导当前 `skill_version=0.19.0` 与 `schema_version=0021`
 - `we_together.__version__` 现已与 CLI `VERSION` 对齐
-- `codex mcp add/list/get` 已验证当前 `scripts/mcp_server.py` 可被 Codex 配置接线；`codex exec` 仍被本机 Codex `401 Unauthorized` 阻塞，端到端 Codex 手工验证待外部认证恢复后再完成
+- 本机已新增 `codex_skill/` 原生技能包，以及 `scripts/install_codex_skill.py` / `scripts/update_codex_skill.py` / `scripts/validate_codex_skill.py`
+- `~/.codex/skills/we-together` 已完成本机安装，安装后 `local-runtime.md/json` 已写入真实 `repo_root` 与 `mcp_server_name`
+- `scripts/validate_codex_skill.py --installed` 已通过，确认安装结构与 `~/.codex/config.toml` 中的 `we-together-local-validate` MCP 注册一致
+- 从 `~` 目录启动交互式 Codex，对显式中文请求 `看一下 we-together 当前状态` 已观察到 `we-together` skill 被启用，并正确回答 `v0.19.0 / 794 passed, 4 skipped`
+- 旧的 `codex exec 401 Unauthorized` 结论已过时；当前真实限制是：`codex exec` 模式不适合作需要 MCP 审批/elicitation 的工具调用，支持路径应以交互式 Codex + 本地原生 skill 为准
 
 当前已完成：
 
