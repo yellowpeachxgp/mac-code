@@ -11,6 +11,12 @@ GENERATED_LOCAL_RUNTIME_FILES = [
     "references/local-runtime.md",
     "references/local-runtime.json",
 ]
+DEFAULT_CODEX_SKILL_FAMILY = {
+    "we-together": "codex_skill",
+    "we-together-dev": "codex_skill_dev",
+    "we-together-runtime": "codex_skill_runtime",
+    "we-together-ingest": "codex_skill_ingest",
+}
 
 REQUIRED_SOURCE_FILES = [
     "SKILL.md",
@@ -30,6 +36,16 @@ def default_codex_skill_target(
 ) -> Path:
     home = (home or Path.home()).expanduser()
     return home / ".codex" / "skills" / skill_name
+
+
+def discover_codex_skill_family_sources(repo_root: Path) -> dict[str, Path]:
+    repo_root = Path(repo_root).resolve()
+    discovered: dict[str, Path] = {}
+    for skill_name, rel_dir in DEFAULT_CODEX_SKILL_FAMILY.items():
+        source_dir = repo_root / rel_dir
+        if source_dir.is_dir():
+            discovered[skill_name] = source_dir
+    return discovered
 
 
 def _render_local_runtime_markdown(
@@ -286,4 +302,50 @@ def install_codex_skill(
         "missing": installed_check["missing"],
         "invalid": installed_check["invalid"],
         "warnings": installed_check["warnings"],
+    }
+
+
+def install_codex_skill_family(
+    repo_root: Path,
+    *,
+    target_root: Path | None = None,
+    mcp_server_name: str = DEFAULT_MCP_SERVER_NAME,
+    force: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    repo_root = Path(repo_root).resolve()
+    target_root = (
+        (target_root or default_codex_skill_target().parent).expanduser().resolve()
+    )
+    sources = discover_codex_skill_family_sources(repo_root)
+    missing_sources = [
+        skill_name
+        for skill_name in DEFAULT_CODEX_SKILL_FAMILY
+        if skill_name not in sources
+    ]
+
+    reports: list[dict] = []
+    overall_ok = not missing_sources
+    for skill_name, source_dir in sources.items():
+        report = install_codex_skill(
+            source_dir,
+            target_root / skill_name,
+            repo_root=repo_root,
+            mcp_server_name=mcp_server_name,
+            force=force,
+            dry_run=dry_run,
+        )
+        reports.append(report)
+        overall_ok = overall_ok and report["ok"]
+
+    return {
+        "ok": overall_ok,
+        "repo_root": str(repo_root),
+        "target_root": str(target_root),
+        "mcp_server_name": mcp_server_name,
+        "force": force,
+        "dry_run": dry_run,
+        "skills": list(sources.keys()),
+        "missing_sources": missing_sources,
+        "reports": reports,
     }

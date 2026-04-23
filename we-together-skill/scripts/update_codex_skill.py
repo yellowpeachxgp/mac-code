@@ -61,6 +61,11 @@ def main() -> int:
         help="MCP server name written into generated local-runtime references",
     )
     parser.add_argument(
+        "--family",
+        action="store_true",
+        help="Update the router plus dev/runtime/ingest sub-skills together",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Resolve and print the install action without modifying the installed skill",
@@ -90,6 +95,8 @@ def main() -> int:
         cmd.extend(["--source-dir", source_dir])
     if target_dir is not None:
         cmd.extend(["--target-dir", target_dir])
+    if args.family:
+        cmd.append("--family")
     if args.dry_run:
         cmd.append("--dry-run")
 

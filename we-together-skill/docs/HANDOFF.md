@@ -3,7 +3,7 @@
 > **对象**：Codex（或任一继任 AI assistant）
 > **目标**：读完本文档 + [`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md) 后 **5 分钟**内回到工作状态。
 > **当前版本**：**v0.19.0（local）** — 本地 tag `v0.19.0` 已打；wheel/build/check 已通过。
-> **代码事实补丁（2026-04-24）**：当前代码自审为 **73 ADR / 28 条不变式 / 21 migrations / 84 services / 72 scripts**，本地测试基线为 **794 passed, 4 skipped**；本地已起步 **Phase 72：矛盾复核 / operator-gated unmerge**，并已新增 **Codex native skill**（`codex_skill/` + install/update/validate 脚本），本机安装与交互式显式中文触发已验证。
+> **代码事实补丁（2026-04-24）**：当前代码自审为 **73 ADR / 28 条不变式 / 21 migrations / 84 services / 72 scripts**，本地测试基线为 **805 passed, 4 skipped**；本地已起步 **Phase 72：矛盾复核 / operator-gated unmerge**，并已新增 **Codex native skill family**（router + `dev/runtime/ingest` 子 skill + install/update/validate 脚本），本机安装与交互式显式中文触发已验证。
 
 ---
 
@@ -11,10 +11,10 @@
 
 - **项目**：`we-together-skill` —— 一个 Skill-first 的**社会 + 世界图谱运行时**。不是给 LLM 加一层 memory，是给 LLM 一个**可演化的数字社会**。
 - **三支柱**：
-  - **A 严格工程化** 9.95/10（73 ADR + 28 不变式 + 794/4 测试 + 反身能力）
+  - **A 严格工程化** 9.95/10（73 ADR + 28 不变式 + 805/4 测试 + 反身能力）
   - **B 通用型 Skill** 9.8/10（Claude Skills / OpenAI Assistants / MCP 三路宿主 + plugin 扩展点）
   - **C 数字赛博生态圈** 9.7/10（tick + 神经网格 + 世界建模 + Agent 自主 + 年度真跑证据）
-- **Codex 状态**：本机 `~/.codex/skills/we-together` 已安装原生 skill；交互式 Codex 在 `~` 下对显式中文请求已能自动进入 `we-together` 语境。`codex exec` 仍不适合需要 MCP 审批的调用。
+- **Codex 状态**：本机 `~/.codex/skills/` 下已安装 `we-together`、`we-together-dev`、`we-together-runtime`、`we-together-ingest` 四个原生 skill；交互式 Codex 在 `~` 下对显式中文请求已能自动进入 `we-together` 语境。`codex exec` 仍不适合需要 MCP 审批的调用。
 - **工作模式**：用户每次说**"继续推进任务"** / **"进入无人值守连续推进模式"** / **"至少小一百个 task"** → Codex 进入**大批量 TaskCreate → 按 phase 交付 → commit → ADR → bump → tag** 的长工作流。
 - **绝对规则**：新功能不能破坏当前不变式注册表；任何新 migration / 破坏性变更必须先写 ADR。
 
@@ -27,7 +27,7 @@
 | git tag | `v0.19.0`（local） |
 | pyproject version | `0.19.0` |
 | cli VERSION | `0.19.0` |
-| pytest 基线 | **794 passed + 4 skipped**，~34s 本机 |
+| pytest 基线 | **805 passed + 4 skipped**，~35s 本机 |
 | ADR 总数 | 73（`docs/superpowers/decisions/0001-0073`）|
 | 不变式 | **28 条**（`src/we_together/invariants.py`）|
 | Migrations | **21 条**（`db/migrations/0001..0021`）|
@@ -37,11 +37,11 @@
 **快速自检**：
 ```bash
 cd we-together-skill
-.venv/bin/python -m pytest -q         # 期望 794 passed, 4 skipped
+.venv/bin/python -m pytest -q         # 期望 805 passed, 4 skipped
 .venv/bin/python scripts/self_audit.py        # 整体自描述
 .venv/bin/python scripts/invariants_check.py summary  # 28 条不变式 100% 覆盖
 .venv/bin/we-together version         # we-together 0.19.0
-.venv/bin/python scripts/install_codex_skill.py --force
+.venv/bin/python scripts/install_codex_skill.py --family --force
 .venv/bin/python scripts/validate_codex_skill.py --installed
 ```
 
@@ -335,7 +335,7 @@ git log --oneline | head -5                    # 看最近 5 commits
 git tag -l | tail -5                           # 确认 v0.19.0 已 tag
 
 # 2. 确认测试绿
-.venv/bin/python -m pytest -q                  # 期望 794 passed, 4 skipped
+.venv/bin/python -m pytest -q                  # 期望 805 passed, 4 skipped
 
 # 3. 自描述（反身能力的使用）
 .venv/bin/python scripts/self_audit.py
@@ -487,7 +487,7 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 ## 13. Codex 继任时的具体下一步建议
 
 ### 如果用户只说"继续推进" → 你需要：
-1. 跑 `pytest -q` 确认 **794 passed / 4 skipped** 基线保持
+1. 跑 `pytest -q` 确认 **805 passed / 4 skipped** 基线保持
 2. 读 [`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](superpowers/decisions/0073-phase-65-70-synthesis.md)
 3. 优先沿当前本地 `Phase 72` 推进：矛盾复核 / operator-gated unmerge → 再进入 tenant/world isolation
 

@@ -88,8 +88,11 @@ def test_skill_host_smoke_all_steps(tmp_path):
     spec.loader.exec_module(m)
     report = m.run_smoke(tmp_path)
     steps = {r["step"]: r["ok"] for r in report["results"]}
+    run_turn = next(r for r in report["results"] if r["step"] == "run_turn")
     assert steps.get("bootstrap") is True
     assert steps.get("seed_society_c") is True
+    assert steps.get("run_turn") is True
+    assert run_turn["text"] == "你好，我收到了。"
     assert steps.get("dashboard_summary") is True
 
 
@@ -104,8 +107,11 @@ def test_skill_host_smoke_tenant_root(tmp_path):
     spec.loader.exec_module(m)
     report = m.run_smoke(resolve_tenant_root(tmp_path, "alpha"))
     steps = {r["step"]: r["ok"] for r in report["results"]}
+    run_turn = next(r for r in report["results"] if r["step"] == "run_turn")
     assert steps.get("bootstrap") is True
     assert steps.get("seed_society_c") is True
+    assert steps.get("run_turn") is True
+    assert run_turn["text"] == "你好，我收到了。"
     assert steps.get("dashboard_summary") is True
 
 

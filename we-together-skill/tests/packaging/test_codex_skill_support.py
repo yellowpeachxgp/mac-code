@@ -6,7 +6,9 @@ from pathlib import Path
 from we_together.packaging.codex_skill_support import (
     codex_config_has_mcp_server,
     default_codex_skill_target,
+    discover_codex_skill_family_sources,
     install_codex_skill,
+    install_codex_skill_family,
     validate_codex_skill_tree,
 )
 
@@ -77,6 +79,51 @@ def _make_source_skill(tmp_path: Path) -> Path:
     return root
 
 
+def _make_source_skill_family(tmp_path: Path) -> Path:
+    repo_root = tmp_path / "repo"
+    for name in [
+        "codex_skill",
+        "codex_skill_dev",
+        "codex_skill_runtime",
+        "codex_skill_ingest",
+    ]:
+        root = repo_root / name
+        (root / "agents").mkdir(parents=True)
+        (root / "prompts").mkdir(parents=True)
+        (root / "references").mkdir(parents=True)
+        skill_name = (
+            "we-together"
+            if name == "codex_skill"
+            else name.replace("codex_skill_", "we-together-")
+        )
+        (root / "SKILL.md").write_text(
+            f"---\nname: {skill_name}\ndescription: demo\n---\n",
+            encoding="utf-8",
+        )
+        (root / "agents" / "openai.yaml").write_text(
+            "interface:\n  display_name: demo\n",
+            encoding="utf-8",
+        )
+        for prompt_name in ["dev.md", "runtime.md", "ingest.md"]:
+            (root / "prompts" / prompt_name).write_text("# x\n", encoding="utf-8")
+        (root / "references" / "triggers.md").write_text(
+            "# triggers\n",
+            encoding="utf-8",
+        )
+        (root / "references" / "local-runtime.template.md").write_text(
+            "# template\n",
+            encoding="utf-8",
+        )
+
+    (repo_root / "docs" / "superpowers" / "state").mkdir(parents=True)
+    (repo_root / "docs" / "HANDOFF.md").write_text("# handoff\n", encoding="utf-8")
+    (repo_root / "docs" / "superpowers" / "state" / "current-status.md").write_text(
+        "# state\n",
+        encoding="utf-8",
+    )
+    return repo_root
+
+
 def test_default_codex_skill_target_uses_home(tmp_path):
     target = default_codex_skill_target(home=tmp_path)
     assert target == tmp_path / ".codex" / "skills" / "we-together"
@@ -139,6 +186,35 @@ def test_codex_config_has_mcp_server(tmp_path):
     assert codex_config_has_mcp_server(config, "missing-server") is False
 
 
+def test_discover_codex_skill_family_sources(tmp_path):
+    repo_root = _make_source_skill_family(tmp_path)
+    family = discover_codex_skill_family_sources(repo_root)
+    assert set(family) == {
+        "we-together",
+        "we-together-dev",
+        "we-together-runtime",
+        "we-together-ingest",
+    }
+
+
+def test_install_codex_skill_family_dry_run(tmp_path):
+    repo_root = _make_source_skill_family(tmp_path)
+    target_root = tmp_path / ".codex" / "skills"
+    report = install_codex_skill_family(
+        repo_root,
+        target_root=target_root,
+        dry_run=True,
+    )
+    assert report["ok"] is True
+    assert set(report["skills"]) == {
+        "we-together",
+        "we-together-dev",
+        "we-together-runtime",
+        "we-together-ingest",
+    }
+    assert len(report["reports"]) == 4
+
+
 def test_install_codex_skill_cli_dry_run_reports_install_shape(
     tmp_path, monkeypatch, capsys
 ):
@@ -173,6 +249,40 @@ def test_install_codex_skill_cli_dry_run_reports_install_shape(
     assert report["skill_name"] == "we-together"
     assert "references/local-runtime.md" in report["generated_runtime_files"]
     assert "references/local-runtime.json" in report["generated_runtime_files"]
+
+
+def test_install_codex_skill_cli_family_dry_run_reports_all_skills(
+    tmp_path, monkeypatch, capsys
+):
+    install_codex_skill_script = _load_install_codex_skill()
+    repo_root = _make_source_skill_family(tmp_path)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "install_codex_skill.py",
+            "--repo-root",
+            str(repo_root),
+            "--family",
+            "--dry-run",
+            "--target-dir",
+            str(tmp_path / "skills"),
+        ],
+    )
+
+    assert install_codex_skill_script.main() == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is True
+    assert report["action"] == "install_codex_skill_family"
+    assert set(report["skills"]) == {
+        "we-together",
+        "we-together-dev",
+        "we-together-runtime",
+        "we-together-ingest",
+    }
+    assert report["missing_sources"] == []
+    assert len(report["reports"]) == 4
 
 
 def test_update_codex_skill_cli_invokes_force_install(monkeypatch):

@@ -51,9 +51,14 @@ def run_smoke(root: Path) -> dict:
                 llm_client=MockLLMClient(default_content="你好，我收到了。"),
                 adapter_name="openai_compat",
             )
+            text = (
+                r.get("response", {}).get("text")
+                or r.get("text")
+                or r.get("response_text", "")
+            )
             results.append({
-                "step": "run_turn", "ok": True,
-                "text": r.get("text") or r.get("response_text", ""),
+                "step": "run_turn", "ok": bool(text),
+                "text": text,
             })
         else:
             results.append({"step": "run_turn", "ok": False, "err": "no scene in seed"})

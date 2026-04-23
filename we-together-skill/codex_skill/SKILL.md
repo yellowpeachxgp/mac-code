@@ -22,7 +22,7 @@ version: "0.19.0"
 - 泛化的社会图谱理论讨论
 - 与 `we-together` 无关的其他仓库开发
 - 没有 `we-together` 语义的普通编程问题
-- 只有裸词而没有项目上下文的请求，例如：`当前状态`、`ADR`、`scene`、`memory`
+- 只有裸词而没有项目上下文的请求，例如：`当前状态`、`ADR`、`scene`、`memory`；这类**裸词请求**不要接管
 
 ## 首步动作
 
@@ -60,3 +60,11 @@ version: "0.19.0"
 - `prompts/dev.md`
 - `prompts/runtime.md`
 - `prompts/ingest.md`
+
+## 子 skill
+
+如果本地还安装了以下子 skill，它们可接更窄的请求面：
+
+- `we-together-dev`
+- `we-together-runtime`
+- `we-together-ingest`

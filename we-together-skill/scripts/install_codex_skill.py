@@ -12,6 +12,7 @@ from we_together.packaging.codex_skill_support import (
     DEFAULT_MCP_SERVER_NAME,
     GENERATED_LOCAL_RUNTIME_FILES,
     default_codex_skill_target,
+    install_codex_skill_family,
     install_codex_skill,
 )
 
@@ -93,6 +94,11 @@ def main() -> int:
         help="MCP server name written into generated local-runtime references",
     )
     parser.add_argument(
+        "--family",
+        action="store_true",
+        help="Install the router plus dev/runtime/ingest sub-skills into the target skills directory",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Replace an existing installed skill directory if it already exists",
@@ -109,29 +115,55 @@ def main() -> int:
     mcp_server_name = (
         _clean_optional_text(args.mcp_server_name) or DEFAULT_MCP_SERVER_NAME
     )
-    source_dir = _resolve_optional_path(
-        args.source_dir,
-        default_path=repo_root / DEFAULT_SOURCE_SUBDIR,
-    )
-    target_dir = _resolve_optional_path(
-        args.target_dir,
-        default_path=default_codex_skill_target(skill_name=skill_name),
-    )
+    if args.family:
+        target_root = _resolve_optional_path(
+            args.target_dir,
+            default_path=default_codex_skill_target(skill_name=skill_name).parent,
+        )
+        report = install_codex_skill_family(
+            repo_root,
+            target_root=target_root,
+            mcp_server_name=mcp_server_name,
+            force=args.force,
+            dry_run=args.dry_run,
+        )
+        payload = {
+            "ok": report["ok"],
+            "action": "install_codex_skill_family",
+            "mode": "dry-run" if args.dry_run else "install",
+            "target_root": report["target_root"],
+            "repo_root": report["repo_root"],
+            "mcp_server_name": report["mcp_server_name"],
+            "force": args.force,
+            "dry_run": args.dry_run,
+            "skills": report["skills"],
+            "missing_sources": report["missing_sources"],
+            "reports": report["reports"],
+        }
+    else:
+        source_dir = _resolve_optional_path(
+            args.source_dir,
+            default_path=repo_root / DEFAULT_SOURCE_SUBDIR,
+        )
+        target_dir = _resolve_optional_path(
+            args.target_dir,
+            default_path=default_codex_skill_target(skill_name=skill_name),
+        )
 
-    report = install_codex_skill(
-        source_dir,
-        target_dir,
-        repo_root=repo_root,
-        mcp_server_name=mcp_server_name,
-        force=args.force,
-        dry_run=args.dry_run,
-    )
-    payload = _build_output_payload(
-        report=report,
-        skill_name=skill_name,
-        force=args.force,
-        dry_run=args.dry_run,
-    )
+        report = install_codex_skill(
+            source_dir,
+            target_dir,
+            repo_root=repo_root,
+            mcp_server_name=mcp_server_name,
+            force=args.force,
+            dry_run=args.dry_run,
+        )
+        payload = _build_output_payload(
+            report=report,
+            skill_name=skill_name,
+            force=args.force,
+            dry_run=args.dry_run,
+        )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["ok"] else 1
 
