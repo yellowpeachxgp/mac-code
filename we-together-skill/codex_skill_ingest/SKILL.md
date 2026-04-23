@@ -23,3 +23,7 @@ version: "0.19.0"
 3. 导入后优先返回导入结果与图谱摘要
 
 如果请求主要是状态查询、交接文档、图谱元信息或继续开发，不要接管，让更窄的子 skill 或 router 处理。
+
+关键参考：
+
+- `references/intent-examples.md`

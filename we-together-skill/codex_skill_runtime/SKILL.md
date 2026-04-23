@@ -25,3 +25,7 @@ version: "0.19.0"
 3. 图谱类请求优先走 MCP，不先扫源码
 
 如果请求主要是继续开发或导入材料，不要接管，让更窄的子 skill 或 router 处理。
+
+关键参考：
+
+- `references/intent-examples.md`

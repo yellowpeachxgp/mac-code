@@ -26,3 +26,7 @@ version: "0.19.0"
 3. 先读状态文档，再读代码
 
 如果请求是运行态摘要、图谱元信息或导入材料，不要接管，让更窄的子 skill 或 router 处理。
+
+关键参考：
+
+- `references/intent-examples.md`

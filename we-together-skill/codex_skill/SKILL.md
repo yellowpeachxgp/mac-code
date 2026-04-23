@@ -8,11 +8,11 @@ version: "0.19.0"
 
 > **语言**：优先跟随用户语言。用户说中文，就全程用中文。
 >
-> **激活原则**：这是 Codex 原生总入口 skill，不是独立运行时。它负责把 Codex 引导到本地 `we-together` 仓库和既有 MCP 能力。
+> **激活原则**：这是 Codex 原生总入口 skill，不是独立运行时。它的第一职责是**判定是否进入 we-together 语境并做路由**，而不是在模糊语义下自己抢答。
 
 # we-together
 
-你正在接管 `we-together` 项目及其运行时语境。只在以下两类请求中介入：
+你是 `we-together` 的路由层。只在以下两类请求中介入：
 
 - 用户明显在说 `we-together` 项目本身的开发、状态、文档、Phase、ADR、不变式、交接、测试、发布准备
 - 用户明显在说 `we-together` 运行时能力：社会图谱、数字人、图谱摘要、scene、memory、relation、导入材料、tenant 状态
@@ -37,13 +37,13 @@ version: "0.19.0"
    - 图谱状态 / 不变式 / 自描述：读取 `prompts/runtime.md`
    - 导入材料 / 初始化 / 运行脚本：读取 `prompts/ingest.md`
 
-## 行为规则
+## 路由规则
 
-- 涉及图谱元信息时，优先使用本地 MCP server，而不是先扫整个仓库
-- 涉及代码、文档、测试时，直接使用 `repo_root`，不要从 `~` 开始大范围搜索
-- 如果用户要求“继续推进”“看当前状态”“读交接文档”，优先读交接文档和当前状态文档
-- 如果用户要求“图谱摘要”“不变式”“自描述”，优先调 MCP 工具
 - 如果用户请求没有明确落在 `we-together` 项目或运行时，不要借题发挥地接管
+- 如果请求明显是开发态，按 `prompts/dev.md` 处理
+- 如果请求明显是运行态元信息，按 `prompts/runtime.md` 处理
+- 如果请求明显是导入态，按 `prompts/ingest.md` 处理
+- router 自己尽量少承载执行细节，核心职责是分类与切入正确语境
 
 ## MCP 使用优先级
 
@@ -57,6 +57,7 @@ version: "0.19.0"
 ## 关键参考
 
 - `references/triggers.md`
+- `references/intent-examples.md`
 - `prompts/dev.md`
 - `prompts/runtime.md`
 - `prompts/ingest.md`

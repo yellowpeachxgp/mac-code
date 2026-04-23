@@ -26,6 +26,7 @@ def test_codex_skill_family_has_required_layout():
         "prompts/runtime.md",
         "prompts/ingest.md",
         "references/triggers.md",
+        "references/intent-examples.md",
         "references/local-runtime.template.md",
     ]
     for root_name in [
@@ -44,6 +45,7 @@ def test_router_skill_keeps_balanced_non_trigger_boundary():
     assert "Do not use for generic social graph theory" in text
     assert "裸词请求" in text
     assert "先读取 `references/local-runtime.md`" in text
+    assert "路由层" in text
 
 
 def test_dev_skill_is_scoped_to_project_development():
@@ -71,3 +73,16 @@ def test_ingest_skill_is_scoped_to_bootstrap_and_imports():
     assert "import" in text
     assert "当前状态" not in text
     assert "先读取 `references/local-runtime.md`" in text
+
+
+def test_intent_example_corpora_include_positive_and_negative_cases():
+    for root_name in [
+        "codex_skill",
+        "codex_skill_dev",
+        "codex_skill_runtime",
+        "codex_skill_ingest",
+    ]:
+        text = _read(REPO_ROOT / root_name / "references" / "intent-examples.md")
+        assert "## Positive" in text
+        assert "## Negative" in text
+        assert "we-together" in text
