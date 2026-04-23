@@ -15,6 +15,7 @@
   - **B 通用型 Skill** 9.8/10（Claude Skills / OpenAI Assistants / MCP 三路宿主 + plugin 扩展点）
   - **C 数字赛博生态圈** 9.7/10（tick + 神经网格 + 世界建模 + Agent 自主 + 年度真跑证据）
 - **Codex 状态**：本机 `~/.codex/skills/` 下已安装 `we-together`、`we-together-dev`、`we-together-runtime`、`we-together-ingest` 四个原生 skill；交互式 Codex 在 `~` 下对显式中文请求已能自动进入 `we-together` 语境。`codex exec` 仍不适合需要 MCP 审批的调用。
+- **验证链路状态**：`verify_skill_package.py` 与 `skill_host_smoke.py` 的历史假阳性已修复，当前 release / host smoke 证据可信度更高。
 - **工作模式**：用户每次说**"继续推进任务"** / **"进入无人值守连续推进模式"** / **"至少小一百个 task"** → Codex 进入**大批量 TaskCreate → 按 phase 交付 → commit → ADR → bump → tag** 的长工作流。
 - **绝对规则**：新功能不能破坏当前不变式注册表；任何新 migration / 破坏性变更必须先写 ADR。
 

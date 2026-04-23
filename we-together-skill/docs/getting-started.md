@@ -61,9 +61,9 @@ python scripts/simulate_week.py --ticks 7 --budget 10
 # 归档在 benchmarks/tick_runs/<date>.json（Phase 39 落地）
 ```
 
-## 6. 作为 MCP server 接入 Claude
+## 6. 作为宿主接入 Claude / Codex
 
-参见 [`docs/hosts/claude-code.md`](hosts/claude-code.md) / [`docs/hosts/claude-desktop.md`](hosts/claude-desktop.md)。
+参见 [`docs/hosts/claude-code.md`](hosts/claude-code.md) / [`docs/hosts/claude-desktop.md`](hosts/claude-desktop.md) / [`docs/hosts/codex.md`](hosts/codex.md)。
 
 核心指令：
 
@@ -72,7 +72,7 @@ claude mcp add we-together -- \
   python $(pwd)/scripts/mcp_server.py --root $(pwd)
 ```
 
-然后 Claude Code 里会多出 6 个工具：`we_together_run_turn` / `we_together_graph_summary` / `we_together_scene_list` / `we_together_snapshot_list` / `we_together_import_narration` / `we_together_proactive_scan`，以及两条 resources (`we-together://graph/summary` / `we-together://schema/version`) 和一条 prompt 模板 (`we_together_scene_reply`)。
+然后 Claude Code / Codex 的 MCP 里会多出 6 个工具：`we_together_run_turn` / `we_together_graph_summary` / `we_together_scene_list` / `we_together_snapshot_list` / `we_together_import_narration` / `we_together_proactive_scan`，以及两条 resources (`we-together://graph/summary` / `we-together://schema/version`) 和一条 prompt 模板 (`we_together_scene_reply`)。
 
 ## 7. 故障排查
 

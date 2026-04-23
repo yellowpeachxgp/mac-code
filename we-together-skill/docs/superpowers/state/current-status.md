@@ -29,7 +29,7 @@
 - 本机已把 Codex native skill 扩展为 4 个技能：`we-together`（router）/ `we-together-dev` / `we-together-runtime` / `we-together-ingest`
 - `~/.codex/skills/we-together*` 四个技能目录已完成本机安装，安装后 `local-runtime.md/json` 已写入真实 `repo_root` 与 `mcp_server_name`
 - `scripts/validate_codex_skill.py --installed --skill-dir ~/.codex/skills/<skill>` 已对四个技能分别通过，确认安装结构与 `~/.codex/config.toml` 中的 `we-together-local-validate` MCP 注册一致
-- 从 `~` 目录启动交互式 Codex，对显式中文请求 `看一下 we-together 当前状态` 已观察到 `we-together` skill 被启用，并正确回答 `v0.19.0 / 794 passed, 4 skipped`
+- `verify_skill_package.py` 与 `skill_host_smoke.py` 的假阳性已修复：前者会做真实解包/文件/runtime 校验，后者会校验非空回复文本
 - 从 `~` 目录启动交互式 Codex，对显式中文请求 `看一下 we-together 当前状态` 已观察到 `we-together` skill 被启用，并正确回答最新版本与测试基线
 - 旧的 `codex exec 401 Unauthorized` 结论已过时；当前真实限制是：`codex exec` 模式不适合作需要 MCP 审批/elicitation 的工具调用，支持路径应以交互式 Codex + 本地原生 skill 为准
 
