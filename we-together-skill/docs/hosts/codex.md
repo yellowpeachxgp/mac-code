@@ -38,13 +38,10 @@ args = ["/绝对路径/we-together-skill/scripts/mcp_server.py", "--root", "/绝
 ## 4. 校验
 
 ```bash
-.venv/bin/python scripts/validate_codex_skill.py --installed --skill-dir ~/.codex/skills/we-together
-.venv/bin/python scripts/validate_codex_skill.py --installed --skill-dir ~/.codex/skills/we-together-dev
-.venv/bin/python scripts/validate_codex_skill.py --installed --skill-dir ~/.codex/skills/we-together-runtime
-.venv/bin/python scripts/validate_codex_skill.py --installed --skill-dir ~/.codex/skills/we-together-ingest
+.venv/bin/python scripts/validate_codex_skill.py --installed --family --skill-dir ~/.codex/skills
 ```
 
-应全部返回 `ok: true`。
+应返回整族 `ok: true`，并列出 4 个 skill 的独立校验结果。
 
 ## 5. 使用方式
 

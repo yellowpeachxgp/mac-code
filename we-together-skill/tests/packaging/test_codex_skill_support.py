@@ -9,6 +9,7 @@ from we_together.packaging.codex_skill_support import (
     discover_codex_skill_family_sources,
     install_codex_skill,
     install_codex_skill_family,
+    validate_codex_skill_family,
     validate_codex_skill_tree,
 )
 
@@ -204,6 +205,32 @@ def test_install_codex_skill_family_dry_run(tmp_path):
         repo_root,
         target_root=target_root,
         dry_run=True,
+    )
+    assert report["ok"] is True
+    assert set(report["skills"]) == {
+        "we-together",
+        "we-together-dev",
+        "we-together-runtime",
+        "we-together-ingest",
+    }
+    assert len(report["reports"]) == 4
+
+
+def test_validate_codex_skill_family_reports_all_installed_skills(tmp_path):
+    repo_root = _make_source_skill_family(tmp_path)
+    target_root = tmp_path / ".codex" / "skills"
+    install_codex_skill_family(repo_root, target_root=target_root, dry_run=False)
+
+    config = tmp_path / "config.toml"
+    config.write_text(
+        '[mcp_servers.we-together-local-validate]\ncommand = "python3"\n',
+        encoding="utf-8",
+    )
+
+    report = validate_codex_skill_family(
+        target_root,
+        config_path=config,
+        mcp_server_name="we-together-local-validate",
     )
     assert report["ok"] is True
     assert set(report["skills"]) == {
@@ -433,3 +460,38 @@ def test_validate_codex_skill_cli_installed_ok_with_runtime_refs_and_config(
     assert report["install"]["missing"] == []
     assert report["config"]["checked"] is True
     assert report["config"]["ok"] is True
+
+
+def test_validate_codex_skill_cli_family_installed_ok(
+    tmp_path, monkeypatch, capsys
+):
+    validate_codex_skill = _load_validate_codex_skill()
+    repo_root = _make_source_skill_family(tmp_path)
+    target_root = tmp_path / "skills"
+    install_codex_skill_family(repo_root, target_root=target_root, dry_run=False)
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        '[mcp_servers.we-together-local-validate]\ncommand = "python3"\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "validate_codex_skill.py",
+            "--installed",
+            "--family",
+            "--skill-dir",
+            str(target_root),
+            "--config-path",
+            str(config_path),
+        ],
+    )
+
+    assert validate_codex_skill.main() == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is True
+    assert report["action"] == "validate_codex_skill_family"
+    assert len(report["reports"]) == 4

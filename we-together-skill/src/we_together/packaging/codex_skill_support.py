@@ -349,3 +349,42 @@ def install_codex_skill_family(
         "missing_sources": missing_sources,
         "reports": reports,
     }
+
+
+def validate_codex_skill_family(
+    target_root: Path,
+    *,
+    config_path: Path,
+    mcp_server_name: str = DEFAULT_MCP_SERVER_NAME,
+) -> dict:
+    target_root = Path(target_root).expanduser().resolve()
+    reports = []
+    overall_ok = True
+
+    for skill_name in DEFAULT_CODEX_SKILL_FAMILY:
+        skill_dir = target_root / skill_name
+        tree_report = validate_codex_skill_tree(
+            skill_dir,
+            require_local_runtime=True,
+        )
+        config_ok = codex_config_has_mcp_server(config_path, mcp_server_name)
+        report = {
+            "skill_name": skill_name,
+            "skill_dir": str(skill_dir),
+            "tree": tree_report,
+            "config_path": str(config_path),
+            "mcp_server_name": mcp_server_name,
+            "mcp_registered": config_ok,
+            "ok": tree_report["ok"] and config_ok,
+        }
+        reports.append(report)
+        overall_ok = overall_ok and report["ok"]
+
+    return {
+        "ok": overall_ok,
+        "target_root": str(target_root),
+        "config_path": str(config_path),
+        "mcp_server_name": mcp_server_name,
+        "skills": list(DEFAULT_CODEX_SKILL_FAMILY.keys()),
+        "reports": reports,
+    }

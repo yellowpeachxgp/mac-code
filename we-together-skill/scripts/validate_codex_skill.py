@@ -12,6 +12,7 @@ from we_together.packaging.codex_skill_support import (
     DEFAULT_MCP_SERVER_NAME,
     codex_config_has_mcp_server,
     default_codex_skill_target,
+    validate_codex_skill_family,
     validate_codex_skill_tree,
 )
 
@@ -78,6 +79,7 @@ def main() -> int:
     parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[1]))
     parser.add_argument("--skill-dir", default=None)
     parser.add_argument("--installed", action="store_true")
+    parser.add_argument("--family", action="store_true")
     parser.add_argument(
         "--config-path",
         default=str(Path.home() / ".codex" / "config.toml"),
@@ -86,6 +88,29 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
+    config_path = Path(args.config_path).expanduser().resolve()
+
+    if args.family:
+        if args.skill_dir:
+            target_root = Path(args.skill_dir).expanduser().resolve()
+        elif args.installed:
+            target_root = default_codex_skill_target(skill_name=DEFAULT_CODEX_SKILL_NAME).parent
+        else:
+            target_root = repo_root
+
+        family_report = validate_codex_skill_family(
+            target_root,
+            config_path=config_path,
+            mcp_server_name=args.mcp_server_name,
+        )
+        report = {
+            "action": "validate_codex_skill_family",
+            "mode": "installed-family" if args.installed else "source-family",
+            **family_report,
+        }
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["ok"] else 1
+
     if args.skill_dir:
         skill_dir = Path(args.skill_dir).expanduser().resolve()
     elif args.installed:
@@ -98,7 +123,6 @@ def main() -> int:
         skill_dir,
         installed=args.installed,
     )
-    config_path = Path(args.config_path).expanduser().resolve()
     config = _config_status(
         config_path,
         mcp_server_name=args.mcp_server_name,
