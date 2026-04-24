@@ -25,6 +25,7 @@ REQUIRED_SOURCE_FILES = [
     "prompts/runtime.md",
     "prompts/ingest.md",
     "references/triggers.md",
+    "references/intent-examples.md",
     "references/local-runtime.template.md",
 ]
 
