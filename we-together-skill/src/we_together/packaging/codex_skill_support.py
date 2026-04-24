@@ -16,6 +16,9 @@ DEFAULT_CODEX_SKILL_FAMILY = {
     "we-together-dev": "codex_skill_dev",
     "we-together-runtime": "codex_skill_runtime",
     "we-together-ingest": "codex_skill_ingest",
+    "we-together-world": "codex_skill_world",
+    "we-together-simulation": "codex_skill_simulation",
+    "we-together-release": "codex_skill_release",
 }
 
 REQUIRED_SOURCE_FILES = [

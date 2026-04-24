@@ -2,6 +2,15 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+SKILL_DIRS = [
+    "codex_skill",
+    "codex_skill_dev",
+    "codex_skill_runtime",
+    "codex_skill_ingest",
+    "codex_skill_world",
+    "codex_skill_simulation",
+    "codex_skill_release",
+]
 
 
 def _read(path: Path) -> str:
@@ -9,12 +18,7 @@ def _read(path: Path) -> str:
 
 
 def test_codex_skill_family_directories_exist():
-    for rel in [
-        "codex_skill",
-        "codex_skill_dev",
-        "codex_skill_runtime",
-        "codex_skill_ingest",
-    ]:
+    for rel in SKILL_DIRS:
         assert (REPO_ROOT / rel).is_dir(), rel
 
 
@@ -29,12 +33,7 @@ def test_codex_skill_family_has_required_layout():
         "references/intent-examples.md",
         "references/local-runtime.template.md",
     ]
-    for root_name in [
-        "codex_skill",
-        "codex_skill_dev",
-        "codex_skill_runtime",
-        "codex_skill_ingest",
-    ]:
+    for root_name in SKILL_DIRS:
         root = REPO_ROOT / root_name
         for rel in required:
             assert (root / rel).exists(), f"{root_name}/{rel}"
@@ -46,6 +45,9 @@ def test_router_skill_keeps_balanced_non_trigger_boundary():
     assert "裸词请求" in text
     assert "先读取 `references/local-runtime.md`" in text
     assert "路由层" in text
+    assert "we-together-world" in text
+    assert "we-together-simulation" in text
+    assert "we-together-release" in text
 
 
 def test_dev_skill_is_scoped_to_project_development():
@@ -75,13 +77,36 @@ def test_ingest_skill_is_scoped_to_bootstrap_and_imports():
     assert "先读取 `references/local-runtime.md`" in text
 
 
+def test_world_skill_is_scoped_to_tenant_and_world_runtime():
+    text = _read(REPO_ROOT / "codex_skill_world" / "SKILL.md")
+    assert "tenant" in text
+    assert "world" in text
+    assert "object" in text or "对象" in text
+    assert "继续 Phase" not in text
+    assert "导入材料" not in text
+    assert "先读取 `references/local-runtime.md`" in text
+
+
+def test_simulation_skill_is_scoped_to_projection_and_what_if():
+    text = _read(REPO_ROOT / "codex_skill_simulation" / "SKILL.md")
+    assert "simulation" in text
+    assert "what-if" in text or "what if" in text
+    assert "dream" in text or "推演" in text
+    assert "交接文档" not in text
+    assert "先读取 `references/local-runtime.md`" in text
+
+
+def test_release_skill_is_scoped_to_packaging_and_release_flow():
+    text = _read(REPO_ROOT / "codex_skill_release" / "SKILL.md")
+    assert "release" in text
+    assert "CHANGELOG" in text
+    assert "release notes" in text or "发布说明" in text
+    assert "图谱摘要" not in text
+    assert "先读取 `references/local-runtime.md`" in text
+
+
 def test_intent_example_corpora_include_positive_and_negative_cases():
-    for root_name in [
-        "codex_skill",
-        "codex_skill_dev",
-        "codex_skill_runtime",
-        "codex_skill_ingest",
-    ]:
+    for root_name in SKILL_DIRS:
         text = _read(REPO_ROOT / root_name / "references" / "intent-examples.md")
         assert "## Positive" in text
         assert "## Negative" in text

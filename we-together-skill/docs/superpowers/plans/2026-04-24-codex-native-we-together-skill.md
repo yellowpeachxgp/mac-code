@@ -23,7 +23,7 @@ This plan covers:
 
 This plan does not cover:
 
-- Multi-skill family split
+- Further host-specific expansion beyond the current 7-skill family
 - Codex internal routing changes
 - A second MCP server
 

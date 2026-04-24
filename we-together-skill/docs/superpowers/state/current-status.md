@@ -1,9 +1,9 @@
 # 当前状态
 
-日期：2026-04-24
+日期：2026-04-25
 
 > 代码事实快照：
-> - 本地测试基线：**808 passed, 4 skipped**
+> - 本地测试基线：**814 passed, 4 skipped**
 > - ADR：**73**
 > - 不变式：**28**
 > - Migrations：**21**
@@ -25,13 +25,14 @@
 - `unmerge_gate_service` 现在会把输入 `confidence` clamp 到 `[0,1]`，避免异常值把 operator gate 的候选排序带偏
 - `package_skill.py pack` 不传版本参数时，现已自动推导当前 `skill_version=0.19.0` 与 `schema_version=0021`
 - `we_together.__version__` 现已与 CLI `VERSION` 对齐
-- 本机已新增 `codex_skill/` 原生技能包，以及 `scripts/install_codex_skill.py` / `scripts/update_codex_skill.py` / `scripts/validate_codex_skill.py`
-- 本机已把 Codex native skill 扩展为 4 个技能：`we-together`（router）/ `we-together-dev` / `we-together-runtime` / `we-together-ingest`
-- `~/.codex/skills/we-together*` 四个技能目录已完成本机安装，安装后 `local-runtime.md/json` 已写入真实 `repo_root` 与 `mcp_server_name`
-- `scripts/validate_codex_skill.py --installed --family --skill-dir ~/.codex/skills` 已通过，确认四个技能的安装结构与 `~/.codex/config.toml` 中的 `we-together-local-validate` MCP 注册一致
+- 本机已新增 `codex_skill/` 原生技能包，以及 `scripts/install_codex_skill.py` / `scripts/update_codex_skill.py` / `scripts/validate_codex_skill.py` / `scripts/capture_codex_skill_evidence.py`
+- 本机已把 Codex native skill 扩展为 7 个技能：`we-together`（router）/ `we-together-dev` / `we-together-runtime` / `we-together-ingest` / `we-together-world` / `we-together-simulation` / `we-together-release`
+- `~/.codex/skills/we-together*` 七个技能目录已完成本机安装，安装后 `local-runtime.md/json` 已写入真实 `repo_root` 与 `mcp_server_name`
+- `scripts/validate_codex_skill.py --installed --family --skill-dir ~/.codex/skills` 已通过，确认七个技能的安装结构与 `~/.codex/config.toml` 中的 `we-together-local-validate` MCP 注册一致
+- `scripts/capture_codex_skill_evidence.py --session-root ~/.codex/sessions/2026/04/24 --limit 20` 已能提取交互式命中证据；当前观测到 1 个 `we-together` session 命中，包含 `SKILL.md` / `local-runtime.md` / `prompts/dev.md` 读取与 commentary 证据
 - `verify_skill_package.py` 与 `skill_host_smoke.py` 的假阳性已修复：前者会做真实解包/文件/runtime 校验，后者会校验非空回复文本
-- `we-together` router 已进一步变薄：新增 `intent-examples` 正负样例库，并把 `router/dev/runtime/ingest` 的命中边界固化成内容级回归测试
-- `docs/hosts/codex-acceptance-matrix.md` 已新增，用于人工验收四个 skill 家族的命中边界
+- `we-together` router 已进一步变薄：新增 `intent-examples` 正负样例库，并把 `router/dev/runtime/ingest/world/simulation/release` 的命中边界固化成内容级回归测试
+- `docs/hosts/codex-acceptance-matrix.md` 已新增，用于人工验收 7 个 skill 家族的命中边界
 - `validate_codex_skill.py` 已新增 `--family` 模式；安装与校验现在都支持整族一条命令完成
 - 从 `~` 目录启动交互式 Codex，对显式中文请求 `看一下 we-together 当前状态` 已观察到 `we-together` skill 被启用，并正确回答最新版本与测试基线
 - 旧的 `codex exec 401 Unauthorized` 结论已过时；当前真实限制是：`codex exec` 模式不适合作需要 MCP 审批/elicitation 的工具调用，支持路径应以交互式 Codex + 本地原生 skill 为准

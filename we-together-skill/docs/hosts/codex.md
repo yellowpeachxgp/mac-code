@@ -28,12 +28,15 @@ args = ["/绝对路径/we-together-skill/scripts/mcp_server.py", "--root", "/绝
 .venv/bin/python scripts/install_codex_skill.py --family --force
 ```
 
-会安装 4 个本地 skill：
+会安装 7 个本地 skill：
 
 - `we-together`
 - `we-together-dev`
 - `we-together-runtime`
 - `we-together-ingest`
+- `we-together-world`
+- `we-together-simulation`
+- `we-together-release`
 
 ## 4. 校验
 
@@ -41,7 +44,15 @@ args = ["/绝对路径/we-together-skill/scripts/mcp_server.py", "--root", "/绝
 .venv/bin/python scripts/validate_codex_skill.py --installed --family --skill-dir ~/.codex/skills
 ```
 
-应返回整族 `ok: true`，并列出 4 个 skill 的独立校验结果。
+应返回整族 `ok: true`，并列出 7 个 skill 的独立校验结果。
+
+如需采集交互式命中证据，可再执行：
+
+```bash
+.venv/bin/python scripts/capture_codex_skill_evidence.py --session-root ~/.codex/sessions --limit 20
+```
+
+该脚本会扫描 `~/.codex/sessions/**/*.jsonl`，归纳已安装 skill 的路径读取、`local-runtime.md` 读取与相关 commentary 命中。
 
 ## 5. 使用方式
 
@@ -58,6 +69,9 @@ env -u CODEX_API_KEY codex
 - `查一下 we-together 的不变式`
 - `给我 we-together 图谱摘要`
 - `帮我导入一段 we-together 材料`
+- `看一下 we-together tenant/world 状态`
+- `跑一下 we-together simulate_year`
+- `做一个 we-together release 自检`
 
 ## 6. 当前限制
 

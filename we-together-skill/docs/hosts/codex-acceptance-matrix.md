@@ -30,6 +30,24 @@
 - `导入 narration 到 we-together`
 - `导入 email 到 we-together`
 
+### World 应命中
+
+- `看一下 we-together tenant 状态`
+- `查看 we-together active world`
+- `继续 we-together 的 tenant/world isolation`
+
+### Simulation 应命中
+
+- `跑一下 we-together simulate_year`
+- `做一个 we-together what-if`
+- `给我 we-together dream_cycle insight`
+
+### Release 应命中
+
+- `跑一下 we-together release 自检`
+- `验证 we-together skill 包`
+- `给我 we-together 的 CHANGELOG 和 release notes`
+
 ### 不应命中
 
 - `看一下当前状态`
@@ -43,3 +61,4 @@
 1. 强语义请求应落在正确 skill 家族
 2. 裸词请求不应被 `we-together` 抢走
 3. 任意目录启动时，skill 应优先依赖 `local-runtime.md`，而不是全盘搜索
+4. 若需留档，使用 `scripts/capture_codex_skill_evidence.py` 记录命中证据

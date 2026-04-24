@@ -4,6 +4,7 @@ from importlib import util
 from pathlib import Path
 
 from we_together.packaging.codex_skill_support import (
+    DEFAULT_CODEX_SKILL_FAMILY,
     codex_config_has_mcp_server,
     default_codex_skill_target,
     discover_codex_skill_family_sources,
@@ -73,6 +74,10 @@ def _make_source_skill(tmp_path: Path) -> Path:
     for name in ["dev.md", "runtime.md", "ingest.md"]:
         (root / "prompts" / name).write_text("# x\n", encoding="utf-8")
     (root / "references" / "triggers.md").write_text("# triggers\n", encoding="utf-8")
+    (root / "references" / "intent-examples.md").write_text(
+        "## Positive\n- we-together\n\n## Negative\n- other\n",
+        encoding="utf-8",
+    )
     (root / "references" / "local-runtime.template.md").write_text(
         "# template\n",
         encoding="utf-8",
@@ -82,21 +87,11 @@ def _make_source_skill(tmp_path: Path) -> Path:
 
 def _make_source_skill_family(tmp_path: Path) -> Path:
     repo_root = tmp_path / "repo"
-    for name in [
-        "codex_skill",
-        "codex_skill_dev",
-        "codex_skill_runtime",
-        "codex_skill_ingest",
-    ]:
-        root = repo_root / name
+    for skill_name, source_dir in DEFAULT_CODEX_SKILL_FAMILY.items():
+        root = repo_root / source_dir
         (root / "agents").mkdir(parents=True)
         (root / "prompts").mkdir(parents=True)
         (root / "references").mkdir(parents=True)
-        skill_name = (
-            "we-together"
-            if name == "codex_skill"
-            else name.replace("codex_skill_", "we-together-")
-        )
         (root / "SKILL.md").write_text(
             f"---\nname: {skill_name}\ndescription: demo\n---\n",
             encoding="utf-8",
@@ -109,6 +104,10 @@ def _make_source_skill_family(tmp_path: Path) -> Path:
             (root / "prompts" / prompt_name).write_text("# x\n", encoding="utf-8")
         (root / "references" / "triggers.md").write_text(
             "# triggers\n",
+            encoding="utf-8",
+        )
+        (root / "references" / "intent-examples.md").write_text(
+            "## Positive\n- we-together\n\n## Negative\n- other\n",
             encoding="utf-8",
         )
         (root / "references" / "local-runtime.template.md").write_text(
@@ -190,12 +189,7 @@ def test_codex_config_has_mcp_server(tmp_path):
 def test_discover_codex_skill_family_sources(tmp_path):
     repo_root = _make_source_skill_family(tmp_path)
     family = discover_codex_skill_family_sources(repo_root)
-    assert set(family) == {
-        "we-together",
-        "we-together-dev",
-        "we-together-runtime",
-        "we-together-ingest",
-    }
+    assert set(family) == set(DEFAULT_CODEX_SKILL_FAMILY)
 
 
 def test_install_codex_skill_family_dry_run(tmp_path):
@@ -207,13 +201,8 @@ def test_install_codex_skill_family_dry_run(tmp_path):
         dry_run=True,
     )
     assert report["ok"] is True
-    assert set(report["skills"]) == {
-        "we-together",
-        "we-together-dev",
-        "we-together-runtime",
-        "we-together-ingest",
-    }
-    assert len(report["reports"]) == 4
+    assert set(report["skills"]) == set(DEFAULT_CODEX_SKILL_FAMILY)
+    assert len(report["reports"]) == len(DEFAULT_CODEX_SKILL_FAMILY)
 
 
 def test_validate_codex_skill_family_reports_all_installed_skills(tmp_path):
@@ -233,13 +222,8 @@ def test_validate_codex_skill_family_reports_all_installed_skills(tmp_path):
         mcp_server_name="we-together-local-validate",
     )
     assert report["ok"] is True
-    assert set(report["skills"]) == {
-        "we-together",
-        "we-together-dev",
-        "we-together-runtime",
-        "we-together-ingest",
-    }
-    assert len(report["reports"]) == 4
+    assert set(report["skills"]) == set(DEFAULT_CODEX_SKILL_FAMILY)
+    assert len(report["reports"]) == len(DEFAULT_CODEX_SKILL_FAMILY)
 
 
 def test_install_codex_skill_cli_dry_run_reports_install_shape(
@@ -302,14 +286,9 @@ def test_install_codex_skill_cli_family_dry_run_reports_all_skills(
     report = json.loads(capsys.readouterr().out)
     assert report["ok"] is True
     assert report["action"] == "install_codex_skill_family"
-    assert set(report["skills"]) == {
-        "we-together",
-        "we-together-dev",
-        "we-together-runtime",
-        "we-together-ingest",
-    }
+    assert set(report["skills"]) == set(DEFAULT_CODEX_SKILL_FAMILY)
     assert report["missing_sources"] == []
-    assert len(report["reports"]) == 4
+    assert len(report["reports"]) == len(DEFAULT_CODEX_SKILL_FAMILY)
 
 
 def test_update_codex_skill_cli_invokes_force_install(monkeypatch):
@@ -494,4 +473,4 @@ def test_validate_codex_skill_cli_family_installed_ok(
     report = json.loads(capsys.readouterr().out)
     assert report["ok"] is True
     assert report["action"] == "validate_codex_skill_family"
-    assert len(report["reports"]) == 4
+    assert len(report["reports"]) == len(DEFAULT_CODEX_SKILL_FAMILY)
