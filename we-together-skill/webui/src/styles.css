@@ -305,10 +305,19 @@ dd {
 }
 
 .audit-ref,
-.response-box {
+.response-box,
+.mini-json {
   white-space: pre-wrap;
   font-family: "JetBrains Mono", "SF Mono", monospace;
   color: #d9f99d;
+}
+
+.mini-json {
+  overflow: auto;
+  max-height: 220px;
+  margin: 10px 0 0;
+  color: #bae6fd;
+  font-size: 12px;
 }
 
 .timeline {
@@ -342,6 +351,12 @@ dd {
   display: grid;
   gap: 16px;
   align-content: start;
+}
+
+.candidate {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .chat-box {

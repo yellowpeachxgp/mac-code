@@ -20,13 +20,13 @@
 | A14 | Rate limit | `RateLimiter` 120/min | `webui.auth.BearerTokenAuth` |
 | A15 | JSON error | `ok=false/error` | backend pytest |
 | B01-B12 | Read APIs | summary/scenes/graph/entity/events/patches/snapshots/retrieval/world/branches/metrics | backend pytest + implementation |
-| C01-C15 | Write APIs | entity patch/link/unlink/chat/world/branch | backend pytest + implementation |
+| C01-C15 | Write APIs | entity patch/link/unlink/chat/world create/object status/object owner/project status/branch | backend pytest + implementation |
 | D01-D15 | Frontend shell | Vite React TS + token gate + graph workspace + drawer + diff | `webui/src/App.tsx`, `webui/src/App.test.tsx` |
 | E01-E12 | Product pages | Graph/Chat/World/Review/Editor/Timeline/Metrics | `webui/src/App.tsx` |
-| F01-F07 | Backend tests | auth/read/write/chat/world/branch/static | `tests/webui/test_webui_backend.py` |
-| F08 | Frontend tests | token gate, graph render, edit submit | `webui/src/App.test.tsx` |
+| F01-F07 | Backend tests | auth/read/write/chat/world create+update/branch/static | `tests/webui/test_webui_backend.py`（12 tests） |
+| F08 | Frontend tests | token gate, graph render, edit submit, chat turn, world update, review resolve | `webui/src/App.test.tsx`（6 tests） |
 | F09 | Host smoke | seed/start/curl | `scripts/webui_smoke.py` |
-| F10 | Screenshot | 后续 Playwright 可加 | 未纳入第一提交门禁 |
-| F11 | Full pytest | 825 passed / 4 skipped | 已验证 |
+| F10 | Screenshot | Playwright real browser：token gate → graph non-empty → Alice detail drawer → screenshot | `scripts/webui_playwright_smoke.py`；输出 `output/playwright/webui-graph-workspace.png` |
+| F11 | Full pytest | 826 passed / 4 skipped | 已验证：`.venv/bin/python -m pytest -q` |
 | F12-F14 | Docs | LAN token / scripts / getting-started | 文档更新 |
-| F15 | Commit | `feat: add host-local React WebUI workbench` | 待最终验证后提交 |
+| F15 | Commit | `feat: add host-local React WebUI workbench` + follow-up completion commit | 以 git history 中最终 Phase 73 follow-up commit 为准 |

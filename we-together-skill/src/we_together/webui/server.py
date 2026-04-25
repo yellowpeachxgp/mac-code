@@ -234,6 +234,18 @@ def make_handler():
                     self._error(404, "not_found", "Project route not found.")
                     return
                 self._send_json(200, actions.update_world_project_status(root, parts[4], body))
+            elif method == "PATCH" and path.startswith("/api/world/objects/") and path.endswith("/owner"):
+                parts = [unquote(part) for part in path.split("/")]
+                if len(parts) != 6:
+                    self._error(404, "not_found", "Object route not found.")
+                    return
+                self._send_json(200, actions.update_world_object_owner(root, parts[4], body))
+            elif method == "PATCH" and path.startswith("/api/world/objects/") and path.endswith("/status"):
+                parts = [unquote(part) for part in path.split("/")]
+                if len(parts) != 6:
+                    self._error(404, "not_found", "Object route not found.")
+                    return
+                self._send_json(200, actions.update_world_object_status(root, parts[4], body))
             else:
                 self._error(404, "not_found", "API route not found.")
 

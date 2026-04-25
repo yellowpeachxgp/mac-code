@@ -1,13 +1,13 @@
 # 当前状态
 
-日期：2026-04-25
+日期：2026-04-26
 
 > 代码事实快照：
-> - 本地测试基线：**825 passed, 4 skipped**
+> - 本地测试基线：**826 passed, 4 skipped**
 > - ADR：**74**
 > - 不变式：**28**
 > - Migrations：**21**
-> - 当前自审：**74 ADR / 28 invariants / 84 services / 75 scripts / 21 migrations**
+> - 当前自审：**74 ADR / 28 invariants / 84 services / 76 scripts / 21 migrations**
 > - 参考综合：[`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](../decisions/0073-phase-65-70-synthesis.md)
 > - Phase 73 参考：[`docs/superpowers/decisions/0074-phase-73-host-local-webui.md`](../decisions/0074-phase-73-host-local-webui.md)
 > - 参考进度：[`docs/superpowers/state/2026-04-22-phase-65-70-progress.md`](2026-04-22-phase-65-70-progress.md)
@@ -26,13 +26,14 @@
 - WebUI 后端统一 JSON 错误格式：`{"ok": false, "error": {"code": "...", "message": "..."}}`。
 - WebUI read APIs 已覆盖 summary、scenes、graph、entity detail、events、patches、snapshots、retrieval package、world、branches、metrics。
 - WebUI write APIs 通过 `webui.actions` 统一进入；person/relation/memory/group 编辑走 `build_patch` + `apply_patch_record`。
-- link/unlink、create memory、branch resolve 已走 patch；chat 走 `chat_service.run_turn`；scene 走 `scene_service`；world 创建走 `world_service` + `webui_audit` event。
+- link/unlink、create memory、branch resolve 已走 patch；chat 走 `chat_service.run_turn`；scene 走 `scene_service`；world 创建、object owner/status、project status 走 `world_service` / 白名单动作 + `webui_audit` event。
 - 新增 `webui/` React SPA：Vite + React + TypeScript + React Flow + lucide-react。
 - SPA 首屏为图谱工作台，包含 token gate、左导航、中心图谱、右详情检查器、底部 events/patches/snapshots 时间线。
 - SPA 已覆盖 Graph / Chat / World / Review / Metrics 页面；编辑模式先显示 Diff Preview 再提交 Patch。
-- 新增 `tests/webui/test_webui_backend.py`，覆盖 auth、LAN guard、health/bootstrap、summary/scenes/graph/world/review、entity detail、patch update、link/unlink、chat、world create、branch resolve、static SPA。
-- 新增 `webui/src/App.test.tsx`，覆盖 token gate、graph render、detail drawer、diff preview、PATCH Bearer。
+- 新增 `tests/webui/test_webui_backend.py`，覆盖 auth、LAN guard、health/bootstrap、summary/scenes/graph/world/review、entity detail、patch update、link/unlink、chat、world create/update、branch resolve、static SPA。
+- 新增 `webui/src/App.test.tsx`，覆盖 token gate、graph render、detail drawer、diff preview、PATCH Bearer、chat turn、world update、review resolve。
 - 新增 `scripts/webui_smoke.py`，覆盖 seed → start in-process server → health/summary/graph curl-like smoke。
+- 新增 `scripts/webui_playwright_smoke.py`，覆盖真实浏览器 token gate → graph non-empty → Alice detail drawer → screenshot。
 
 ## 2026-04-24 本地切片 — Phase 72 + Codex native skill（进行中）
 

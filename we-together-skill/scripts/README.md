@@ -33,6 +33,7 @@
 | `agent_chat.py` | Agent loop（tool_call/respond） |
 | `webui_server.py` | Phase 73 React WebUI 后端，局域网 token + patch-first API |
 | `webui_smoke.py` | WebUI host smoke：seed → start → health/summary/graph curl 检查 |
+| `webui_playwright_smoke.py` | WebUI real browser smoke：token gate → graph → detail drawer → screenshot |
 
 ## 演化与维护（daily_maintenance 涵盖）
 
@@ -82,6 +83,7 @@ WE_TOGETHER_WEBUI_TOKEN='<strong-token>' \
 
 ```bash
 .venv/bin/python scripts/webui_smoke.py --root /tmp/wt-webui --token dev-token
+.venv/bin/python scripts/webui_playwright_smoke.py --token dev-token
 ```
 
 ## Phase 13-17 新增 CLI

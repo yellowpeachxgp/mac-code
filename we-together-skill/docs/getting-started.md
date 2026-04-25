@@ -72,6 +72,15 @@ WE_TOGETHER_WEBUI_TOKEN='<换成强 token>' \
 
 注意：监听 `0.0.0.0` 或局域网 IP 时必须配置 token；静态 SPA 可以加载，但 `/api/*` 全部要求 `Authorization: Bearer <token>`。
 
+可选浏览器验收：
+
+```bash
+python scripts/webui_smoke.py --root /tmp/wt-webui --token dev-token
+python scripts/webui_playwright_smoke.py --token dev-token
+```
+
+`webui_playwright_smoke.py` 会通过真实浏览器验证 token gate、图谱首屏和详情抽屉，并把截图写入 `output/playwright/`。
+
 ## 5. 跑一周自动演化
 
 ```bash

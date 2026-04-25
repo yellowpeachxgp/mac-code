@@ -3,7 +3,7 @@
 > **对象**：Codex（或任一继任 AI assistant）
 > **目标**：读完本文档 + [`docs/superpowers/state/current-status.md`](superpowers/state/current-status.md) 后 **5 分钟**内回到工作状态。
 > **当前版本**：**v0.19.0（local）** — 本地 tag `v0.19.0` 已打；wheel/build/check 已通过。
-> **代码事实补丁（2026-04-26）**：当前已进入 **Phase 73：Host-local React WebUI 工作台**，新增 ADR 0074、WebUI spec、`src/we_together/webui/` 后端包、`scripts/webui_server.py`、`scripts/webui_smoke.py` 与 `webui/` React SPA。当前全量基线为 **825 passed, 4 skipped**；自审为 **74 ADR / 28 invariants / 84 services / 75 scripts / 21 migrations**。Phase 72 的 **矛盾复核 / operator-gated unmerge** 与 **Codex native skill family 7 技能** 仍是当前基线的一部分。
+> **代码事实补丁（2026-04-26）**：当前已进入 **Phase 73：Host-local React WebUI 工作台**，新增 ADR 0074、WebUI spec、`src/we_together/webui/` 后端包、`scripts/webui_server.py`、`scripts/webui_smoke.py`、`scripts/webui_playwright_smoke.py` 与 `webui/` React SPA。当前全量基线为 **826 passed, 4 skipped**；自审为 **74 ADR / 28 invariants / 84 services / 76 scripts / 21 migrations**。Phase 72 的 **矛盾复核 / operator-gated unmerge** 与 **Codex native skill family 7 技能** 仍是当前基线的一部分。
 
 ---
 
@@ -11,12 +11,12 @@
 
 - **项目**：`we-together-skill` —— 一个 Skill-first 的**社会 + 世界图谱运行时**。不是给 LLM 加一层 memory，是给 LLM 一个**可演化的数字社会**。
 - **三支柱**：
-  - **A 严格工程化** 9.95/10（74 ADR + 28 不变式 + 825/4 测试 + 反身能力）
+  - **A 严格工程化** 9.95/10（74 ADR + 28 不变式 + 826/4 测试 + 反身能力）
   - **B 通用型 Skill** 9.8/10（Claude Skills / OpenAI Assistants / MCP 三路宿主 + plugin 扩展点）
   - **C 数字赛博生态圈** 9.7/10（tick + 神经网格 + 世界建模 + Agent 自主 + 年度真跑证据）
 - **Codex 状态**：本机 `~/.codex/skills/` 下已安装 `we-together`、`we-together-dev`、`we-together-runtime`、`we-together-ingest`、`we-together-world`、`we-together-simulation`、`we-together-release` 七个原生 skill；交互式 Codex 在 `~` 下对显式中文请求已能自动进入 `we-together` 语境，并可用 `capture_codex_skill_evidence.py` 归档命中证据。`codex exec` 仍不适合需要 MCP 审批的调用。
 - **验证链路状态**：`verify_skill_package.py` 与 `skill_host_smoke.py` 的历史假阳性已修复，当前 release / host smoke 证据可信度更高。
-- **Phase 73 WebUI 状态**：新增本地 React 工作台，启动入口为 `scripts/webui_server.py`；局域网监听必须配置 token；核心 entity 编辑走 `event -> patch -> apply`；`dashboard.py` 保留为 legacy minimal dashboard。
+- **Phase 73 WebUI 状态**：新增本地 React 工作台，启动入口为 `scripts/webui_server.py`；局域网监听必须配置 token；核心 entity 编辑走 `event -> patch -> apply`；world 创建/object owner/status/project status 走白名单动作 + `webui_audit`；`dashboard.py` 保留为 legacy minimal dashboard。
 - **工作模式**：用户每次说**"继续推进任务"** / **"进入无人值守连续推进模式"** / **"至少小一百个 task"** → Codex 进入**大批量 TaskCreate → 按 phase 交付 → commit → ADR → bump → tag** 的长工作流。
 - **绝对规则**：新功能不能破坏当前不变式注册表；任何新 migration / 破坏性变更必须先写 ADR。
 
@@ -29,7 +29,7 @@
 | git tag | `v0.19.0`（local） |
 | pyproject version | `0.19.0` |
 | cli VERSION | `0.19.0` |
-| pytest 基线 | **825 passed + 4 skipped**，~43s 本机 |
+| pytest 基线 | **826 passed + 4 skipped**，~43s 本机 |
 | ADR 总数 | 74（`docs/superpowers/decisions/0001-0074`）|
 | 不变式 | **28 条**（`src/we_together/invariants.py`）|
 | Migrations | **21 条**（`db/migrations/0001..0021`）|
@@ -39,7 +39,7 @@
 **快速自检**：
 ```bash
 cd we-together-skill
-.venv/bin/python -m pytest -q         # 期望 825 passed, 4 skipped
+.venv/bin/python -m pytest -q         # 期望 826 passed, 4 skipped
 .venv/bin/python scripts/self_audit.py        # 整体自描述
 .venv/bin/python scripts/invariants_check.py summary  # 28 条不变式 100% 覆盖
 .venv/bin/we-together version         # we-together 0.19.0
@@ -49,6 +49,7 @@ cd we-together-skill
 cd webui && npm install && npm run build && cd ..
 WE_TOGETHER_WEBUI_TOKEN=dev-token .venv/bin/python scripts/webui_server.py --root . --host 127.0.0.1 --port 7788
 .venv/bin/python scripts/webui_smoke.py --root /tmp/wt-webui --token dev-token
+.venv/bin/python scripts/webui_playwright_smoke.py --token dev-token
 ```
 
 ---
@@ -140,7 +141,7 @@ we-together-skill/
 │   │   └── adapters/           # claude / openai / mcp / feishu / langchain / coze
 │   └── services/               # 60+ 服务（见下）
 ├── db/migrations/              # 0001..0021（见下）
-├── tests/                      # 825 passed（见下）
+├── tests/                      # 826 passed（见下）
 ├── scripts/                    # 50+ CLI（见下）
 ├── benchmarks/
 │   ├── year_runs/              # 365 天真跑归档（v0.18 新增）
@@ -341,7 +342,7 @@ git log --oneline | head -5                    # 看最近 5 commits
 git tag -l | tail -5                           # 确认 v0.19.0 已 tag
 
 # 2. 确认测试绿
-.venv/bin/python -m pytest -q                  # 期望 825 passed, 4 skipped
+.venv/bin/python -m pytest -q                  # 期望 826 passed, 4 skipped
 
 # 3. 自描述（反身能力的使用）
 .venv/bin/python scripts/self_audit.py
@@ -396,6 +397,7 @@ seed_society_c(Path('/tmp/wt_year_test'))"
 | MCP server | `scripts/mcp_server.py --root .` |
 | 联邦 server | `scripts/federation_http_server.py --port 7782` |
 | 世界 CLI | `scripts/world_cli.py register-object/place/project` |
+| WebUI 浏览器 smoke | `scripts/webui_playwright_smoke.py --token dev-token` |
 | 梦循环 | `scripts/dream_cycle.py --lookback 30` |
 | Tick 1 周 | `scripts/simulate_week.py --ticks 7 --budget 10` |
 | Tick 1 年 | `scripts/simulate_year.py --days 365 --budget 0 --archive-monthly` |
@@ -493,7 +495,7 @@ ADR commits 用 `docs:` prefix（Phase 综合 / EPIC 用）。
 ## 13. Codex 继任时的具体下一步建议
 
 ### 如果用户只说"继续推进" → 你需要：
-1. 跑 `pytest -q` 确认 **825 passed / 4 skipped** 基线保持
+1. 跑 `pytest -q` 确认 **826 passed / 4 skipped** 基线保持
 2. 读 [`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](superpowers/decisions/0073-phase-65-70-synthesis.md)
 3. 优先沿当前本地 `Phase 72` 推进：矛盾复核 / operator-gated unmerge → 再进入 tenant/world isolation
 

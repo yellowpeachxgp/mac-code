@@ -167,20 +167,25 @@ def _seed_webui_graph(root: Path) -> dict:
 
     place = register_place(db_path, name="Web Room", scope="virtual")
     link_event_to_place(db_path, "event_web_1", place["place_id"])
-    register_object(
+    world_object = register_object(
         db_path,
         kind="tool",
         name="Shared Notebook",
         owner_type="person",
         owner_id="person_web_1",
     )
-    register_project(
+    world_project = register_project(
         db_path,
         name="WebUI Phase",
         goal="ship host local workbench",
         participants=["person_web_1", "person_web_2"],
     )
-    return {"root": root, "db_path": db_path}
+    return {
+        "root": root,
+        "db_path": db_path,
+        "object_id": world_object["object_id"],
+        "project_id": world_project["project_id"],
+    }
 
 
 def _start_server(root: Path, *, token: str = "dev-token", static_dir: Path | None = None):
@@ -455,6 +460,106 @@ def test_webui_world_active_world_and_create_object(temp_project_with_migrations
         ).fetchone()
         conn.close()
         assert event_row == ("webui_audit", "webui")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_webui_world_object_and_project_updates_are_audited(temp_project_with_migrations):
+    seeded = _seed_webui_graph(temp_project_with_migrations)
+    object_id = seeded["object_id"]
+    project_id = seeded["project_id"]
+    server = _start_server(temp_project_with_migrations)
+    try:
+        status, _, owner_payload = _request(
+            server,
+            "PATCH",
+            f"/api/world/objects/{object_id}/owner",
+            body={"owner_type": "person", "owner_id": "person_web_2"},
+        )
+        assert status == 200
+        assert owner_payload["data"]["object_id"] == object_id
+        assert owner_payload["data"]["audit_event_id"].startswith("webui_event_")
+
+        status, _, status_payload = _request(
+            server,
+            "PATCH",
+            f"/api/world/objects/{object_id}/status",
+            body={"status": "lost"},
+        )
+        assert status == 200
+        assert status_payload["data"]["object_id"] == object_id
+        assert status_payload["data"]["status"] == "lost"
+        assert status_payload["data"]["audit_event_id"].startswith("webui_event_")
+
+        status, _, project_payload = _request(
+            server,
+            "PATCH",
+            f"/api/world/projects/{project_id}/status",
+            body={"status": "completed"},
+        )
+        assert status == 200
+        assert project_payload["data"]["project_id"] == project_id
+        assert project_payload["data"]["status"] == "completed"
+        assert project_payload["data"]["audit_event_id"].startswith("webui_event_")
+
+        conn = sqlite3.connect(seeded["db_path"])
+        object_row = conn.execute(
+            "SELECT owner_type, owner_id, status FROM objects WHERE object_id=?",
+            (object_id,),
+        ).fetchone()
+        history_row = conn.execute(
+            """
+            SELECT from_owner_id, to_owner_id, event_id
+            FROM object_ownership_history
+            WHERE object_id=?
+            ORDER BY history_id DESC
+            LIMIT 1
+            """,
+            (object_id,),
+        ).fetchone()
+        old_link_count = conn.execute(
+            """
+            SELECT COUNT(*) FROM entity_links
+            WHERE from_type='person' AND from_id='person_web_1'
+            AND relation_type='owns' AND to_type='object' AND to_id=?
+            """,
+            (object_id,),
+        ).fetchone()[0]
+        new_link_count = conn.execute(
+            """
+            SELECT COUNT(*) FROM entity_links
+            WHERE from_type='person' AND from_id='person_web_2'
+            AND relation_type='owns' AND to_type='object' AND to_id=?
+            """,
+            (object_id,),
+        ).fetchone()[0]
+        project_status = conn.execute(
+            "SELECT status FROM projects WHERE project_id=?",
+            (project_id,),
+        ).fetchone()[0]
+        audit_count = conn.execute(
+            """
+            SELECT COUNT(*) FROM events
+            WHERE event_type='webui_audit'
+            AND event_id IN (?, ?, ?)
+            """,
+            (
+                owner_payload["data"]["audit_event_id"],
+                status_payload["data"]["audit_event_id"],
+                project_payload["data"]["audit_event_id"],
+            ),
+        ).fetchone()[0]
+        conn.close()
+
+        assert object_row == ("person", "person_web_2", "lost")
+        assert history_row[0] == "person_web_1"
+        assert history_row[1] == "person_web_2"
+        assert history_row[2] == owner_payload["data"]["audit_event_id"]
+        assert old_link_count == 0
+        assert new_link_count == 1
+        assert project_status == "completed"
+        assert audit_count == 3
     finally:
         server.shutdown()
         server.server_close()

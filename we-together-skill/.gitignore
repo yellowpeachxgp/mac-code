@@ -3,6 +3,8 @@
 __pycache__/
 *.pyc
 tmp/
+output/
+.playwright-cli/
 .venv/
 .DS_Store
 db/main.sqlite3

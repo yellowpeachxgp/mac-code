@@ -23,6 +23,7 @@ from we_together.services.world_service import (
     register_place,
     register_project,
     set_project_status,
+    transfer_object,
 )
 from we_together.webui import queries
 
@@ -439,3 +440,54 @@ def update_world_project_status(root: Path, project_id: str, payload: dict) -> d
         metadata={"project_id": project_id, "status": result["status"]},
     )
     return {**result, "audit_event_id": audit_event_id, "summary": queries.summary(root)}
+
+
+def update_world_object_owner(root: Path, object_id: str, payload: dict) -> dict:
+    owner_type = payload.get("owner_type")
+    owner_id = payload.get("owner_id")
+    if not owner_type or not owner_id:
+        raise ValueError("owner_type and owner_id are required")
+    db_path = _db_path(root)
+    audit_event_id = record_webui_audit_event(
+        db_path,
+        summary=f"WebUI transfer object {object_id} to {owner_type}:{owner_id}",
+        metadata={"object_id": object_id, "owner_type": owner_type, "owner_id": owner_id},
+    )
+    result = transfer_object(
+        db_path,
+        object_id=object_id,
+        new_owner_type=owner_type,
+        new_owner_id=owner_id,
+        event_id=audit_event_id,
+    )
+    return {**result, "audit_event_id": audit_event_id, "summary": queries.summary(root)}
+
+
+def update_world_object_status(root: Path, object_id: str, payload: dict) -> dict:
+    status = payload.get("status")
+    valid_statuses = {"active", "inactive", "lost", "destroyed"}
+    if status not in valid_statuses:
+        raise ValueError(f"object status must be in {sorted(valid_statuses)}")
+    db_path = _db_path(root)
+    audit_event_id = record_webui_audit_event(
+        db_path,
+        summary=f"WebUI set object {object_id} status {status}",
+        metadata={"object_id": object_id, "status": status},
+    )
+    conn = connect(db_path)
+    try:
+        cursor = conn.execute(
+            "UPDATE objects SET status=?, updated_at=datetime('now') WHERE object_id=?",
+            (status, object_id),
+        )
+        if cursor.rowcount != 1:
+            raise ValueError(f"object not found: {object_id}")
+        conn.commit()
+    finally:
+        conn.close()
+    return {
+        "object_id": object_id,
+        "status": status,
+        "audit_event_id": audit_event_id,
+        "summary": queries.summary(root),
+    }

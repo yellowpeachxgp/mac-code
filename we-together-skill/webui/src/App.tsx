@@ -54,6 +54,9 @@ type Snapshot = { snapshot_id: string; summary?: string; created_at?: string };
 type Branch = { branch_id: string; reason?: string; status?: string; candidates: Array<{ candidate_id: string; label?: string; confidence?: number; payload_json?: unknown }> };
 type Detail = { entity: Record<string, unknown>; links?: unknown; patches?: Patch[] };
 type AuditRef = { event_id?: string; patch_id?: string; snapshot_id?: string; audit_event_id?: string };
+type WorldObject = { object_id: string; kind?: string; name?: string; status?: string; owner_type?: string; owner_id?: string };
+type WorldPlace = { place_id: string; name?: string; scope?: string; status?: string };
+type WorldProject = { project_id: string; name?: string; status?: string; goal?: string };
 
 type AppData = {
   summary?: Summary;
@@ -64,7 +67,7 @@ type AppData = {
   patches: Patch[];
   snapshots: Snapshot[];
   branches: Branch[];
-  world: { objects: unknown[]; places: unknown[]; projects: unknown[] };
+  world: { objects: WorldObject[]; places: WorldPlace[]; projects: WorldProject[] };
 };
 
 const emptyData: AppData = {
@@ -160,6 +163,7 @@ export default function App() {
   const [auditRef, setAuditRef] = useState<AuditRef | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatOutput, setChatOutput] = useState("");
+  const [chatRetrieval, setChatRetrieval] = useState<unknown>(null);
 
   async function loadWorkspace(api = client) {
     if (!api) return;
@@ -174,7 +178,7 @@ export default function App() {
         api.request<{ events: EventItem[] }>("/api/events?limit=20"),
         api.request<{ patches: Patch[] }>("/api/patches"),
         api.request<{ snapshots: Snapshot[] }>("/api/snapshots?limit=20"),
-        api.request<{ objects: unknown[]; places: unknown[]; projects: unknown[] }>(sceneFilter ? `/api/world?scene_id=${encodeURIComponent(sceneFilter)}` : "/api/world"),
+        api.request<{ objects: WorldObject[]; places: WorldPlace[]; projects: WorldProject[] }>(sceneFilter ? `/api/world?scene_id=${encodeURIComponent(sceneFilter)}` : "/api/world"),
         api.request<{ branches: Branch[] }>("/api/branches?status=open")
       ]);
       setData({
@@ -246,11 +250,12 @@ export default function App() {
       setError("需要至少一个 scene 才能运行对话。");
       return;
     }
-    const result = await client.request<{ text: string; event_id?: string }>("/api/chat/run-turn", {
+    const result = await client.request<{ text: string; event_id?: string; retrieval_package?: unknown }>("/api/chat/run-turn", {
       method: "POST",
       body: JSON.stringify({ scene_id: sceneId, input: chatInput })
     });
     setChatOutput(`${result.text}\n\n事件：${result.event_id || "-"}`);
+    setChatRetrieval(result.retrieval_package || null);
     setChatInput("");
     await loadWorkspace();
   }
@@ -394,6 +399,10 @@ export default function App() {
               <h3>本轮可选 scenes</h3>
               {data.scenes.map((scene) => <p key={scene.scene_id}>{scene.scene_summary || scene.scene_id} · {scene.participant_count || 0} participants</p>)}
             </div>
+            <div className="side-list">
+              <h3>retrieval_package</h3>
+              <pre className="mini-json">{chatRetrieval ? JSON.stringify(chatRetrieval, null, 2) : "等待 chat turn 返回检索包。"}</pre>
+            </div>
           </section>
         )}
 
@@ -408,13 +417,17 @@ export default function App() {
                 <h3>{branch.branch_id}</h3>
                 <p>{branch.reason || "无 reason"}</p>
                 {branch.candidates.map((candidate) => (
-                  <button key={candidate.candidate_id} onClick={() => void resolveBranch(branch, candidate.candidate_id)}>
-                    选择 {candidate.label || candidate.candidate_id} · confidence {candidate.confidence ?? "-"}
-                  </button>
+                  <div className="candidate" key={candidate.candidate_id}>
+                    <button onClick={() => void resolveBranch(branch, candidate.candidate_id)}>
+                      选择 {candidate.label || candidate.candidate_id} · confidence {candidate.confidence ?? "-"}
+                    </button>
+                    <pre className="mini-json">{JSON.stringify(candidate.payload_json || {}, null, 2)}</pre>
+                  </div>
                 ))}
               </article>
             ))}
             {!data.branches.length && <p className="muted">当前没有 open local_branch。</p>}
+            {auditRef && <pre className="audit-ref">{JSON.stringify(auditRef, null, 2)}</pre>}
           </section>
         )}
 
@@ -504,7 +517,13 @@ function Timeline({ events, patches, snapshots }: { events: EventItem[]; patches
 function WorldPanel({ client, data, reload }: { client: ApiClient; data: AppData; reload: () => Promise<void> }) {
   const [kind, setKind] = useState("artifact");
   const [name, setName] = useState("");
+  const [objectStatus, setObjectStatus] = useState("active");
+  const [ownerType, setOwnerType] = useState("person");
+  const [ownerId, setOwnerId] = useState("");
+  const [projectStatus, setProjectStatus] = useState("active");
   const [auditRef, setAuditRef] = useState<AuditRef | null>(null);
+  const firstObject = data.world.objects[0];
+  const firstProject = data.world.projects[0];
 
   async function createObject(event: FormEvent) {
     event.preventDefault();
@@ -517,12 +536,74 @@ function WorldPanel({ client, data, reload }: { client: ApiClient; data: AppData
     await reload();
   }
 
+  async function updateObjectStatus(event: FormEvent) {
+    event.preventDefault();
+    if (!firstObject) return;
+    const result = await client.request<AuditRef>(`/api/world/objects/${firstObject.object_id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: objectStatus })
+    });
+    setAuditRef(result);
+    await reload();
+  }
+
+  async function updateObjectOwner(event: FormEvent) {
+    event.preventDefault();
+    if (!firstObject || !ownerId.trim()) return;
+    const result = await client.request<AuditRef>(`/api/world/objects/${firstObject.object_id}/owner`, {
+      method: "PATCH",
+      body: JSON.stringify({ owner_type: ownerType, owner_id: ownerId.trim() })
+    });
+    setAuditRef(result);
+    await reload();
+  }
+
+  async function updateProjectStatus(event: FormEvent) {
+    event.preventDefault();
+    if (!firstProject) return;
+    const result = await client.request<AuditRef>(`/api/world/projects/${firstProject.project_id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: projectStatus })
+    });
+    setAuditRef(result);
+    await reload();
+  }
+
   return (
     <section className="panel-page world-grid">
       <form onSubmit={createObject} className="inline-form">
         <input value={kind} onChange={(event) => setKind(event.target.value)} placeholder="kind" />
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="world object name" />
         <button type="submit">创建 Object</button>
+      </form>
+      <form onSubmit={updateObjectStatus} className="inline-form">
+        <label>
+          Object status
+          <select value={objectStatus} onChange={(event) => setObjectStatus(event.target.value)} disabled={!firstObject}>
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+            <option value="lost">lost</option>
+            <option value="destroyed">destroyed</option>
+          </select>
+        </label>
+        <button type="submit" disabled={!firstObject}>更新 Object 状态</button>
+      </form>
+      <form onSubmit={updateObjectOwner} className="inline-form">
+        <input value={ownerType} onChange={(event) => setOwnerType(event.target.value)} placeholder="owner_type" disabled={!firstObject} />
+        <input value={ownerId} onChange={(event) => setOwnerId(event.target.value)} placeholder="owner_id" disabled={!firstObject} />
+        <button type="submit" disabled={!firstObject}>转移 Object owner</button>
+      </form>
+      <form onSubmit={updateProjectStatus} className="inline-form">
+        <label>
+          Project status
+          <select value={projectStatus} onChange={(event) => setProjectStatus(event.target.value)} disabled={!firstProject}>
+            <option value="active">active</option>
+            <option value="completed">completed</option>
+            <option value="abandoned">abandoned</option>
+            <option value="archived">archived</option>
+          </select>
+        </label>
+        <button type="submit" disabled={!firstProject}>更新 Project 状态</button>
       </form>
       <WorldList title="Objects" items={data.world.objects} />
       <WorldList title="Places" items={data.world.places} />
