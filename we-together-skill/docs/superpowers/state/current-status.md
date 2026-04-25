@@ -3,13 +3,36 @@
 日期：2026-04-25
 
 > 代码事实快照：
-> - 本地测试基线：**814 passed, 4 skipped**
-> - ADR：**73**
+> - 本地测试基线：**825 passed, 4 skipped**
+> - ADR：**74**
 > - 不变式：**28**
 > - Migrations：**21**
+> - 当前自审：**74 ADR / 28 invariants / 84 services / 75 scripts / 21 migrations**
 > - 参考综合：[`docs/superpowers/decisions/0073-phase-65-70-synthesis.md`](../decisions/0073-phase-65-70-synthesis.md)
+> - Phase 73 参考：[`docs/superpowers/decisions/0074-phase-73-host-local-webui.md`](../decisions/0074-phase-73-host-local-webui.md)
 > - 参考进度：[`docs/superpowers/state/2026-04-22-phase-65-70-progress.md`](2026-04-22-phase-65-70-progress.md)
 > - 参考排序：[`docs/superpowers/state/2026-04-23-v0-20-candidate-ordering.md`](2026-04-23-v0-20-candidate-ordering.md)
+
+## 2026-04-26 本地切片 — Phase 73 Host-local React WebUI（进行中）
+
+- 新增 `docs/superpowers/specs/2026-04-26-host-local-react-webui.md`，明确 React SPA、局域网 token、Patch 优先、首屏图谱工作台。
+- 新增 ADR 0074：`docs/superpowers/decisions/0074-phase-73-host-local-webui.md`。
+- 新增 `docs/superpowers/state/2026-04-26-webui-acceptance-matrix.md`。
+- 新增 `src/we_together/webui/` 包，拆分 `auth.py` / `queries.py` / `actions.py` / `server.py`。
+- 新增 `scripts/webui_server.py`，作为 Phase 73 WebUI 后端入口；`scripts/dashboard.py` 继续保留为 legacy minimal dashboard。
+- WebUI 后端使用 stdlib `HTTPServer`，所有 `/api/*` 使用 Bearer token；非 loopback host 无 token 会启动失败。
+- WebUI 后端已复用 `tenant_router.resolve_tenant_root`，支持 `--tenant-id`。
+- WebUI 后端已接入 `RateLimiter`，默认每 token 每分钟 120 次。
+- WebUI 后端统一 JSON 错误格式：`{"ok": false, "error": {"code": "...", "message": "..."}}`。
+- WebUI read APIs 已覆盖 summary、scenes、graph、entity detail、events、patches、snapshots、retrieval package、world、branches、metrics。
+- WebUI write APIs 通过 `webui.actions` 统一进入；person/relation/memory/group 编辑走 `build_patch` + `apply_patch_record`。
+- link/unlink、create memory、branch resolve 已走 patch；chat 走 `chat_service.run_turn`；scene 走 `scene_service`；world 创建走 `world_service` + `webui_audit` event。
+- 新增 `webui/` React SPA：Vite + React + TypeScript + React Flow + lucide-react。
+- SPA 首屏为图谱工作台，包含 token gate、左导航、中心图谱、右详情检查器、底部 events/patches/snapshots 时间线。
+- SPA 已覆盖 Graph / Chat / World / Review / Metrics 页面；编辑模式先显示 Diff Preview 再提交 Patch。
+- 新增 `tests/webui/test_webui_backend.py`，覆盖 auth、LAN guard、health/bootstrap、summary/scenes/graph/world/review、entity detail、patch update、link/unlink、chat、world create、branch resolve、static SPA。
+- 新增 `webui/src/App.test.tsx`，覆盖 token gate、graph render、detail drawer、diff preview、PATCH Bearer。
+- 新增 `scripts/webui_smoke.py`，覆盖 seed → start in-process server → health/summary/graph curl-like smoke。
 
 ## 2026-04-24 本地切片 — Phase 72 + Codex native skill（进行中）
 

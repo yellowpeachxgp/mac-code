@@ -54,6 +54,24 @@ python scripts/dashboard.py --root . --port 7780
 
 /api/summary + /api/tick + /metrics (Prometheus 文本) 也可以裸调。
 
+`dashboard.py` 是 legacy minimal dashboard。Phase 73 起，推荐使用本地 React WebUI 工作台：
+
+```bash
+cd webui && npm install && npm run build && cd ..
+WE_TOGETHER_WEBUI_TOKEN=dev-token \
+  python scripts/webui_server.py --root . --host 127.0.0.1 --port 7788
+# 浏览器打开 http://127.0.0.1:7788，输入 dev-token
+```
+
+局域网访问示例：
+
+```bash
+WE_TOGETHER_WEBUI_TOKEN='<换成强 token>' \
+  python scripts/webui_server.py --root . --host 0.0.0.0 --port 7788
+```
+
+注意：监听 `0.0.0.0` 或局域网 IP 时必须配置 token；静态 SPA 可以加载，但 `/api/*` 全部要求 `Authorization: Bearer <token>`。
+
 ## 5. 跑一周自动演化
 
 ```bash

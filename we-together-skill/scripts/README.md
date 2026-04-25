@@ -31,6 +31,8 @@
 | `dialogue_turn.py` | 一键端到端 turn |
 | `chat.py` | 多人共演 REPL |
 | `agent_chat.py` | Agent loop（tool_call/respond） |
+| `webui_server.py` | Phase 73 React WebUI 后端，局域网 token + patch-first API |
+| `webui_smoke.py` | WebUI host smoke：seed → start → health/summary/graph curl 检查 |
 
 ## 演化与维护（daily_maintenance 涵盖）
 
@@ -60,6 +62,27 @@
 | `metrics_server.py` | Prometheus `/metrics` 端点 |
 | `bench_large.py` | 大规模压测 + 冷/热检索延迟 p50/p95 |
 | `package_skill.py` | `.weskill.zip` 打包 / 解包 |
+
+## WebUI（Phase 73）
+
+```bash
+cd webui && npm install && npm run build && cd ..
+WE_TOGETHER_WEBUI_TOKEN=dev-token \
+  .venv/bin/python scripts/webui_server.py --root . --host 127.0.0.1 --port 7788
+```
+
+局域网模式必须配置 token：
+
+```bash
+WE_TOGETHER_WEBUI_TOKEN='<strong-token>' \
+  .venv/bin/python scripts/webui_server.py --root . --host 0.0.0.0 --port 7788
+```
+
+烟测：
+
+```bash
+.venv/bin/python scripts/webui_smoke.py --root /tmp/wt-webui --token dev-token
+```
 
 ## Phase 13-17 新增 CLI
 

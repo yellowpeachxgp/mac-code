@@ -10,3 +10,6 @@ data/raw/
 data/derived/
 data/runtime/
 data/snapshots/
+webui/node_modules/
+webui/dist/
+webui/*.tsbuildinfo
